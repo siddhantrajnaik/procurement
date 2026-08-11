@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TabType } from '../types';
 import { avatarClasses } from '../lib/accent';
@@ -13,7 +13,7 @@ const DESKTOP_TABS: { id: TabType; label: string; icon: string }[] = [
 ];
 
 export const Header: React.FC = () => {
-  const { currentUser, logout, setIsCreateModalOpen, activeTab, setActiveTab } = useApp();
+  const { currentUser, logout, setIsCreateModalOpen, activeTab, setActiveTab, inventoryItems } = useApp();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -25,6 +25,11 @@ export const Header: React.FC = () => {
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [isMenuOpen]);
+
+  const lowStockCount = useMemo(
+    () => inventoryItems.filter((i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold).length,
+    [inventoryItems]
+  );
 
   if (!currentUser) return null;
 
@@ -50,7 +55,14 @@ export const Header: React.FC = () => {
                   : 'text-gray-400 hover:text-gray-200 hover:bg-[#1E1E1E]'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
+              <span className="relative material-symbols-outlined text-[18px]">
+                {tab.icon}
+                {tab.id === 'inventory' && lowStockCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center rounded-full bg-amber-500 text-[8px] font-bold text-black">
+                    {lowStockCount}
+                  </span>
+                )}
+              </span>
               {tab.label}
             </button>
           );

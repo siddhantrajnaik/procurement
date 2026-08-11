@@ -3,13 +3,14 @@ import { useApp } from '../context/AppContext';
 import { Search, X } from 'lucide-react';
 import { PurchaseCard } from './PurchaseCard';
 import { QuickActionSheet } from './QuickActionSheet';
-import { Purchase } from '../types';
+import { Purchase, InventoryItem } from '../types';
+import { avatarClasses } from '../lib/accent';
+import { initialOf, timeAgo } from '../lib/format';
 
 export const SearchView: React.FC = () => {
-  const { purchases, searchQuery, setSearchQuery, setSelectedPurchase, setEditingPurchase } = useApp();
+  const { purchases, inventoryItems, searchQuery, setSearchQuery, setSelectedPurchase, setEditingPurchase, setActiveTab } = useApp();
   const [activeQuickPurchase, setActiveQuickPurchase] = useState<Purchase | null>(null);
 
-  // Built from live data so the chips always point at something that exists.
   const shortcuts = useMemo(() => {
     const vendors = purchases.flatMap((p) => p.quotations.map((q) => q.vendor));
     const categories = purchases.map((p) => p.category);
@@ -31,6 +32,19 @@ export const SearchView: React.FC = () => {
     );
   }, [purchases, searchQuery]);
 
+  const inventoryResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    return inventoryItems.filter(
+      (i) =>
+        i.name.toLowerCase().includes(query) ||
+        i.category.toLowerCase().includes(query) ||
+        i.location.toLowerCase().includes(query) ||
+        (i.notes?.toLowerCase().includes(query) ?? false) ||
+        (i.addedBy?.name.toLowerCase().includes(query) ?? false)
+    );
+  }, [inventoryItems, searchQuery]);
+
   return (
     <div className="flex-1 flex flex-col pb-28 pt-4 max-w-3xl mx-auto w-full px-4 space-y-4">
       <div className="relative">
@@ -38,8 +52,8 @@ export const SearchView: React.FC = () => {
         <input
           type="search"
           autoFocus
-          placeholder="Search items, vendors, people, replies…"
-          aria-label="Search purchases"
+          placeholder="Search requests, inventory, vendors, people…"
+          aria-label="Search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-10 pr-10 py-3 rounded-xl bg-[#1E1E1E] border border-[#2A2A2A] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -55,7 +69,7 @@ export const SearchView: React.FC = () => {
         )}
       </div>
 
-      {shortcuts.length > 0 && (
+      {shortcuts.length > 0 && !searchQuery && (
         <div>
           <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-2">
             Jump to
@@ -65,11 +79,7 @@ export const SearchView: React.FC = () => {
               <button
                 key={sc}
                 onClick={() => setSearchQuery(sc)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
-                  searchQuery.toLowerCase() === sc.toLowerCase()
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-[#1E1E1E] text-gray-300 border-[#2A2A2A] hover:bg-[#2A2A2A]'
-                }`}
+                className="px-3 py-1 rounded-full text-xs font-semibold border transition-colors bg-[#1E1E1E] text-gray-300 border-[#2A2A2A] hover:bg-[#2A2A2A]"
               >
                 {sc}
               </button>
@@ -78,20 +88,42 @@ export const SearchView: React.FC = () => {
         </div>
       )}
 
+      {inventoryResults.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px]">inventory_2</span>
+            Inventory ({inventoryResults.length})
+          </h2>
+          <div className="flex flex-col gap-2">
+            {inventoryResults.map((item) => (
+              <InventoryResultCard key={item.id} item={item} onNavigate={() => setActiveTab('inventory')} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider pt-1">
-        {searchQuery ? `${results.length} result${results.length === 1 ? '' : 's'}` : 'All requests'}
+        {searchQuery
+          ? `Requests (${results.length})`
+          : 'All requests'}
       </h2>
 
       <div className="flex flex-col gap-4">
         {results.length === 0 ? (
           <div className="bg-[#1E1E1E] border border-dashed border-[#2A2A2A] rounded-xl p-8 text-center space-y-2">
-            <p className="text-sm text-gray-400">No purchases match “{searchQuery}”.</p>
-            <button
-              onClick={() => setSearchQuery('')}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
-              Clear search
-            </button>
+            <p className="text-sm text-gray-400">
+              {searchQuery
+                ? `No requests match "${searchQuery}".`
+                : 'No requests yet.'}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                Clear search
+              </button>
+            )}
           </div>
         ) : (
           results.map((purchase) => (
@@ -116,3 +148,57 @@ export const SearchView: React.FC = () => {
     </div>
   );
 };
+
+function InventoryResultCard({ item, onNavigate }: { item: InventoryItem; onNavigate: () => void }) {
+  const isLow = item.lowStockThreshold != null && item.quantity <= item.lowStockThreshold;
+  const isEmpty = item.quantity === 0;
+
+  return (
+    <button
+      onClick={onNavigate}
+      className="w-full text-left bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition-colors"
+    >
+      <div className="w-10 h-10 rounded-lg bg-[#2A2A2A] flex items-center justify-center shrink-0">
+        <span className="material-symbols-outlined text-[20px] text-gray-400">inventory_2</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-white truncate">{item.name}</span>
+          <span className="text-[10px] font-semibold text-gray-400 bg-[#2A2A2A] px-1.5 py-0.5 rounded shrink-0">
+            {item.category}
+          </span>
+          {isEmpty && (
+            <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded shrink-0">
+              Out
+            </span>
+          )}
+          {isLow && !isEmpty && (
+            <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">
+              Low
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+          <span className={`font-mono font-bold ${isEmpty ? 'text-red-400' : isLow ? 'text-amber-300' : 'text-gray-300'}`}>
+            {item.quantity} {item.unit}
+          </span>
+          {item.location && (
+            <span className="flex items-center gap-0.5 truncate">
+              <span className="material-symbols-outlined text-[12px]">location_on</span>
+              {item.location}
+            </span>
+          )}
+          {item.addedBy && (
+            <span className="flex items-center gap-1 shrink-0">
+              <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold ${avatarClasses(item.addedBy.accent)}`}>
+                {initialOf(item.addedBy.name)}
+              </span>
+              {timeAgo(item.createdAt)}
+            </span>
+          )}
+        </div>
+      </div>
+      <span className="material-symbols-outlined text-[16px] text-gray-600 shrink-0">chevron_right</span>
+    </button>
+  );
+}

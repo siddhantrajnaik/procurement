@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { TabType } from '../types';
 
@@ -10,12 +11,18 @@ const NAV_ITEMS: { id: TabType; label: string; icon: string }[] = [
 ];
 
 export const BottomNav: React.FC = () => {
-  const { activeTab, setActiveTab } = useApp();
+  const { activeTab, setActiveTab, inventoryItems } = useApp();
+
+  const lowStockCount = useMemo(
+    () => inventoryItems.filter((i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold).length,
+    [inventoryItems]
+  );
 
   return (
     <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] glass-nav pb-2 md:hidden">
       {NAV_ITEMS.map((item) => {
         const isActive = activeTab === item.id;
+        const badge = item.id === 'inventory' && lowStockCount > 0 ? lowStockCount : 0;
         return (
           <button
             key={item.id}
@@ -25,8 +32,13 @@ export const BottomNav: React.FC = () => {
               isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-primary/10' : ''}`}>
+            <div className={`relative p-1.5 rounded-xl transition-colors ${isActive ? 'bg-primary/10' : ''}`}>
               <span className="material-symbols-outlined text-[24px]">{item.icon}</span>
+              {badge > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-black">
+                  {badge}
+                </span>
+              )}
             </div>
             <span className={`text-[10px] tracking-wider uppercase ${isActive ? 'font-bold' : 'font-semibold'}`}>
               {item.label}

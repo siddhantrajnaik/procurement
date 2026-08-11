@@ -6,7 +6,7 @@ import { User } from '../types';
 import { UserCheck, Building } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
-  const { currentUser, allUsers, login, purchases, verifyAdminPin, showToast } = useApp();
+  const { currentUser, allUsers, login, purchases, inventoryItems, verifyAdminPin, showToast } = useApp();
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);
@@ -24,6 +24,9 @@ export const ProfileView: React.FC = () => {
     const aq = p.quotations.find((q) => q.isApproved);
     return acc + (aq ? aq.price : 0);
   }, 0);
+  const lowStockCount = inventoryItems.filter(
+    (i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold
+  ).length;
 
   if (!currentUser) return null;
 
@@ -91,6 +94,19 @@ export const ProfileView: React.FC = () => {
           <p className="text-base font-extrabold text-emerald-300">
             {formatRupees(totalSpend)}
           </p>
+        </div>
+        <div className="bg-[#1E1E1E] p-3.5 rounded-xl border border-[#2A2A2A] space-y-1 col-span-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+            Inventory
+          </p>
+          <div className="flex items-baseline gap-3">
+            <span className="text-xl font-extrabold text-white">{inventoryItems.length} items</span>
+            {lowStockCount > 0 && (
+              <span className="text-xs font-bold text-amber-300">
+                {lowStockCount} low stock
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
