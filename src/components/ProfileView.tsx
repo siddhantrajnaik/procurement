@@ -1,10 +1,15 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
+import { User } from '../types';
 import { UserCheck, Building } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
-  const { currentUser, allUsers, login, purchases } = useApp();
+  const { currentUser, allUsers, login, purchases, verifyAdminPin, showToast } = useApp();
+  const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
+  const [pin, setPin] = useState('');
+  const [isChecking, setIsChecking] = useState(false);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'
@@ -99,10 +104,21 @@ export const ProfileView: React.FC = () => {
         </div>
 
         <div className="space-y-1.5">
-          {allUsers.map((u) => (
+          {allUsers.map((u) => {
+            const isAdmin = u.role === 'pi' || u.role === 'procurement_incharge';
+            const handleClick = () => {
+              if (u.id === currentUser.id) return;
+              if (isAdmin) {
+                setPendingAdmin(u);
+                setPin('');
+              } else {
+                login(u.id);
+              }
+            };
+            return (
             <button
               key={u.id}
-              onClick={() => login(u.id)}
+              onClick={handleClick}
               className={`w-full text-left p-2.5 rounded-lg flex items-center justify-between text-xs transition-colors ${
                 u.id === currentUser.id
                   ? 'bg-primary text-white font-semibold'
@@ -131,10 +147,77 @@ export const ProfileView: React.FC = () => {
                 </div>
               </div>
               {u.id === currentUser.id && <UserCheck className="w-4 h-4 text-white" />}
+              {u.id !== currentUser.id && isAdmin && (
+                <span className="material-symbols-outlined text-[14px] text-gray-500">lock</span>
+              )}
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      {pendingAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPendingAdmin(null)} />
+          <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6 flex flex-col items-center">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg mb-3 ${avatarClasses(pendingAdmin.accent)}`}>
+              {initialOf(pendingAdmin.name)}
+            </div>
+            <h3 className="font-bold text-white text-base mb-1">Enter admin PIN</h3>
+            <p className="text-xs text-gray-400 mb-4">Switching to {pendingAdmin.name}</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (pin.length < 4 || isChecking) return;
+                setIsChecking(true);
+                try {
+                  const ok = await verifyAdminPin(pin);
+                  if (ok) {
+                    login(pendingAdmin.id);
+                    setPendingAdmin(null);
+                  } else {
+                    showToast('Incorrect PIN.', 'error');
+                    setPin('');
+                  }
+                } catch {
+                  showToast('Could not verify the PIN.', 'error');
+                } finally {
+                  setIsChecking(false);
+                }
+              }}
+              className="w-full space-y-3"
+            >
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={8}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+                className="w-full px-4 py-2.5 bg-background border border-[#2A2A2A] rounded-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-white text-center text-lg font-mono tracking-[0.6em]"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingAdmin(null)}
+                  className="flex-1 py-2 text-sm font-medium text-gray-300 bg-[#2A2A2A] rounded-md hover:bg-[#333] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pin.length < 4 || isChecking}
+                  className="flex-1 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-orange-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {isChecking ? 'Checking...' : 'Unlock'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
