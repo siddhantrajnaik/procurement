@@ -28,6 +28,8 @@ export const InventoryView: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [actionTarget, setActionTarget] = useState<{ item: InventoryItem; type: 'consume' | 'restock' | 'move' } | null>(null);
   const [editTarget, setEditTarget] = useState<InventoryItem | null>(null);
+  const [logSearch, setLogSearch] = useState('');
+  const [logActionFilter, setLogActionFilter] = useState('all');
 
   const categories = useMemo(() => {
     const cats = new Set(inventoryItems.map((i) => i.category));
@@ -61,6 +63,27 @@ export const InventoryView: React.FC = () => {
     }
     return sorted;
   }, [inventoryItems, search, categoryFilter, sortBy]);
+
+  const filteredLog = useMemo(() => {
+    return inventoryLog.filter((entry) => {
+      if (logActionFilter !== 'all' && entry.action !== logActionFilter) return false;
+      if (logSearch) {
+        const q = logSearch.toLowerCase();
+        return (
+          entry.itemName.toLowerCase().includes(q) ||
+          (entry.actor?.name.toLowerCase().includes(q) ?? false) ||
+          (entry.notes?.toLowerCase().includes(q) ?? false) ||
+          (entry.newLocation?.toLowerCase().includes(q) ?? false)
+        );
+      }
+      return true;
+    });
+  }, [inventoryLog, logSearch, logActionFilter]);
+
+  const logActionTypes = useMemo(() => {
+    const types = new Set(inventoryLog.map((e) => e.action));
+    return Array.from(types).sort();
+  }, [inventoryLog]);
 
   const lowStockCount = useMemo(
     () => inventoryItems.filter((i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold).length,
@@ -194,7 +217,57 @@ export const InventoryView: React.FC = () => {
               </p>
             </div>
           ) : (
-            inventoryLog.map((entry) => {
+            <>
+              <div className="relative mb-1">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">
+                  search
+                </span>
+                <input
+                  className="w-full pl-9 pr-4 py-2 bg-[#1E1E1E] border border-[#2A2A2A] rounded-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm text-white placeholder:text-gray-500"
+                  placeholder="Search log entries..."
+                  value={logSearch}
+                  onChange={(e) => setLogSearch(e.target.value)}
+                />
+              </div>
+
+              {logActionTypes.length > 1 && (
+                <div className="overflow-x-auto no-scrollbar flex gap-2 pb-2 mb-1">
+                  <button
+                    onClick={() => setLogActionFilter('all')}
+                    className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                      logActionFilter === 'all'
+                        ? 'bg-primary/15 text-primary border-primary/30'
+                        : 'bg-[#1E1E1E] text-gray-400 border-[#2A2A2A] hover:text-gray-200'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {logActionTypes.map((action) => {
+                    const meta = ACTION_META[action] ?? ACTION_META.adjusted;
+                    return (
+                      <button
+                        key={action}
+                        onClick={() => setLogActionFilter(action)}
+                        className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium transition-colors border flex items-center gap-1 ${
+                          logActionFilter === action
+                            ? 'bg-primary/15 text-primary border-primary/30'
+                            : 'bg-[#1E1E1E] text-gray-400 border-[#2A2A2A] hover:text-gray-200'
+                        }`}
+                      >
+                        {meta.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500 mb-1">{filteredLog.length} entr{filteredLog.length !== 1 ? 'ies' : 'y'}</p>
+
+              {filteredLog.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <p className="text-gray-400 text-sm">No matching log entries.</p>
+                </div>
+              ) : filteredLog.map((entry) => {
               const meta = ACTION_META[entry.action] ?? ACTION_META.adjusted;
               return (
                 <div
@@ -232,7 +305,8 @@ export const InventoryView: React.FC = () => {
                   </div>
                 </div>
               );
-            })
+            })}
+            </>
           )}
         </div>
       )}

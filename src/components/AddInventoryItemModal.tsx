@@ -17,13 +17,21 @@ const CATEGORIES = [
 
 const UNITS = ['mL', 'µL', 'L', 'g', 'mg', 'µg', 'pcs', 'packs', 'boxes', 'bottles', 'vials', 'plates', 'strips'];
 
+interface Prefill {
+  name: string;
+  category: string;
+  quantity: string;
+  notes?: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   editItem: InventoryItem | null;
+  prefill?: Prefill | null;
 }
 
-export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem }) => {
+export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem, prefill }) => {
   const { addInventoryItem, editInventoryItem, inventoryItems } = useApp();
 
   const [name, setName] = useState('');
@@ -50,6 +58,14 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
         setLocation(editItem.location);
         setLowStock(editItem.lowStockThreshold != null ? String(editItem.lowStockThreshold) : '');
         setNotes(editItem.notes ?? '');
+      } else if (prefill) {
+        setName(prefill.name);
+        setCategory(CATEGORIES.includes(prefill.category) ? prefill.category : 'General');
+        setQuantity(prefill.quantity);
+        setUnit('pcs');
+        setLocation('');
+        setLowStock('');
+        setNotes(prefill.notes ?? '');
       } else {
         setName('');
         setCategory('General');
@@ -60,7 +76,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
         setNotes('');
       }
     }
-  }, [open, editItem]);
+  }, [open, editItem, prefill]);
 
   if (!open) return null;
 
@@ -104,7 +120,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
       <div className="relative w-full max-w-md max-h-[90vh] bg-[#1E1E1E] border border-[#2A2A2A] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-y-auto">
         <div className="sticky top-0 bg-[#1E1E1E] border-b border-[#2A2A2A] px-5 py-4 flex items-center justify-between z-10">
           <h2 className="text-lg font-bold text-white">
-            {editItem ? 'Edit item' : 'Add to inventory'}
+            {editItem ? 'Edit item' : prefill ? 'Add delivered item to inventory' : 'Add to inventory'}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
             <span className="material-symbols-outlined">close</span>

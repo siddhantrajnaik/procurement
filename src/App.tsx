@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -9,6 +10,7 @@ import { InventoryView } from './components/InventoryView';
 import { PurchaseThreadModal } from './components/PurchaseThreadModal';
 import { CreatePurchaseModal } from './components/CreatePurchaseModal';
 import { EditPurchaseModal } from './components/EditPurchaseModal';
+import { AddInventoryItemModal } from './components/AddInventoryItemModal';
 import { NotificationToast } from './components/NotificationToast';
 import { LoginScreen } from './components/LoginScreen';
 
@@ -43,6 +45,69 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
   );
 }
 
+function DeliveryInventoryPrompt() {
+  const { pendingDeliveryPurchase, clearPendingDelivery } = useApp();
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  if (!pendingDeliveryPurchase && !showAddModal) return null;
+
+  const p = pendingDeliveryPurchase;
+
+  const prefill = p
+    ? {
+        name: p.title,
+        category: p.category,
+        quantity: String(parseInt(p.quantity) || 1),
+        notes: p.preferredCompany ? `Vendor: ${p.preferredCompany}` : undefined,
+      }
+    : null;
+
+  if (showAddModal) {
+    return (
+      <AddInventoryItemModal
+        open
+        onClose={() => {
+          setShowAddModal(false);
+          clearPendingDelivery();
+        }}
+        editItem={null}
+        prefill={prefill}
+      />
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={clearPendingDelivery} />
+      <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 shadow-2xl text-center space-y-4">
+        <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
+          <span className="material-symbols-outlined text-emerald-400 text-[20px]">inventory_2</span>
+        </div>
+        <div>
+          <h3 className="font-bold text-white text-base mb-1">Item delivered!</h3>
+          <p className="text-xs text-gray-400 leading-relaxed">
+            <strong className="text-gray-200">{p!.title}</strong> has arrived. Add it to your inventory so you can track stock and location?
+          </p>
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={clearPendingDelivery}
+            className="flex-1 py-2.5 text-sm font-medium text-gray-300 bg-[#2A2A2A] rounded-md hover:bg-[#333] transition-colors"
+          >
+            Skip
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex-1 py-2.5 text-sm font-medium text-white bg-primary rounded-md hover:bg-orange-600 transition-colors"
+          >
+            Add to inventory
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
   const { activeTab, isAuthenticated, isLoading, loadError, reload } = useApp();
 
@@ -65,6 +130,7 @@ function AppContent() {
       <PurchaseThreadModal />
       <CreatePurchaseModal />
       <EditPurchaseModal />
+      <DeliveryInventoryPrompt />
       <NotificationToast />
       <BottomNav />
     </div>

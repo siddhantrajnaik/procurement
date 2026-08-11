@@ -63,6 +63,9 @@ interface AppContextType {
   editingPurchase: Purchase | null;
   setEditingPurchase: (p: Purchase | null) => void;
 
+  pendingDeliveryPurchase: Purchase | null;
+  clearPendingDelivery: () => void;
+
   createPurchase: (data: NewPurchaseInput) => Promise<void>;
   editPurchase: (purchaseId: string, updates: Partial<NewPurchaseInput>) => Promise<void>;
   updateStatus: (purchaseId: string, status: PurchaseStatus) => Promise<void>;
@@ -105,6 +108,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [toast, setToast] = useState<ToastInfo | null>(null);
+  const [pendingDeliveryPurchaseId, setPendingDeliveryPurchaseId] = useState<string | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -205,6 +209,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setEditingPurchaseId(p?.id ?? null);
   }, []);
 
+  const pendingDeliveryPurchase = useMemo(
+    () => purchases.find((p) => p.id === pendingDeliveryPurchaseId) ?? null,
+    [purchases, pendingDeliveryPurchaseId]
+  );
+
+  const clearPendingDelivery = useCallback(() => {
+    setPendingDeliveryPurchaseId(null);
+  }, []);
+
   const login = useCallback((userId: string) => {
     localStorage.setItem(SESSION_USER_KEY, userId);
     setCurrentUserId(userId);
@@ -279,6 +292,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (status === 'delivered') {
           confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
           showToast(`"${purchase.title}" marked as delivered.`, 'success');
+          setPendingDeliveryPurchaseId(purchaseId);
         } else {
           showToast(`Status set to ${api.STATUS_LABELS[status]}.`, 'info');
         }
@@ -447,6 +461,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     verifyAdminPin: api.verifyAdminPin,
     editingPurchase,
     setEditingPurchase,
+    pendingDeliveryPurchase,
+    clearPendingDelivery,
     createPurchase,
     editPurchase,
     updateStatus,
