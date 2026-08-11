@@ -6,6 +6,7 @@ import { avatarClasses } from '../lib/accent';
 import { initialOf } from '../lib/format';
 import { AddInventoryItemModal } from './AddInventoryItemModal';
 import { InventoryActionModal } from './InventoryActionModal';
+import { ConfirmModal } from './ConfirmModal';
 
 const ACTION_META: Record<string, { icon: string; color: string; label: string }> = {
   added:     { icon: 'add_circle',     color: 'text-emerald-400', label: 'added' },
@@ -23,6 +24,7 @@ export const InventoryView: React.FC = () => {
   const [subTab, setSubTab] = useState<'stock' | 'log'>('stock');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'recent' | 'name' | 'low-first'>('recent');
   const [showAddModal, setShowAddModal] = useState(false);
   const [actionTarget, setActionTarget] = useState<{ item: InventoryItem; type: 'consume' | 'restock' | 'move' } | null>(null);
   const [editTarget, setEditTarget] = useState<InventoryItem | null>(null);
@@ -33,7 +35,7 @@ export const InventoryView: React.FC = () => {
   }, [inventoryItems]);
 
   const filteredItems = useMemo(() => {
-    return inventoryItems.filter((item) => {
+    const filtered = inventoryItems.filter((item) => {
       if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -46,7 +48,19 @@ export const InventoryView: React.FC = () => {
       }
       return true;
     });
-  }, [inventoryItems, search, categoryFilter]);
+    const sorted = [...filtered];
+    if (sortBy === 'name') {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === 'low-first') {
+      sorted.sort((a, b) => {
+        const aLow = a.lowStockThreshold != null && a.quantity <= a.lowStockThreshold ? 0 : 1;
+        const bLow = b.lowStockThreshold != null && b.quantity <= b.lowStockThreshold ? 0 : 1;
+        if (aLow !== bLow) return aLow - bLow;
+        return a.quantity - b.quantity;
+      });
+    }
+    return sorted;
+  }, [inventoryItems, search, categoryFilter, sortBy]);
 
   const lowStockCount = useMemo(
     () => inventoryItems.filter((i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold).length,
@@ -107,6 +121,19 @@ export const InventoryView: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+          </div>
+
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs text-gray-500">{filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''}</span>
+            <select
+              className="text-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-md px-2 py-1 text-gray-300 focus:outline-none focus:border-primary"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'recent' | 'name' | 'low-first')}
+            >
+              <option value="recent">Recent first</option>
+              <option value="name">A-Z</option>
+              <option value="low-first">Low stock first</option>
+            </select>
           </div>
 
           {categories.length > 2 && (
@@ -238,7 +265,7 @@ function ItemCard({
   onEdit: () => void;
 }) {
   const { removeInventoryItem } = useApp();
-  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isLow =
     item.lowStockThreshold != null && item.quantity <= item.lowStockThreshold;
@@ -262,31 +289,21 @@ function ItemCard({
             </span>
           )}
         </div>
-        <div className="relative">
+        <div className="flex items-center gap-0.5">
           <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="text-gray-500 hover:text-gray-300 transition-colors p-1 -m-1"
+            onClick={onEdit}
+            className="p-1.5 rounded-md text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+            title="Edit"
           >
-            <span className="material-symbols-outlined text-[20px]">more_vert</span>
+            <span className="material-symbols-outlined text-[18px]">edit</span>
           </button>
-          {showMenu && (
-            <div className="absolute right-0 mt-1 w-36 bg-[#252525] border border-[#2A2A2A] shadow-lg rounded-md overflow-hidden z-10 p-1">
-              <button
-                onClick={() => { setShowMenu(false); onEdit(); }}
-                className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-[#2A2A2A] rounded flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[16px]">edit</span>
-                Edit
-              </button>
-              <button
-                onClick={() => { setShowMenu(false); void removeInventoryItem(item); }}
-                className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-red-400/10 rounded flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[16px]">delete</span>
-                Remove
-              </button>
-            </div>
-          )}
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            title="Delete"
+          >
+            <span className="material-symbols-outlined text-[18px]">delete</span>
+          </button>
         </div>
       </div>
 
@@ -349,6 +366,15 @@ function ItemCard({
           Move
         </button>
       </div>
+
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Remove item?"
+        message={`"${item.name}" will be removed from inventory. This cannot be undone.`}
+        confirmLabel="Remove"
+        onConfirm={() => removeInventoryItem(item)}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

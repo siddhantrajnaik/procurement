@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Purchase } from '../types';
 import { useApp } from '../context/AppContext';
 import { StatusChip } from './StatusChip';
+import { ConfirmModal } from './ConfirmModal';
 import { avatarClasses } from '../lib/accent';
 import { imageForItem } from '../lib/images';
 import { formatRupees, initialOf, timeAgo } from '../lib/format';
@@ -19,6 +21,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
   onEdit,
 }) => {
   const { updateStatus, deletePurchase, currentUser } = useApp();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const image = imageForItem(purchase.title, purchase.category);
   const requester = purchase.requestedBy;
   const isAdmin = currentUser?.role !== 'lab_member';
@@ -154,7 +157,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm(`Delete "${purchase.title}"?`)) void deletePurchase(purchase.id);
+                  setShowDeleteConfirm(true);
                 }}
                 className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                 title="Delete"
@@ -164,6 +167,14 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          open={showDeleteConfirm}
+          title="Delete request?"
+          message={`"${purchase.title}" and all its quotations, comments, and history will be permanently removed.`}
+          onConfirm={() => deletePurchase(purchase.id)}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       </div>
     </article>
   );

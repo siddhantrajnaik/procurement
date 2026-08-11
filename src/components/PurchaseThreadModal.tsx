@@ -15,6 +15,7 @@ import { StatusChip } from './StatusChip';
 import { QuotationCard } from './QuotationCard';
 import { AddQuotationModal } from './AddQuotationModal';
 import { PdfViewerModal } from './PdfViewerModal';
+import { ConfirmModal } from './ConfirmModal';
 import { avatarClasses } from '../lib/accent';
 import { initialOf, roleLabel, timeAgo } from '../lib/format';
 
@@ -33,6 +34,7 @@ export const PurchaseThreadModal: React.FC = () => {
   const [commentText, setCommentText] = useState('');
   const [isAddQuoteOpen, setIsAddQuoteOpen] = useState(false);
   const [previewQuote, setPreviewQuote] = useState<Quotation | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (!selectedPurchase || !currentUser) return null;
 
@@ -99,9 +101,7 @@ export const PurchaseThreadModal: React.FC = () => {
             </span>
             {canManage ? (
               <button
-                onClick={() => {
-                  if (confirm(`Delete "${p.title}"?`)) void deletePurchase(p.id);
-                }}
+                onClick={() => setShowDeleteConfirm(true)}
                 className="p-1.5 rounded-full text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                 title="Delete"
               >
@@ -363,6 +363,17 @@ export const PurchaseThreadModal: React.FC = () => {
         quotation={previewQuote}
         purchase={p}
         onClose={() => setPreviewQuote(null)}
+      />
+
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Delete request?"
+        message={`"${p.title}" and all its quotations, comments, and history will be permanently removed.`}
+        onConfirm={async () => {
+          await deletePurchase(p.id);
+          setShowDeleteConfirm(false);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
       />
     </AnimatePresence>
   );

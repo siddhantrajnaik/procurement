@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { TabType } from '../types';
 import { avatarClasses } from '../lib/accent';
 import { initialOf, roleLabel } from '../lib/format';
 
+const DESKTOP_TABS: { id: TabType; label: string; icon: string }[] = [
+  { id: 'home', label: 'Feed', icon: 'forum' },
+  { id: 'inventory', label: 'Inventory', icon: 'inventory_2' },
+  { id: 'activity', label: 'Activity', icon: 'history' },
+  { id: 'search', label: 'Search', icon: 'search' },
+  { id: 'profile', label: 'Profile', icon: 'account_circle' },
+];
+
 export const Header: React.FC = () => {
-  const { currentUser, logout, setIsCreateModalOpen } = useApp();
+  const { currentUser, logout, setIsCreateModalOpen, activeTab, setActiveTab } = useApp();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -27,6 +36,26 @@ export const Header: React.FC = () => {
         </div>
         <span className="font-bold text-lg text-white tracking-tight">MB Lab</span>
       </div>
+
+      <nav className="hidden md:flex items-center gap-1">
+        {DESKTOP_TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-[#1E1E1E]'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
 
       <div className="flex items-center gap-3">
         <div className="relative hidden sm:block" ref={menuRef}>
@@ -67,12 +96,14 @@ export const Header: React.FC = () => {
           )}
         </div>
 
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="text-white font-medium text-sm bg-primary hover:bg-orange-600 transition-colors px-4 py-1.5 rounded-md"
-        >
-          New request
-        </button>
+        {activeTab !== 'inventory' && (
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="text-white font-medium text-sm bg-primary hover:bg-orange-600 transition-colors px-4 py-1.5 rounded-md"
+          >
+            New request
+          </button>
+        )}
       </div>
     </header>
   );
