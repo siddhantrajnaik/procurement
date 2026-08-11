@@ -2,6 +2,9 @@ import { QUOTATION_BUCKET, supabase } from './supabase';
 import {
   Activity,
   Comment,
+  InventoryItem,
+  InventoryLogEntry,
+  NewInventoryItemInput,
   NewPurchaseInput,
   NewQuotationInput,
   Purchase,
@@ -342,3 +345,213 @@ export const STATUS_LABELS: Record<PurchaseStatus, string> = {
   delivered: 'Delivered',
   closed: 'Closed',
 };
+
+// ------------------------------------------------------------------ inventory
+
+const INVENTORY_ITEM_SELECT = `
+  id, name, category, quantity, unit, location, low_stock_threshold, notes,
+  linked_purchase_id, created_at, updated_at,
+  added_by_profile:profiles!inventory_items_added_by_fkey(${PROFILE_FIELDS})
+`;
+
+const INVENTORY_LOG_SELECT = `
+  id, item_id, item_name, action, quantity_change, old_location, new_location,
+  notes, created_at,
+  actor:profiles!inventory_log_actor_id_fkey(${PROFILE_FIELDS})
+`;
+
+function toInventoryItem(row: any): InventoryItem {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    quantity: Number(row.quantity),
+    unit: row.unit,
+    location: row.location,
+    lowStockThreshold: row.low_stock_threshold != null ? Number(row.low_stock_threshold) : null,
+    notes: row.notes,
+    linkedPurchaseId: row.linked_purchase_id,
+    addedBy: toUser(row.added_by_profile),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toInventoryLogEntry(row: any): InventoryLogEntry {
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    itemName: row.item_name,
+    action: row.action,
+    quantityChange: row.quantity_change != null ? Number(row.quantity_change) : null,
+    oldLocation: row.old_location,
+    newLocation: row.new_location,
+    actor: toUser(row.actor),
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+export async function fetchInventoryItems(): Promise<InventoryItem[]> {
+  const data = unwrap(
+    await supabase
+      .from('inventory_items')
+      .select(INVENTORY_ITEM_SELECT)
+      .order('updated_at', { ascending: false })
+  );
+  return (data as any[]).map(toInventoryItem);
+}
+
+export async function fetchInventoryLog(limit = 100): Promise<InventoryLogEntry[]> {
+  const data = unwrap(
+    await supabase
+      .from('inventory_log')
+      .select(INVENTORY_LOG_SELECT)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+  );
+  return (data as any[]).map(toInventoryLogEntry);
+}
+
+async function logInventoryAction(
+  itemId: string,
+  itemName: string,
+  action: InventoryLogEntry['action'],
+  actorId: string,
+  opts: { quantityChange?: number; oldLocation?: string; newLocation?: string; notes?: string } = {}
+): Promise<void> {
+  const { error } = await supabase.from('inventory_log').insert({
+    item_id: itemId,
+    item_name: itemName,
+    action,
+    quantity_change: opts.quantityChange ?? null,
+    old_location: opts.oldLocation ?? null,
+    new_location: opts.newLocation ?? null,
+    actor_id: actorId,
+    notes: opts.notes ?? null,
+  });
+  if (error) console.error('Failed to log inventory action:', error.message);
+}
+
+export async function addInventoryItem(
+  input: NewInventoryItemInput,
+  actor: User
+): Promise<InventoryItem> {
+  const inserted = unwrap(
+    await supabase
+      .from('inventory_items')
+      .insert({
+        name: input.name,
+        category: input.category,
+        quantity: input.quantity,
+        unit: input.unit,
+        location: input.location,
+        low_stock_threshold: input.lowStockThreshold ?? null,
+        notes: input.notes || null,
+        added_by: actor.id,
+      })
+      .select(INVENTORY_ITEM_SELECT)
+      .single()
+  );
+  const item = toInventoryItem(inserted);
+  await logInventoryAction(item.id, item.name, 'added', actor.id, {
+    quantityChange: input.quantity,
+    newLocation: input.location,
+    notes: input.notes,
+  });
+  return item;
+}
+
+export async function consumeInventoryItem(
+  item: InventoryItem,
+  quantity: number,
+  actor: User,
+  notes?: string
+): Promise<void> {
+  const newQty = Math.max(0, item.quantity - quantity);
+  unwrap(
+    await supabase
+      .from('inventory_items')
+      .update({ quantity: newQty })
+      .eq('id', item.id)
+      .select('id')
+  );
+  await logInventoryAction(item.id, item.name, 'consumed', actor.id, {
+    quantityChange: -quantity,
+    notes,
+  });
+}
+
+export async function restockInventoryItem(
+  item: InventoryItem,
+  quantity: number,
+  actor: User,
+  notes?: string
+): Promise<void> {
+  const newQty = item.quantity + quantity;
+  unwrap(
+    await supabase
+      .from('inventory_items')
+      .update({ quantity: newQty })
+      .eq('id', item.id)
+      .select('id')
+  );
+  await logInventoryAction(item.id, item.name, 'restocked', actor.id, {
+    quantityChange: quantity,
+    notes,
+  });
+}
+
+export async function moveInventoryItem(
+  item: InventoryItem,
+  newLocation: string,
+  actor: User,
+  notes?: string
+): Promise<void> {
+  unwrap(
+    await supabase
+      .from('inventory_items')
+      .update({ location: newLocation })
+      .eq('id', item.id)
+      .select('id')
+  );
+  await logInventoryAction(item.id, item.name, 'moved', actor.id, {
+    oldLocation: item.location,
+    newLocation,
+    notes,
+  });
+}
+
+export async function updateInventoryItem(
+  item: InventoryItem,
+  updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'notes'>>,
+  actor: User
+): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (updates.name !== undefined) row.name = updates.name;
+  if (updates.category !== undefined) row.category = updates.category;
+  if (updates.quantity !== undefined) row.quantity = updates.quantity;
+  if (updates.unit !== undefined) row.unit = updates.unit;
+  if (updates.location !== undefined) row.location = updates.location;
+  if (updates.lowStockThreshold !== undefined) row.low_stock_threshold = updates.lowStockThreshold;
+  if (updates.notes !== undefined) row.notes = updates.notes || null;
+
+  unwrap(
+    await supabase
+      .from('inventory_items')
+      .update(row)
+      .eq('id', item.id)
+      .select('id')
+  );
+  await logInventoryAction(item.id, updates.name ?? item.name, 'adjusted', actor.id, {
+    quantityChange: updates.quantity !== undefined ? updates.quantity - item.quantity : undefined,
+    oldLocation: updates.location !== undefined ? item.location : undefined,
+    newLocation: updates.location,
+  });
+}
+
+export async function deleteInventoryItem(id: string, itemName: string, actor: User): Promise<void> {
+  await logInventoryAction(id, itemName, 'removed', actor.id);
+  const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}

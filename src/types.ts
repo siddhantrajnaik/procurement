@@ -87,7 +87,54 @@ export interface Activity {
   createdAt: string;
 }
 
-export type TabType = 'home' | 'search' | 'activity' | 'profile';
+export type InventoryAction =
+  | 'added'
+  | 'moved'
+  | 'consumed'
+  | 'restocked'
+  | 'arrived'
+  | 'adjusted'
+  | 'removed';
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  location: string;
+  lowStockThreshold: number | null;
+  notes: string | null;
+  linkedPurchaseId: string | null;
+  addedBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventoryLogEntry {
+  id: string;
+  itemId: string;
+  itemName: string;
+  action: InventoryAction;
+  quantityChange: number | null;
+  oldLocation: string | null;
+  newLocation: string | null;
+  actor: User | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface NewInventoryItemInput {
+  name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  location: string;
+  lowStockThreshold?: number | null;
+  notes?: string;
+}
+
+export type TabType = 'home' | 'search' | 'activity' | 'profile' | 'inventory';
 
 export interface NewPurchaseInput {
   title: string;

@@ -3,6 +3,7 @@ import { TabType } from '../types';
 
 const NAV_ITEMS: { id: TabType; label: string; icon: string }[] = [
   { id: 'home', label: 'Feed', icon: 'forum' },
+  { id: 'inventory', label: 'Inventory', icon: 'inventory_2' },
   { id: 'activity', label: 'Activity', icon: 'history' },
   { id: 'search', label: 'Search', icon: 'search' },
   { id: 'profile', label: 'Profile', icon: 'account_circle' },
@@ -20,7 +21,7 @@ export const BottomNav: React.FC = () => {
             key={item.id}
             onClick={() => setActiveTab(item.id)}
             aria-current={isActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center w-1/4 h-full gap-1 pt-2 transition-colors ${
+            className={`flex flex-col items-center justify-center w-1/5 h-full gap-1 pt-2 transition-colors ${
               isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-300'
             }`}
           >

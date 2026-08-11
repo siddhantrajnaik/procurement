@@ -5,6 +5,7 @@ import { HomeFeed } from './components/HomeFeed';
 import { SearchView } from './components/SearchView';
 import { ActivityView } from './components/ActivityView';
 import { ProfileView } from './components/ProfileView';
+import { InventoryView } from './components/InventoryView';
 import { PurchaseThreadModal } from './components/PurchaseThreadModal';
 import { CreatePurchaseModal } from './components/CreatePurchaseModal';
 import { NotificationToast } from './components/NotificationToast';
@@ -54,6 +55,7 @@ function AppContent() {
 
       <main className="flex-1 flex flex-col">
         {activeTab === 'home' && <HomeFeed />}
+        {activeTab === 'inventory' && <InventoryView />}
         {activeTab === 'search' && <SearchView />}
         {activeTab === 'activity' && <ActivityView />}
         {activeTab === 'profile' && <ProfileView />}

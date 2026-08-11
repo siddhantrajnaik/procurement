@@ -12,6 +12,9 @@ import * as api from '../lib/api';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   Activity,
+  InventoryItem,
+  InventoryLogEntry,
+  NewInventoryItemInput,
   NewPurchaseInput,
   NewQuotationInput,
   Purchase,
@@ -64,6 +67,15 @@ interface AppContextType {
   selectQuotation: (purchaseId: string, quotation: Quotation) => Promise<void>;
   approvePi: (purchaseId: string) => Promise<void>;
   deletePurchase: (purchaseId: string) => Promise<void>;
+
+  inventoryItems: InventoryItem[];
+  inventoryLog: InventoryLogEntry[];
+  addInventoryItem: (input: NewInventoryItemInput) => Promise<void>;
+  consumeItem: (item: InventoryItem, quantity: number, notes?: string) => Promise<void>;
+  restockItem: (item: InventoryItem, quantity: number, notes?: string) => Promise<void>;
+  moveItem: (item: InventoryItem, newLocation: string, notes?: string) => Promise<void>;
+  editInventoryItem: (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'notes'>>) => Promise<void>;
+  removeInventoryItem: (item: InventoryItem) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -74,6 +86,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [inventoryLog, setInventoryLog] = useState<InventoryLogEntry[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_USER_KEY)
   );
@@ -113,6 +127,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPurchases(rows);
       setActivities(acts);
       setLoadError(null);
+
+      // Inventory tables may not exist yet; fetch them non-fatally.
+      try {
+        const [items, logs] = await Promise.all([
+          api.fetchInventoryItems(),
+          api.fetchInventoryLog(),
+        ]);
+        setInventoryItems(items);
+        setInventoryLog(logs);
+      } catch {
+        // Tables not created yet — keep empty defaults.
+      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
@@ -141,6 +167,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'quotations' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_log' }, refetch)
       .subscribe();
 
     return () => {
@@ -293,6 +321,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [findPurchase, run, selectedPurchaseId, showToast]
   );
 
+  const addInventoryItem = useCallback(
+    async (input: NewInventoryItemInput) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        const created = await api.addInventoryItem(input, actor);
+        showToast(`Added "${created.name}" to inventory.`, 'success');
+      }, 'Could not add the item.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const consumeItem = useCallback(
+    async (item: InventoryItem, quantity: number, notes?: string) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        await api.consumeInventoryItem(item, quantity, actor, notes);
+        showToast(`Used ${quantity} ${item.unit} of "${item.name}".`, 'info');
+      }, 'Could not record usage.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const restockItem = useCallback(
+    async (item: InventoryItem, quantity: number, notes?: string) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        await api.restockInventoryItem(item, quantity, actor, notes);
+        showToast(`Restocked ${quantity} ${item.unit} of "${item.name}".`, 'success');
+      }, 'Could not record restock.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const moveItem = useCallback(
+    async (item: InventoryItem, newLocation: string, notes?: string) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        await api.moveInventoryItem(item, newLocation, actor, notes);
+        showToast(`Moved "${item.name}" to ${newLocation}.`, 'info');
+      }, 'Could not move the item.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const editInventoryItem = useCallback(
+    async (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'notes'>>) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        await api.updateInventoryItem(item, updates, actor);
+        showToast(`Updated "${updates.name ?? item.name}".`, 'success');
+      }, 'Could not update the item.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const removeInventoryItem = useCallback(
+    async (item: InventoryItem) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        await api.deleteInventoryItem(item.id, item.name, actor);
+        showToast(`Removed "${item.name}" from inventory.`, 'warning');
+      }, 'Could not remove the item.');
+    },
+    [requireUser, run, showToast]
+  );
+
   const value: AppContextType = {
     purchases,
     activities,
@@ -324,6 +424,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     selectQuotation,
     approvePi,
     deletePurchase,
+    inventoryItems,
+    inventoryLog,
+    addInventoryItem,
+    consumeItem,
+    restockItem,
+    moveItem,
+    editInventoryItem,
+    removeInventoryItem,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
