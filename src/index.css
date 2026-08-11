@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #FF6B4A;
+  --color-background: #121212;
+  --color-brand-yellow: #FFB347;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --shadow-soft: 0 4px 12px 0 rgb(0 0 0 / 0.5);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: #F3F4F6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+  }
+
+}
+
+/* Custom scrollbar hiding for native mobile feel */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glass card styling */
+.glass-card {
+  background: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(42, 42, 42, 0.8);
+}
+
+.glass-nav {
+  background: rgba(18, 18, 18, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(42, 42, 42, 0.6);
+}
+
+/* Smooth tap highlights */
+button, a, div {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+  'FILL' 0,
+  'wght' 300,
+  'GRAD' 0,
+  'opsz' 24;
+}
+
+.thread-line { position: relative; }
+.thread-line::before { 
+    content: ''; 
+    position: absolute; 
+    left: 20px; 
+    top: 48px; 
+    bottom: -16px; 
+    width: 1px; 
+    background-color: #2A2A2A; 
+    z-index: 0; 
+}
+.thread-line:last-child::before { display: none; }
+
