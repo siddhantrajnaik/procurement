@@ -9,14 +9,16 @@ interface PurchaseCardProps {
   purchase: Purchase;
   onClick: () => void;
   onOpenQuickMenu: (p: Purchase, e: React.MouseEvent) => void;
+  onEdit: (p: Purchase) => void;
 }
 
 export const PurchaseCard: React.FC<PurchaseCardProps> = ({
   purchase,
   onClick,
   onOpenQuickMenu,
+  onEdit,
 }) => {
-  const { updateStatus, currentUser } = useApp();
+  const { updateStatus, deletePurchase, currentUser } = useApp();
   const image = imageForItem(purchase.title, purchase.category);
   const requester = purchase.requestedBy;
   const isAdmin = currentUser?.role !== 'lab_member';
@@ -113,9 +115,9 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
           )}
         </div>
 
-        {isAdmin && (
+        {(isAdmin || currentUser?.id === purchase.requestedBy?.id) && (
           <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[#2A2A2A]">
-            {purchase.status === 'ordered' || purchase.status === 'transit' ? (
+            {isAdmin && (purchase.status === 'ordered' || purchase.status === 'transit') && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -125,7 +127,8 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
               >
                 Mark received
               </button>
-            ) : (
+            )}
+            {isAdmin && purchase.status !== 'ordered' && purchase.status !== 'transit' && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -137,6 +140,28 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
                 Quick actions
               </button>
             )}
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(purchase);
+                }}
+                className="p-1.5 rounded-md text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                title="Edit"
+              >
+                <span className="material-symbols-outlined text-[18px]">edit</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`Delete "${purchase.title}"?`)) void deletePurchase(purchase.id);
+                }}
+                className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                title="Delete"
+              >
+                <span className="material-symbols-outlined text-[18px]">delete</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

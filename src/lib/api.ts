@@ -215,6 +215,22 @@ export async function updatePurchaseStatus(
   );
 }
 
+export async function updatePurchaseFields(
+  purchaseId: string,
+  updates: Partial<NewPurchaseInput>
+): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (updates.title !== undefined) row.title = updates.title;
+  if (updates.description !== undefined) row.description = updates.description;
+  if (updates.quantity !== undefined) row.quantity = updates.quantity;
+  if (updates.category !== undefined) row.category = updates.category;
+  if (updates.priority !== undefined) row.priority = updates.priority;
+  if (updates.preferredCompany !== undefined) row.preferred_company = updates.preferredCompany || null;
+  unwrap(
+    await supabase.from('purchases').update(row).eq('id', purchaseId).select('id')
+  );
+}
+
 export async function deletePurchase(purchaseId: string): Promise<void> {
   const { error } = await supabase.from('purchases').delete().eq('id', purchaseId);
   if (error) throw new Error(error.message);

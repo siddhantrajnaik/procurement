@@ -6,7 +6,7 @@ import { QuickActionSheet } from './QuickActionSheet';
 import { Purchase } from '../types';
 
 export const SearchView: React.FC = () => {
-  const { purchases, searchQuery, setSearchQuery, setSelectedPurchase } = useApp();
+  const { purchases, searchQuery, setSearchQuery, setSelectedPurchase, setEditingPurchase } = useApp();
   const [activeQuickPurchase, setActiveQuickPurchase] = useState<Purchase | null>(null);
 
   // Built from live data so the chips always point at something that exists.
@@ -103,6 +103,7 @@ export const SearchView: React.FC = () => {
                 e.stopPropagation();
                 setActiveQuickPurchase(p);
               }}
+              onEdit={(p) => setEditingPurchase(p)}
             />
           ))
         )}

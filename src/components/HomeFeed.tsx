@@ -18,6 +18,7 @@ export const HomeFeed: React.FC = () => {
     purchases,
     setSelectedPurchase,
     setIsCreateModalOpen,
+    setEditingPurchase,
     filterStatus,
     setFilterStatus,
     searchQuery,
@@ -130,6 +131,7 @@ export const HomeFeed: React.FC = () => {
                 e.stopPropagation();
                 setActiveQuickPurchase(p);
               }}
+              onEdit={(p) => setEditingPurchase(p)}
             />
           ))
         )}

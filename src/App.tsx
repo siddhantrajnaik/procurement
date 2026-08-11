@@ -8,6 +8,7 @@ import { ProfileView } from './components/ProfileView';
 import { InventoryView } from './components/InventoryView';
 import { PurchaseThreadModal } from './components/PurchaseThreadModal';
 import { CreatePurchaseModal } from './components/CreatePurchaseModal';
+import { EditPurchaseModal } from './components/EditPurchaseModal';
 import { NotificationToast } from './components/NotificationToast';
 import { LoginScreen } from './components/LoginScreen';
 
@@ -63,6 +64,7 @@ function AppContent() {
 
       <PurchaseThreadModal />
       <CreatePurchaseModal />
+      <EditPurchaseModal />
       <NotificationToast />
       <BottomNav />
     </div>

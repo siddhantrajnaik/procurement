@@ -60,7 +60,11 @@ interface AppContextType {
   logout: () => void;
   verifyAdminPin: (pin: string) => Promise<boolean>;
 
+  editingPurchase: Purchase | null;
+  setEditingPurchase: (p: Purchase | null) => void;
+
   createPurchase: (data: NewPurchaseInput) => Promise<void>;
+  editPurchase: (purchaseId: string, updates: Partial<NewPurchaseInput>) => Promise<void>;
   updateStatus: (purchaseId: string, status: PurchaseStatus) => Promise<void>;
   addComment: (purchaseId: string, body: string) => Promise<void>;
   addQuotation: (purchaseId: string, input: NewQuotationInput) => Promise<void>;
@@ -97,6 +101,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [toast, setToast] = useState<ToastInfo | null>(null);
@@ -191,6 +196,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedPurchaseId(p?.id ?? null);
   }, []);
 
+  const editingPurchase = useMemo(
+    () => purchases.find((p) => p.id === editingPurchaseId) ?? null,
+    [purchases, editingPurchaseId]
+  );
+
+  const setEditingPurchase = useCallback((p: Purchase | null) => {
+    setEditingPurchaseId(p?.id ?? null);
+  }, []);
+
   const login = useCallback((userId: string) => {
     localStorage.setItem(SESSION_USER_KEY, userId);
     setCurrentUserId(userId);
@@ -239,6 +253,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }, 'Could not create the request.');
     },
     [requireUser, run, showToast]
+  );
+
+  const editPurchase = useCallback(
+    async (purchaseId: string, updates: Partial<NewPurchaseInput>) => {
+      const actor = requireUser();
+      const purchase = findPurchase(purchaseId);
+      if (!actor || !purchase) return;
+      await run(async () => {
+        await api.updatePurchaseFields(purchaseId, updates);
+        showToast(`Updated "${updates.title ?? purchase.title}".`, 'success');
+        setEditingPurchaseId(null);
+      }, 'Could not update the request.');
+    },
+    [requireUser, findPurchase, run, showToast]
   );
 
   const updateStatus = useCallback(
@@ -417,7 +445,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     login,
     logout,
     verifyAdminPin: api.verifyAdminPin,
+    editingPurchase,
+    setEditingPurchase,
     createPurchase,
+    editPurchase,
     updateStatus,
     addComment,
     addQuotation,
