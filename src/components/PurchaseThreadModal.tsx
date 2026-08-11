@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft,
@@ -32,9 +32,21 @@ export const PurchaseThreadModal: React.FC = () => {
   } = useApp();
 
   const [commentText, setCommentText] = useState('');
+  const [isPostingComment, setIsPostingComment] = useState(false);
   const [isAddQuoteOpen, setIsAddQuoteOpen] = useState(false);
   const [previewQuote, setPreviewQuote] = useState<Quotation | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    if (!selectedPurchase) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isAddQuoteOpen && !previewQuote && !showDeleteConfirm) {
+        setSelectedPurchase(null);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selectedPurchase, setSelectedPurchase, isAddQuoteOpen, previewQuote, showDeleteConfirm]);
 
   if (!selectedPurchase || !currentUser) return null;
 
@@ -42,9 +54,14 @@ export const PurchaseThreadModal: React.FC = () => {
 
   const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
-    await addComment(p.id, commentText.trim());
-    setCommentText('');
+    if (!commentText.trim() || isPostingComment) return;
+    setIsPostingComment(true);
+    try {
+      await addComment(p.id, commentText.trim());
+      setCommentText('');
+    } finally {
+      setIsPostingComment(false);
+    }
   };
 
   const handleStatusChange = (s: PurchaseStatus) => {
@@ -79,7 +96,7 @@ export const PurchaseThreadModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex justify-center">
+      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex justify-center" role="dialog" aria-modal="true" aria-label="Purchase thread">
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -343,10 +360,14 @@ export const PurchaseThreadModal: React.FC = () => {
               />
               <button
                 type="submit"
-                disabled={!commentText.trim()}
+                disabled={!commentText.trim() || isPostingComment}
                 className="p-2 rounded-full bg-primary text-white hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Send className="w-3.5 h-3.5" />
+                {isPostingComment ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
               </button>
             </form>
           </div>

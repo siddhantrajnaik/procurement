@@ -31,6 +31,15 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       .finally(() => setLoading(false));
   }, [quotation?.filePath]);
 
+  useEffect(() => {
+    if (!quotation) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [quotation, onClose]);
+
   if (!quotation) return null;
 
   return (

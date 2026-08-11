@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ArrowRight, Check, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -15,6 +15,18 @@ export const CreatePurchaseModal: React.FC = () => {
   const [priority, setPriority] = useState<UrgencyLevel>('normal');
   const [category, setCategory] = useState('Reagents');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isCreateModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsCreateModalOpen(false);
+        setStep(1);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isCreateModalOpen, setIsCreateModalOpen]);
 
   if (!isCreateModalOpen) return null;
 

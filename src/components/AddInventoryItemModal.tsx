@@ -78,6 +78,15 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
     }
   }, [open, editItem, prefill]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const isValid = name.trim().length > 0 && Number(quantity) >= 0 && quantity !== '';
@@ -122,7 +131,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
           <h2 className="text-lg font-bold text-white">
             {editItem ? 'Edit item' : prefill ? 'Add delivered item to inventory' : 'Add to inventory'}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-white transition-colors">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>

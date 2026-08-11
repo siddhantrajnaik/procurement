@@ -104,8 +104,8 @@ function toPurchase(row: any): Purchase {
     piApproved: row.pi_approved,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    quotations: (row.quotations ?? []).map(toQuotation),
-    comments: (row.comments ?? []).map(toComment),
+    quotations: dedupById((row.quotations ?? []).map(toQuotation)),
+    comments: dedupById((row.comments ?? []).map(toComment)),
   };
 }
 
@@ -119,6 +119,15 @@ function toActivity(row: any): Activity {
     details: row.details,
     createdAt: row.created_at,
   };
+}
+
+function dedupById<T extends { id: string }>(arr: T[]): T[] {
+  const seen = new Set<string>();
+  return arr.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
 
 function unwrap<T>(result: { data: T | null; error: { message: string } | null }): T {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Props {
   open: boolean;
@@ -20,6 +20,15 @@ export const ConfirmModal: React.FC<Props> = ({
   onCancel,
 }) => {
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onCancel]);
 
   if (!open) return null;
 
@@ -60,7 +69,7 @@ export const ConfirmModal: React.FC<Props> = ({
             disabled={busy}
             className={`flex-1 py-2.5 text-sm font-medium text-white rounded-md transition-colors disabled:opacity-40 ${btnClass}`}
           >
-            {busy ? 'Deleting...' : confirmLabel}
+            {busy ? `${confirmLabel.replace(/e$/, '')}ing...` : confirmLabel}
           </button>
         </div>
       </div>

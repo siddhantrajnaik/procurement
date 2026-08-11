@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -22,6 +23,15 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({
   onClose,
 }) => {
   const { updateStatus, showToast, deletePurchase } = useApp();
+
+  useEffect(() => {
+    if (!purchase) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [purchase, onClose]);
 
   if (!purchase) return null;
 

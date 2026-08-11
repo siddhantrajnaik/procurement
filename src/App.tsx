@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -16,9 +16,14 @@ import { LoginScreen } from './components/LoginScreen';
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
-      <div className="w-8 h-8 rounded-full border-2 border-[#2A2A2A] border-t-primary animate-spin" />
-      <p className="text-sm text-gray-400">Loading lab data…</p>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+      <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+        <span className="material-symbols-outlined text-primary text-[24px] animate-pulse">biotech</span>
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <div className="w-8 h-8 rounded-full border-2 border-[#2A2A2A] border-t-primary animate-spin" />
+        <p className="text-sm text-gray-400 font-medium">Loading lab data…</p>
+      </div>
     </div>
   );
 }
@@ -48,6 +53,15 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
 function DeliveryInventoryPrompt() {
   const { pendingDeliveryPurchase, clearPendingDelivery } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
+
+  useEffect(() => {
+    if (!pendingDeliveryPurchase || showAddModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') clearPendingDelivery();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [pendingDeliveryPurchase, showAddModal, clearPendingDelivery]);
 
   if (!pendingDeliveryPurchase && !showAddModal) return null;
 
@@ -108,8 +122,35 @@ function DeliveryInventoryPrompt() {
   );
 }
 
+const TAB_TITLES: Record<string, string> = {
+  home: 'Feed',
+  inventory: 'Inventory',
+  search: 'Search',
+  activity: 'Activity',
+  profile: 'Profile',
+};
+
 function AppContent() {
-  const { activeTab, isAuthenticated, isLoading, loadError, reload } = useApp();
+  const { activeTab, isAuthenticated, isLoading, loadError, reload, setIsCreateModalOpen } = useApp();
+
+  useEffect(() => {
+    document.title = `${TAB_TITLES[activeTab] ?? 'MB Lab'} - MB Lab Procurement`;
+    window.scrollTo(0, 0);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (e.key === 'n' && !e.metaKey && !e.ctrlKey && activeTab !== 'inventory') {
+        e.preventDefault();
+        setIsCreateModalOpen(true);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isAuthenticated, activeTab, setIsCreateModalOpen]);
 
   if (isLoading) return <LoadingScreen />;
   if (loadError) return <ErrorScreen message={loadError} onRetry={() => void reload()} />;
@@ -119,7 +160,7 @@ function AppContent() {
     <div className="min-h-screen bg-background text-gray-100 flex flex-col font-sans selection:bg-primary selection:text-white pb-12 md:pb-0">
       <Header />
 
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col animate-fade-in" key={activeTab}>
         {activeTab === 'home' && <HomeFeed />}
         {activeTab === 'inventory' && <InventoryView />}
         {activeTab === 'search' && <SearchView />}

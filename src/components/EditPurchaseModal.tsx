@@ -33,6 +33,15 @@ export const EditPurchaseModal: React.FC = () => {
     }
   }, [editingPurchase]);
 
+  useEffect(() => {
+    if (!editingPurchase) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEditingPurchase(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [editingPurchase, setEditingPurchase]);
+
   if (!editingPurchase) return null;
 
   const isValid = title.trim().length > 0 && quantity.trim().length > 0;
@@ -60,7 +69,7 @@ export const EditPurchaseModal: React.FC = () => {
       <div className="relative w-full max-w-md max-h-[90vh] bg-[#1E1E1E] border border-[#2A2A2A] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-y-auto">
         <div className="sticky top-0 bg-[#1E1E1E] border-b border-[#2A2A2A] px-5 py-4 flex items-center justify-between z-10">
           <h2 className="text-lg font-bold text-white">Edit request</h2>
-          <button onClick={() => setEditingPurchase(null)} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={() => setEditingPurchase(null)} aria-label="Close" className="text-gray-400 hover:text-white transition-colors">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>

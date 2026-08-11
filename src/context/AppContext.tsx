@@ -89,6 +89,15 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const SESSION_USER_KEY = 'procure.session.userId';
 
+function dedup<T extends { id: string }>(arr: T[]): T[] {
+  const seen = new Set<string>();
+  return arr.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -115,7 +124,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     setToast({ id: `${Date.now()}`, message, type });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 3600);
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
   }, []);
 
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
@@ -132,19 +141,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         api.fetchPurchases(),
         api.fetchActivities(),
       ]);
-      setAllUsers(users);
-      setPurchases(rows);
-      setActivities(acts);
+      setAllUsers(dedup(users));
+      setPurchases(dedup(rows));
+      setActivities(dedup(acts));
       setLoadError(null);
 
-      // Inventory tables may not exist yet; fetch them non-fatally.
       try {
         const [items, logs] = await Promise.all([
           api.fetchInventoryItems(),
           api.fetchInventoryLog(),
         ]);
-        setInventoryItems(items);
-        setInventoryLog(logs);
+        setInventoryItems(dedup(items));
+        setInventoryLog(dedup(logs));
       } catch {
         // Tables not created yet — keep empty defaults.
       }

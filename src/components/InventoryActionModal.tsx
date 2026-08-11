@@ -49,6 +49,15 @@ export const InventoryActionModal: React.FC<Props> = ({ target, onClose }) => {
     }
   }, [target]);
 
+  useEffect(() => {
+    if (!target) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [target, onClose]);
+
   if (!target) return null;
 
   const { item, type } = target;
@@ -90,7 +99,7 @@ export const InventoryActionModal: React.FC<Props> = ({ target, onClose }) => {
             <h2 className="text-base font-bold text-white">{cfg.title}</h2>
             <p className="text-xs text-gray-400 mt-0.5">{item.name} · {item.quantity} {item.unit} in stock</p>
           </div>
-          <button onClick={onClose} className="ml-auto text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} aria-label="Close" className="ml-auto text-gray-400 hover:text-white transition-colors">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>

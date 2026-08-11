@@ -26,9 +26,16 @@ export const ActivityView: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col pb-28 pt-4 max-w-3xl mx-auto w-full px-4 space-y-4">
-      <div>
-        <h1 className="font-extrabold text-white text-lg tracking-tight">Lab activity</h1>
-        <p className="text-xs text-gray-400">Audit trail of every procurement action</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-extrabold text-white text-lg tracking-tight">Lab activity</h1>
+          <p className="text-xs text-gray-400">Audit trail of every procurement action</p>
+        </div>
+        {activities.length > 0 && (
+          <span className="text-xs font-semibold text-gray-500 bg-[#1E1E1E] border border-[#2A2A2A] px-2.5 py-1 rounded-full">
+            {activities.length} events
+          </span>
+        )}
       </div>
 
       {activities.length === 0 ? (
