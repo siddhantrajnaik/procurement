@@ -7,10 +7,12 @@ import {
   NewInventoryItemInput,
   NewPurchaseInput,
   NewQuotationInput,
+  NewVendorInput,
   Purchase,
   PurchaseStatus,
   Quotation,
   User,
+  Vendor,
 } from '../types';
 
 /** Quotes above this rupee amount need the PI to sign off before a PO is raised. */
@@ -578,5 +580,74 @@ export async function updateInventoryItem(
 export async function deleteInventoryItem(id: string, itemName: string, actor: User): Promise<void> {
   await logInventoryAction(id, itemName, 'removed', actor.id);
   const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ------------------------------------------------------------------ vendors
+
+const VENDOR_SELECT = `
+  id, name, type, comment, contact, photo_url, created_at, updated_at,
+  created_by_profile:profiles!vendors_created_by_fkey(${PROFILE_FIELDS})
+`;
+
+function toVendor(row: any): Vendor {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    comment: row.comment ?? '',
+    contact: row.contact ?? '',
+    photoUrl: row.photo_url,
+    createdBy: toUser(row.created_by_profile),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function fetchVendors(): Promise<Vendor[]> {
+  const data = unwrap(
+    await supabase
+      .from('vendors')
+      .select(VENDOR_SELECT)
+      .order('name', { ascending: true })
+  );
+  return (data as any[]).map(toVendor);
+}
+
+export async function addVendor(input: NewVendorInput, actor: User): Promise<Vendor> {
+  const inserted = unwrap(
+    await supabase
+      .from('vendors')
+      .insert({
+        name: input.name,
+        type: input.type,
+        comment: input.comment || '',
+        contact: input.contact || '',
+        photo_url: input.photoUrl || null,
+        created_by: actor.id,
+      })
+      .select(VENDOR_SELECT)
+      .single()
+  );
+  return toVendor(inserted);
+}
+
+export async function updateVendor(
+  vendorId: string,
+  updates: Partial<NewVendorInput>
+): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (updates.name !== undefined) row.name = updates.name;
+  if (updates.type !== undefined) row.type = updates.type;
+  if (updates.comment !== undefined) row.comment = updates.comment;
+  if (updates.contact !== undefined) row.contact = updates.contact;
+  if (updates.photoUrl !== undefined) row.photo_url = updates.photoUrl || null;
+  unwrap(
+    await supabase.from('vendors').update(row).eq('id', vendorId).select('id')
+  );
+}
+
+export async function deleteVendor(vendorId: string): Promise<void> {
+  const { error } = await supabase.from('vendors').delete().eq('id', vendorId);
   if (error) throw new Error(error.message);
 }

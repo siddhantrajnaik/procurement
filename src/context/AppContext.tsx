@@ -17,11 +17,13 @@ import {
   NewInventoryItemInput,
   NewPurchaseInput,
   NewQuotationInput,
+  NewVendorInput,
   Purchase,
   PurchaseStatus,
   Quotation,
   TabType,
   User,
+  Vendor,
 } from '../types';
 
 type ToastType = 'info' | 'success' | 'warning' | 'error';
@@ -83,6 +85,11 @@ interface AppContextType {
   moveItem: (item: InventoryItem, newLocation: string, notes?: string) => Promise<void>;
   editInventoryItem: (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'notes'>>) => Promise<void>;
   removeInventoryItem: (item: InventoryItem) => Promise<void>;
+
+  vendors: Vendor[];
+  addVendor: (input: NewVendorInput) => Promise<void>;
+  editVendor: (vendorId: string, updates: Partial<NewVendorInput>) => Promise<void>;
+  removeVendor: (vendorId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -104,6 +111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [inventoryLog, setInventoryLog] = useState<InventoryLogEntry[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_USER_KEY)
   );
@@ -156,6 +164,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {
         // Tables not created yet — keep empty defaults.
       }
+
+      try {
+        const v = await api.fetchVendors();
+        setVendors(dedup(v));
+      } catch {
+        // Table not created yet — keep empty default.
+      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
@@ -186,6 +201,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_log' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, refetch)
       .subscribe();
 
     return () => {
@@ -443,6 +459,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [requireUser, run, showToast]
   );
 
+  const addVendor = useCallback(
+    async (input: NewVendorInput) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        const created = await api.addVendor(input, actor);
+        showToast(`Added vendor "${created.name}".`, 'success');
+      }, 'Could not add the vendor.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const editVendor = useCallback(
+    async (vendorId: string, updates: Partial<NewVendorInput>) => {
+      await run(async () => {
+        await api.updateVendor(vendorId, updates);
+        showToast(`Vendor updated.`, 'success');
+      }, 'Could not update the vendor.');
+    },
+    [run, showToast]
+  );
+
+  const removeVendor = useCallback(
+    async (vendorId: string) => {
+      const vendor = vendors.find((v) => v.id === vendorId);
+      await run(async () => {
+        await api.deleteVendor(vendorId);
+        showToast(`Removed "${vendor?.name ?? 'vendor'}".`, 'warning');
+      }, 'Could not remove the vendor.');
+    },
+    [vendors, run, showToast]
+  );
+
   const value: AppContextType = {
     purchases,
     activities,
@@ -487,6 +536,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     moveItem,
     editInventoryItem,
     removeInventoryItem,
+    vendors,
+    addVendor,
+    editVendor,
+    removeVendor,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

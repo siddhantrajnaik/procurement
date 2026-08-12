@@ -3,13 +3,15 @@ import { useApp } from '../context/AppContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building } from 'lucide-react';
+import { UserCheck, Building, Store } from 'lucide-react';
+import { VendorsView } from './VendorsView';
 
 export const ProfileView: React.FC = () => {
-  const { currentUser, allUsers, login, purchases, inventoryItems, verifyAdminPin, showToast } = useApp();
+  const { currentUser, allUsers, login, purchases, inventoryItems, vendors, verifyAdminPin, showToast } = useApp();
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);
+  const [showVendors, setShowVendors] = useState(false);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'
@@ -29,6 +31,10 @@ export const ProfileView: React.FC = () => {
   ).length;
 
   if (!currentUser) return null;
+
+  if (showVendors) {
+    return <VendorsView onBack={() => setShowVendors(false)} />;
+  }
 
   return (
     <div className="flex-1 flex flex-col pb-28 pt-4 max-w-md mx-auto w-full px-4 space-y-4">
@@ -171,6 +177,25 @@ export const ProfileView: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Vendor directory */}
+      <button
+        onClick={() => setShowVendors(true)}
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+          <Store className="w-5 h-5 text-primary" />
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">Vendor Directory</h3>
+          <p className="text-[11px] text-gray-400">
+            {vendors.length} vendor{vendors.length !== 1 ? 's' : ''} registered
+          </p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          chevron_right
+        </span>
+      </button>
 
       {pendingAdmin && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">

@@ -134,6 +134,28 @@ export interface NewInventoryItemInput {
   notes?: string;
 }
 
+export type VendorType = 'direct' | 'third_party';
+
+export interface Vendor {
+  id: string;
+  name: string;
+  type: VendorType;
+  comment: string;
+  contact: string;
+  photoUrl: string | null;
+  createdBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NewVendorInput {
+  name: string;
+  type: VendorType;
+  comment?: string;
+  contact?: string;
+  photoUrl?: string;
+}
+
 export type TabType = 'home' | 'search' | 'activity' | 'profile' | 'inventory';
 
 export interface NewPurchaseInput {
