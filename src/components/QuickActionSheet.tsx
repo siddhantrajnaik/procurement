@@ -49,7 +49,7 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4">
+      <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4">
         <motion.div
           initial={{ y: '100%' }}
           animate={{ y: 0 }}

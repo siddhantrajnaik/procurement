@@ -96,7 +96,7 @@ export const PurchaseThreadModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs flex justify-center" role="dialog" aria-modal="true" aria-label="Purchase thread">
+      <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex justify-center" role="dialog" aria-modal="true" aria-label="Purchase thread">
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

@@ -47,7 +47,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
             onClick();
           }
         }}
-        className="flex-1 bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/50 focus:border-primary focus:outline-none transition-colors cursor-pointer relative z-10"
+        className="flex-1 min-w-0 bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/50 focus:border-primary focus:outline-none transition-colors cursor-pointer relative z-10 overflow-hidden"
       >
         <div className="flex justify-between items-start gap-2 mb-2">
           <div className="flex items-baseline gap-2 min-w-0">
@@ -87,7 +87,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mt-3">
+        <div className="flex flex-wrap items-center gap-2 mt-3 overflow-hidden">
           {isUrgent && purchase.status !== 'delivered' && purchase.status !== 'closed' && (
             <span className="inline-flex items-center gap-1 text-red-300 text-[11px] font-semibold bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
               <span className="material-symbols-outlined text-[14px]">priority_high</span>
@@ -119,7 +119,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
         </div>
 
         {(isAdmin || currentUser?.id === purchase.requestedBy?.id) && (
-          <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[#2A2A2A]">
+          <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-[#2A2A2A]">
             {isAdmin && (purchase.status === 'ordered' || purchase.status === 'transit') && (
               <button
                 onClick={(e) => {

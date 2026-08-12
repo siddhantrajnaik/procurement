@@ -58,7 +58,7 @@ export const HomeFeed: React.FC = () => {
   const isAdmin = currentUser?.role !== 'lab_member';
 
   return (
-    <div className="flex-1 w-full mx-auto pb-24 md:pb-8 flex flex-col max-w-3xl px-4 md:px-0">
+    <div className="flex-1 w-full mx-auto pb-24 md:pb-8 flex flex-col max-w-3xl px-4 md:px-0 overflow-x-hidden">
       <div className="py-4 mt-2 md:mt-6 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative w-full md:w-80">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">
@@ -81,7 +81,7 @@ export const HomeFeed: React.FC = () => {
       </div>
 
       {isAdmin && (
-        <div className="font-mono text-xs text-gray-300 bg-[#1E1E1E] p-3 rounded-md border border-[#2A2A2A] flex flex-wrap items-center gap-x-3 gap-y-1 divide-x divide-[#2A2A2A]">
+        <div className="font-mono text-xs text-gray-300 bg-[#1E1E1E] p-3 rounded-md border border-[#2A2A2A] flex flex-wrap items-center gap-x-3 gap-y-1 divide-x divide-[#2A2A2A] overflow-hidden">
           <span className="pr-3">
             Committed: <span className="font-bold text-white">{formatRupees(committedSpend)}</span>
           </span>

@@ -173,7 +173,7 @@ export const ProfileView: React.FC = () => {
       </div>
 
       {pendingAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPendingAdmin(null)} />
           <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6 flex flex-col items-center">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg mb-3 ${avatarClasses(pendingAdmin.accent)}`}>
