@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ReceiptIndianRupee, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -14,12 +14,45 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { addQuotation, vendors } = useApp();
+  const { addQuotation, vendors, purchases } = useApp();
 
   const [vendor, setVendor] = useState('');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  const allVendorNames = useMemo(() => {
+    const names = new Set(vendors.map((v) => v.name));
+    for (const p of purchases) {
+      for (const q of p.quotations) {
+        names.add(q.vendor);
+      }
+    }
+    return [...names];
+  }, [vendors, purchases]);
+
+  const frequentVendors = useMemo(() => {
+    const freq: Record<string, number> = {};
+    for (const p of purchases) {
+      for (const q of p.quotations) {
+        freq[q.vendor] = (freq[q.vendor] ?? 0) + 1;
+      }
+    }
+    const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0) return sorted.slice(0, 6).map(([name]) => name);
+    return allVendorNames.slice(0, 6);
+  }, [purchases, allVendorNames]);
+
+  const suggestions = useMemo(() => {
+    if (!vendor.trim()) return [];
+    const q = vendor.toLowerCase();
+    return allVendorNames
+      .filter((v) => v.toLowerCase().includes(q) && v !== vendor)
+      .slice(0, 5);
+  }, [vendor, allVendorNames]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -29,6 +62,22 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const onClick = (e: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [showSuggestions]);
 
   if (!isOpen) return null;
 
@@ -53,20 +102,6 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
       setSubmitting(false);
     }
   };
-
-  const FALLBACK_VENDORS = [
-    'Merck',
-    'Thermo Fisher',
-    'Cytiva',
-    'Qiagen',
-    'Abcam',
-    'HiMedia',
-    'Eppendorf',
-    'Sigma-Aldrich',
-  ];
-
-  // Vendors the lab actually uses beat the generic list once the directory is filled in.
-  const vendorPresets = vendors.length > 0 ? vendors.map((v) => v.name) : FALLBACK_VENDORS;
 
   return (
     <AnimatePresence>
@@ -95,30 +130,63 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
               <label className="block text-xs font-bold text-gray-300 mb-1">
                 Vendor Name
               </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Merck, Thermo Fisher"
-                value={vendor}
-                onChange={(e) => setVendor(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm font-medium focus:ring-1 focus:ring-purple-500 focus:border-purple-500 outline-none placeholder:text-gray-600"
-              />
-              <div className="flex flex-wrap gap-1 mt-2">
-                {vendorPresets.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setVendor(v)}
-                    className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors ${
-                      vendor === v
-                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                        : 'bg-[#2A2A2A] hover:bg-[#333] text-gray-400 border-[#333]'
-                    }`}
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  required
+                  autoComplete="off"
+                  placeholder="Type to search vendors…"
+                  value={vendor}
+                  onChange={(e) => {
+                    setVendor(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  className="w-full px-4 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm font-medium focus:ring-1 focus:ring-purple-500 focus:border-purple-500 outline-none placeholder:text-gray-600"
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute z-10 w-full mt-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg shadow-xl overflow-hidden"
                   >
-                    {v}
-                  </button>
-                ))}
+                    {suggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          setVendor(s);
+                          setShowSuggestions(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-purple-500/10 hover:text-purple-300 transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+              {frequentVendors.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {frequentVendors.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        setVendor(v);
+                        setShowSuggestions(false);
+                      }}
+                      className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors ${
+                        vendor === v
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                          : 'bg-[#2A2A2A] hover:bg-[#333] text-gray-400 border-[#333]'
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
