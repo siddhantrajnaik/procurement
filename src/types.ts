@@ -185,6 +185,42 @@ export interface NewLostFoundInput {
   locationLastSeen?: string;
 }
 
+export interface ListColumn {
+  name: string;
+  type: 'text' | 'number' | 'checkbox';
+}
+
+export interface ListItem {
+  id: string;
+  listId: string;
+  name: string;
+  checked: boolean;
+  data: Record<string, unknown>;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface LabList {
+  id: string;
+  title: string;
+  description: string;
+  columns: ListColumn[];
+  items: ListItem[];
+  createdBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NewListInput {
+  title: string;
+  description?: string;
+}
+
+export interface NewListItemInput {
+  name: string;
+  data?: Record<string, unknown>;
+}
+
 export type TabType = 'home' | 'search' | 'activity' | 'profile' | 'inventory';
 
 export interface NewPurchaseInput {

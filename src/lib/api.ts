@@ -4,10 +4,15 @@ import {
   Comment,
   InventoryItem,
   InventoryLogEntry,
+  LabList,
+  ListColumn,
+  ListItem,
   LostFoundItem,
   LostFoundResponse,
   LostFoundStatus,
   NewInventoryItemInput,
+  NewListInput,
+  NewListItemInput,
   NewLostFoundInput,
   NewPurchaseInput,
   NewQuotationInput,
@@ -747,5 +752,121 @@ export async function updateLostFoundStatus(
 
 export async function deleteLostFoundItem(itemId: string): Promise<void> {
   const { error } = await supabase.from('lost_found_items').delete().eq('id', itemId);
+  if (error) throw new Error(error.message);
+}
+
+// ------------------------------------------------------------------ lists
+
+const LIST_SELECT = `
+  id, title, description, columns, created_at, updated_at,
+  creator:profiles!lists_created_by_fkey(${PROFILE_FIELDS}),
+  list_items(
+    id, list_id, name, checked, data, sort_order, created_at
+  )
+`;
+
+function toListItem(row: any): ListItem {
+  return {
+    id: row.id,
+    listId: row.list_id,
+    name: row.name,
+    checked: row.checked,
+    data: row.data ?? {},
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+  };
+}
+
+function toLabList(row: any): LabList {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? '',
+    columns: (row.columns ?? []) as ListColumn[],
+    items: dedupById((row.list_items ?? []).map(toListItem)),
+    createdBy: toUser(row.creator),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function fetchLists(): Promise<LabList[]> {
+  const data = unwrap(
+    await supabase
+      .from('lists')
+      .select(LIST_SELECT)
+      .order('created_at', { ascending: false })
+      .order('sort_order', { referencedTable: 'list_items', ascending: true })
+  );
+  return (data as any[]).map(toLabList);
+}
+
+export async function createList(input: NewListInput, actor: User): Promise<LabList> {
+  const inserted = unwrap(
+    await supabase
+      .from('lists')
+      .insert({
+        title: input.title,
+        description: input.description || '',
+        created_by: actor.id,
+      })
+      .select(LIST_SELECT)
+      .single()
+  );
+  return toLabList(inserted);
+}
+
+export async function updateList(
+  listId: string,
+  updates: { title?: string; description?: string; columns?: ListColumn[] }
+): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (updates.title !== undefined) row.title = updates.title;
+  if (updates.description !== undefined) row.description = updates.description;
+  if (updates.columns !== undefined) row.columns = updates.columns;
+  unwrap(
+    await supabase.from('lists').update(row).eq('id', listId).select('id')
+  );
+}
+
+export async function deleteList(listId: string): Promise<void> {
+  const { error } = await supabase.from('lists').delete().eq('id', listId);
+  if (error) throw new Error(error.message);
+}
+
+export async function addListItem(
+  listId: string,
+  input: NewListItemInput,
+  sortOrder: number
+): Promise<void> {
+  unwrap(
+    await supabase
+      .from('list_items')
+      .insert({
+        list_id: listId,
+        name: input.name,
+        data: input.data ?? {},
+        sort_order: sortOrder,
+      })
+      .select('id')
+  );
+}
+
+export async function updateListItem(
+  itemId: string,
+  updates: { name?: string; checked?: boolean; data?: Record<string, unknown>; sort_order?: number }
+): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (updates.name !== undefined) row.name = updates.name;
+  if (updates.checked !== undefined) row.checked = updates.checked;
+  if (updates.data !== undefined) row.data = updates.data;
+  if (updates.sort_order !== undefined) row.sort_order = updates.sort_order;
+  unwrap(
+    await supabase.from('list_items').update(row).eq('id', itemId).select('id')
+  );
+}
+
+export async function deleteListItem(itemId: string): Promise<void> {
+  const { error } = await supabase.from('list_items').delete().eq('id', itemId);
   if (error) throw new Error(error.message);
 }

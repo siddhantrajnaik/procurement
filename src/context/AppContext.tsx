@@ -14,9 +14,13 @@ import {
   Activity,
   InventoryItem,
   InventoryLogEntry,
+  LabList,
+  ListColumn,
   LostFoundItem,
   LostFoundStatus,
   NewInventoryItemInput,
+  NewListInput,
+  NewListItemInput,
   NewLostFoundInput,
   NewPurchaseInput,
   NewQuotationInput,
@@ -99,6 +103,14 @@ interface AppContextType {
   addLostFoundResponse: (itemId: string, body: string) => Promise<void>;
   updateLostFoundStatus: (itemId: string, status: LostFoundStatus) => Promise<void>;
   removeLostFoundItem: (itemId: string) => Promise<void>;
+
+  labLists: LabList[];
+  createLabList: (input: NewListInput) => Promise<void>;
+  updateLabList: (listId: string, updates: { title?: string; description?: string; columns?: ListColumn[] }) => Promise<void>;
+  removeLabList: (listId: string) => Promise<void>;
+  addListItem: (listId: string, input: NewListItemInput) => Promise<void>;
+  updateListItem: (itemId: string, updates: { name?: string; checked?: boolean; data?: Record<string, unknown> }) => Promise<void>;
+  removeListItem: (itemId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -122,6 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [inventoryLog, setInventoryLog] = useState<InventoryLogEntry[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [lostFoundItems, setLostFoundItems] = useState<LostFoundItem[]>([]);
+  const [labLists, setLabLists] = useState<LabList[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_USER_KEY)
   );
@@ -188,6 +201,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {
         // Table not created yet — keep empty default.
       }
+
+      try {
+        const ll = await api.fetchLists();
+        setLabLists(dedup(ll));
+      } catch {
+        // Table not created yet — keep empty default.
+      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
@@ -221,6 +241,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lost_found_items' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lost_found_responses' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items' }, refetch)
       .subscribe();
 
     return () => {
@@ -556,6 +578,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [lostFoundItems, run, showToast]
   );
 
+  const createLabList = useCallback(
+    async (input: NewListInput) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        const created = await api.createList(input, actor);
+        showToast(`Created list "${created.title}".`, 'success');
+      }, 'Could not create the list.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const updateLabList = useCallback(
+    async (listId: string, updates: { title?: string; description?: string; columns?: ListColumn[] }) => {
+      await run(async () => {
+        await api.updateList(listId, updates);
+      }, 'Could not update the list.');
+    },
+    [run]
+  );
+
+  const removeLabList = useCallback(
+    async (listId: string) => {
+      const list = labLists.find((l) => l.id === listId);
+      await run(async () => {
+        await api.deleteList(listId);
+        showToast(`Deleted "${list?.title ?? 'list'}".`, 'warning');
+      }, 'Could not delete the list.');
+    },
+    [labLists, run, showToast]
+  );
+
+  const addListItem = useCallback(
+    async (listId: string, input: NewListItemInput) => {
+      const list = labLists.find((l) => l.id === listId);
+      const nextOrder = list ? Math.max(0, ...list.items.map((i) => i.sortOrder)) + 1 : 0;
+      await run(async () => {
+        await api.addListItem(listId, input, nextOrder);
+      }, 'Could not add the item.');
+    },
+    [labLists, run]
+  );
+
+  const updateListItemCb = useCallback(
+    async (itemId: string, updates: { name?: string; checked?: boolean; data?: Record<string, unknown> }) => {
+      await run(async () => {
+        await api.updateListItem(itemId, updates);
+      }, 'Could not update the item.');
+    },
+    [run]
+  );
+
+  const removeListItem = useCallback(
+    async (itemId: string) => {
+      await run(async () => {
+        await api.deleteListItem(itemId);
+      }, 'Could not remove the item.');
+    },
+    [run]
+  );
+
   const value: AppContextType = {
     purchases,
     activities,
@@ -609,6 +692,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addLostFoundResponse,
     updateLostFoundStatus,
     removeLostFoundItem,
+    labLists,
+    createLabList,
+    updateLabList,
+    removeLabList,
+    addListItem,
+    updateListItem: updateListItemCb,
+    removeListItem,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

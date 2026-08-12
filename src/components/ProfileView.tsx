@@ -3,17 +3,19 @@ import { useApp } from '../context/AppContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building, Store, Search } from 'lucide-react';
+import { UserCheck, Building, Store, Search, List } from 'lucide-react';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
+import { ListsView } from './ListsView';
 
 export const ProfileView: React.FC = () => {
-  const { currentUser, allUsers, login, purchases, inventoryItems, vendors, lostFoundItems, verifyAdminPin, showToast } = useApp();
+  const { currentUser, allUsers, login, purchases, inventoryItems, vendors, lostFoundItems, labLists, verifyAdminPin, showToast } = useApp();
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);
   const [showVendors, setShowVendors] = useState(false);
   const [showLostFound, setShowLostFound] = useState(false);
+  const [showLists, setShowLists] = useState(false);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'
@@ -40,6 +42,10 @@ export const ProfileView: React.FC = () => {
 
   if (showLostFound) {
     return <LostFoundView onBack={() => setShowLostFound(false)} />;
+  }
+
+  if (showLists) {
+    return <ListsView onBack={() => setShowLists(false)} />;
   }
 
   return (
@@ -215,6 +221,25 @@ export const ProfileView: React.FC = () => {
           <h3 className="font-bold text-white text-sm">Lost & Found</h3>
           <p className="text-[11px] text-gray-400">
             {lostFoundItems.filter((i) => i.status === 'open').length} item{lostFoundItems.filter((i) => i.status === 'open').length !== 1 ? 's' : ''} reported lost
+          </p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          chevron_right
+        </span>
+      </button>
+
+      {/* Lists */}
+      <button
+        onClick={() => setShowLists(true)}
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+          <List className="w-5 h-5 text-blue-400" />
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">Lists</h3>
+          <p className="text-[11px] text-gray-400">
+            {labLists.length} list{labLists.length !== 1 ? 's' : ''}
           </p>
         </div>
         <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
