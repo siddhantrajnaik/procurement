@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, Check, FileUp } from 'lucide-react';
+import { X, ReceiptIndianRupee, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface AddQuotationModalProps {
@@ -14,13 +14,11 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { addQuotation } = useApp();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const { addQuotation, vendors } = useApp();
 
   const [vendor, setVendor] = useState('');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
-  const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -46,19 +44,17 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         vendor: vendor.trim(),
         price: numPrice,
         notes: notes.trim() || undefined,
-        file: file ?? undefined,
       });
       setVendor('');
       setPrice('');
       setNotes('');
-      setFile(null);
       onClose();
     } finally {
       setSubmitting(false);
     }
   };
 
-  const vendorPresets = [
+  const FALLBACK_VENDORS = [
     'Merck',
     'Thermo Fisher',
     'Cytiva',
@@ -68,6 +64,9 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
     'Eppendorf',
     'Sigma-Aldrich',
   ];
+
+  // Vendors the lab actually uses beat the generic list once the directory is filled in.
+  const vendorPresets = vendors.length > 0 ? vendors.map((v) => v.name) : FALLBACK_VENDORS;
 
   return (
     <AnimatePresence>
@@ -80,8 +79,8 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A2A]">
             <div className="flex items-center gap-2">
-              <Upload className="w-4 h-4 text-purple-400" />
-              <h3 className="font-bold text-white text-sm">Upload Vendor Quotation</h3>
+              <ReceiptIndianRupee className="w-4 h-4 text-purple-400" />
+              <h3 className="font-bold text-white text-sm">Record Vendor Quotation</h3>
             </div>
             <button
               onClick={onClose}
@@ -145,27 +144,6 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">
-                Attach Quotation (PDF / Image)
-              </label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.webp"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-dashed border-[#2A2A2A] bg-background hover:border-purple-500/40 text-gray-400 hover:text-purple-300 transition-colors text-xs font-medium"
-              >
-                <FileUp className="w-4 h-4" />
-                {file ? file.name : 'Choose file (max 10 MB)'}
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">
                 Notes / Discount details
               </label>
               <input
@@ -183,7 +161,7 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
               className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Check className="w-4 h-4" />
-              {submitting ? 'Uploading…' : 'Upload Quotation'}
+              {submitting ? 'Saving…' : 'Save Quotation'}
             </button>
           </form>
         </motion.div>

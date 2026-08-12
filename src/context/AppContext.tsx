@@ -83,6 +83,8 @@ interface AppContextType {
   selectQuotation: (purchaseId: string, quotation: Quotation) => Promise<void>;
   approvePi: (purchaseId: string) => Promise<void>;
   deletePurchase: (purchaseId: string) => Promise<void>;
+  uploadInvoice: (purchaseId: string, file: File) => Promise<void>;
+  removeInvoice: (purchaseId: string) => Promise<void>;
 
   inventoryItems: InventoryItem[];
   inventoryLog: InventoryLogEntry[];
@@ -428,6 +430,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [findPurchase, run, selectedPurchaseId, showToast]
   );
 
+  const uploadInvoice = useCallback(
+    async (purchaseId: string, file: File) => {
+      const actor = requireUser();
+      const purchase = findPurchase(purchaseId);
+      if (!actor || !purchase) return;
+      await run(async () => {
+        const { compressImage } = await import('../lib/compress');
+        const result = await compressImage(file);
+        await api.uploadInvoice(purchase, result.file, actor);
+        if (result.skipped) {
+          showToast('Invoice attached.', 'success');
+        } else {
+          const saved = Math.round((1 - result.compressedSize / result.originalSize) * 100);
+          showToast(`Invoice attached — compressed ${saved}% smaller.`, 'success');
+        }
+      }, 'Could not attach the invoice.');
+    },
+    [findPurchase, requireUser, run, showToast]
+  );
+
+  const removeInvoice = useCallback(
+    async (purchaseId: string) => {
+      const purchase = findPurchase(purchaseId);
+      if (!purchase) return;
+      await run(async () => {
+        await api.removeInvoice(purchase);
+        showToast('Invoice removed.', 'warning');
+      }, 'Could not remove the invoice.');
+    },
+    [findPurchase, run, showToast]
+  );
+
   const addInventoryItem = useCallback(
     async (input: NewInventoryItemInput) => {
       const actor = requireUser();
@@ -675,6 +709,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     selectQuotation,
     approvePi,
     deletePurchase,
+    uploadInvoice,
+    removeInvoice,
     inventoryItems,
     inventoryLog,
     addInventoryItem,

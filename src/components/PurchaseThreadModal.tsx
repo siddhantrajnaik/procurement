@@ -16,6 +16,7 @@ import { QuotationCard } from './QuotationCard';
 import { AddQuotationModal } from './AddQuotationModal';
 import { PdfViewerModal } from './PdfViewerModal';
 import { ConfirmModal } from './ConfirmModal';
+import { InvoiceSection } from './InvoiceSection';
 import { avatarClasses } from '../lib/accent';
 import { initialOf, roleLabel, timeAgo } from '../lib/format';
 
@@ -281,7 +282,7 @@ export const PurchaseThreadModal: React.FC = () => {
                     onClick={() => setIsAddQuoteOpen(true)}
                     className="text-xs font-semibold text-purple-400 hover:underline"
                   >
-                    Upload first vendor quote
+                    Record first vendor quote
                   </button>
                 </div>
               ) : (
@@ -300,6 +301,11 @@ export const PurchaseThreadModal: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Invoice — only relevant once the goods have actually arrived */}
+            {(p.status === 'delivered' || p.status === 'closed') && (
+              <InvoiceSection purchase={p} canManage={canManage} />
+            )}
 
             {/* Comments */}
             <div className="space-y-3 pt-2">

@@ -1,4 +1,4 @@
-import { QUOTATION_BUCKET, supabase } from './supabase';
+import { INVOICE_BUCKET, QUOTATION_BUCKET, supabase } from './supabase';
 import {
   Activity,
   Comment,
@@ -29,7 +29,7 @@ export const PI_APPROVAL_THRESHOLD = 25_000;
 
 const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department';
 
-const PURCHASE_SELECT = `
+const PURCHASE_BASE_SELECT = `
   id, title, description, quantity, category, priority, status, preferred_company,
   requires_pi_approval, pi_approved, created_at, updated_at,
   requester:profiles!purchases_requested_by_fkey(${PROFILE_FIELDS}),
@@ -44,6 +44,24 @@ const PURCHASE_SELECT = `
     author:profiles!comments_author_id_fkey(${PROFILE_FIELDS})
   )
 `;
+
+const PURCHASE_INVOICE_FIELDS = `
+  invoice_path, invoice_name, invoice_size, invoice_uploaded_at,
+  invoice_uploader:profiles!purchases_invoice_uploaded_by_fkey(${PROFILE_FIELDS}),
+`;
+
+const PURCHASE_SELECT = PURCHASE_INVOICE_FIELDS + PURCHASE_BASE_SELECT;
+
+/**
+ * Migration 0006 adds the invoice columns. Until it has been run they don't
+ * exist, and selecting them would 400 the whole feed — so the first failure
+ * latches this flag and every later query uses the legacy shape.
+ */
+let invoiceColumnsAvailable = true;
+
+function purchaseSelect(): string {
+  return invoiceColumnsAvailable ? PURCHASE_SELECT : PURCHASE_BASE_SELECT;
+}
 
 const ACTIVITY_SELECT = `
   id, purchase_id, purchase_title, type, details, created_at,
@@ -113,6 +131,11 @@ function toPurchase(row: any): Purchase {
     assignedTo: toUser(row.assignee),
     requiresPiApproval: row.requires_pi_approval,
     piApproved: row.pi_approved,
+    invoicePath: row.invoice_path ?? null,
+    invoiceName: row.invoice_name ?? null,
+    invoiceSize: row.invoice_size != null ? Number(row.invoice_size) : null,
+    invoiceUploadedBy: toUser(row.invoice_uploader),
+    invoiceUploadedAt: row.invoice_uploaded_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     quotations: dedupById((row.quotations ?? []).map(toQuotation)),
@@ -156,15 +179,23 @@ export async function fetchUsers(): Promise<User[]> {
 }
 
 export async function fetchPurchases(): Promise<Purchase[]> {
-  const data = unwrap(
-    await supabase
+  const query = () =>
+    supabase
       .from('purchases')
-      .select(PURCHASE_SELECT)
+      .select(purchaseSelect())
       .order('created_at', { ascending: false })
       .order('created_at', { referencedTable: 'quotations', ascending: false })
-      .order('created_at', { referencedTable: 'comments', ascending: true })
-  );
-  return (data as any[]).map(toPurchase);
+      .order('created_at', { referencedTable: 'comments', ascending: true });
+
+  let result = await query();
+
+  // Retry once without the invoice columns if migration 0006 hasn't been run.
+  if (result.error && invoiceColumnsAvailable) {
+    invoiceColumnsAvailable = false;
+    result = await query();
+  }
+
+  return (unwrap(result) as any[]).map(toPurchase);
 }
 
 export async function fetchActivities(limit = 60): Promise<Activity[]> {
@@ -211,7 +242,7 @@ export async function createPurchase(input: NewPurchaseInput, actor: User): Prom
         preferred_company: input.preferredCompany || null,
         requested_by: actor.id,
       })
-      .select(PURCHASE_SELECT)
+      .select(purchaseSelect())
       .single()
   );
 
@@ -309,39 +340,15 @@ export async function addQuotation(
   input: NewQuotationInput,
   actor: User
 ): Promise<void> {
-  let filePath: string | null = null;
-  let fileName: string | null = null;
-  let fileSize: number | null = null;
-
-  if (input.file) {
-    const safeName = input.file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    filePath = `${purchase.id}/${crypto.randomUUID()}-${safeName}`;
-
-    const { error } = await supabase.storage
-      .from(QUOTATION_BUCKET)
-      .upload(filePath, input.file, { contentType: input.file.type, upsert: false });
-    if (error) throw new Error(`Upload failed: ${error.message}`);
-
-    fileName = input.file.name;
-    fileSize = input.file.size;
-  }
-
   const { error } = await supabase.from('quotations').insert({
     purchase_id: purchase.id,
     vendor: input.vendor,
     price: input.price,
     notes: input.notes || null,
-    file_path: filePath,
-    file_name: fileName,
-    file_size: fileSize,
     uploaded_by: actor.id,
   });
 
-  if (error) {
-    // Don't leave an orphaned object in the bucket if the row insert failed.
-    if (filePath) await supabase.storage.from(QUOTATION_BUCKET).remove([filePath]);
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   if (purchase.status === 'waiting') {
     await supabase.from('purchases').update({ status: 'quotes' }).eq('id', purchase.id);
@@ -355,7 +362,7 @@ export async function addQuotation(
     purchase.title,
     actor.id,
     'quote_added',
-    `uploaded a quotation from ${input.vendor} (₹${input.price.toLocaleString('en-IN')})`
+    `recorded a quotation from ${input.vendor} (₹${input.price.toLocaleString('en-IN')})`
   );
 }
 
@@ -363,6 +370,73 @@ export async function addQuotation(
 export async function getQuotationFileUrl(filePath: string): Promise<string> {
   const data = unwrap(
     await supabase.storage.from(QUOTATION_BUCKET).createSignedUrl(filePath, 60 * 10)
+  );
+  return (data as { signedUrl: string }).signedUrl;
+}
+
+// ------------------------------------------------------------------ invoices
+
+/** Images are compressed by the caller before they reach this. */
+export async function uploadInvoice(
+  purchase: Purchase,
+  file: File,
+  actor: User
+): Promise<void> {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filePath = `${purchase.id}/${crypto.randomUUID()}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(INVOICE_BUCKET)
+    .upload(filePath, file, { contentType: file.type, upsert: false });
+  if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+  const { error } = await supabase
+    .from('purchases')
+    .update({
+      invoice_path: filePath,
+      invoice_name: file.name,
+      invoice_size: file.size,
+      invoice_uploaded_by: actor.id,
+      invoice_uploaded_at: new Date().toISOString(),
+    })
+    .eq('id', purchase.id);
+
+  if (error) {
+    // Don't leave an orphaned object in the bucket if the row update failed.
+    await supabase.storage.from(INVOICE_BUCKET).remove([filePath]);
+    throw new Error(error.message);
+  }
+
+  // Replacing an invoice leaves the old object behind otherwise.
+  if (purchase.invoicePath && purchase.invoicePath !== filePath) {
+    await supabase.storage.from(INVOICE_BUCKET).remove([purchase.invoicePath]);
+  }
+
+  await logActivity(purchase.id, purchase.title, actor.id, 'comment_added', 'attached the delivery invoice');
+}
+
+export async function removeInvoice(purchase: Purchase): Promise<void> {
+  if (purchase.invoicePath) {
+    await supabase.storage.from(INVOICE_BUCKET).remove([purchase.invoicePath]);
+  }
+  unwrap(
+    await supabase
+      .from('purchases')
+      .update({
+        invoice_path: null,
+        invoice_name: null,
+        invoice_size: null,
+        invoice_uploaded_by: null,
+        invoice_uploaded_at: null,
+      })
+      .eq('id', purchase.id)
+      .select('id')
+  );
+}
+
+export async function getInvoiceFileUrl(filePath: string): Promise<string> {
+  const data = unwrap(
+    await supabase.storage.from(INVOICE_BUCKET).createSignedUrl(filePath, 60 * 10)
   );
   return (data as { signedUrl: string }).signedUrl;
 }

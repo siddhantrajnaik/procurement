@@ -71,6 +71,11 @@ export interface Purchase {
   assignedTo: User | null;
   requiresPiApproval: boolean;
   piApproved: boolean;
+  invoicePath: string | null;
+  invoiceName: string | null;
+  invoiceSize: number | null;
+  invoiceUploadedBy: User | null;
+  invoiceUploadedAt: string | null;
   createdAt: string;
   updatedAt: string;
   quotations: Quotation[];
@@ -236,5 +241,4 @@ export interface NewQuotationInput {
   vendor: string;
   price: number;
   notes?: string;
-  file?: File | null;
 }

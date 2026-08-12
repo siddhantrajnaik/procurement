@@ -19,3 +19,4 @@ export const supabase = createClient(url ?? 'http://localhost', anonKey ?? 'anon
 });
 
 export const QUOTATION_BUCKET = 'quotations';
+export const INVOICE_BUCKET = 'invoices';
