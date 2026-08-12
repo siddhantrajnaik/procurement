@@ -14,7 +14,10 @@ import {
   Activity,
   InventoryItem,
   InventoryLogEntry,
+  LostFoundItem,
+  LostFoundStatus,
   NewInventoryItemInput,
+  NewLostFoundInput,
   NewPurchaseInput,
   NewQuotationInput,
   NewVendorInput,
@@ -90,6 +93,12 @@ interface AppContextType {
   addVendor: (input: NewVendorInput) => Promise<void>;
   editVendor: (vendorId: string, updates: Partial<NewVendorInput>) => Promise<void>;
   removeVendor: (vendorId: string) => Promise<void>;
+
+  lostFoundItems: LostFoundItem[];
+  reportLostItem: (input: NewLostFoundInput) => Promise<void>;
+  addLostFoundResponse: (itemId: string, body: string) => Promise<void>;
+  updateLostFoundStatus: (itemId: string, status: LostFoundStatus) => Promise<void>;
+  removeLostFoundItem: (itemId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -112,6 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [inventoryLog, setInventoryLog] = useState<InventoryLogEntry[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [lostFoundItems, setLostFoundItems] = useState<LostFoundItem[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_USER_KEY)
   );
@@ -171,6 +181,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {
         // Table not created yet — keep empty default.
       }
+
+      try {
+        const lf = await api.fetchLostFoundItems();
+        setLostFoundItems(dedup(lf));
+      } catch {
+        // Table not created yet — keep empty default.
+      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
@@ -202,6 +219,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_log' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lost_found_items' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lost_found_responses' }, refetch)
       .subscribe();
 
     return () => {
@@ -492,6 +511,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [vendors, run, showToast]
   );
 
+  const reportLostItem = useCallback(
+    async (input: NewLostFoundInput) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(async () => {
+        await api.reportLostItem(input, actor);
+        showToast(`Reported "${input.title}" as lost.`, 'success');
+      }, 'Could not report the item.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const addLostFoundResponse = useCallback(
+    async (itemId: string, body: string) => {
+      const actor = requireUser();
+      if (!actor) return;
+      await run(() => api.addLostFoundResponse(itemId, body, actor), 'Could not post the response.');
+    },
+    [requireUser, run]
+  );
+
+  const updateLostFoundStatus = useCallback(
+    async (itemId: string, status: LostFoundStatus) => {
+      const actor = requireUser();
+      if (!actor) return;
+      const label = status === 'found' ? 'found' : status === 'resolved' ? 'resolved' : 'reopened';
+      await run(async () => {
+        await api.updateLostFoundStatus(itemId, status, actor);
+        showToast(`Item marked as ${label}.`, 'success');
+      }, 'Could not update status.');
+    },
+    [requireUser, run, showToast]
+  );
+
+  const removeLostFoundItem = useCallback(
+    async (itemId: string) => {
+      const item = lostFoundItems.find((i) => i.id === itemId);
+      await run(async () => {
+        await api.deleteLostFoundItem(itemId);
+        showToast(`Removed "${item?.title ?? 'item'}".`, 'warning');
+      }, 'Could not remove the item.');
+    },
+    [lostFoundItems, run, showToast]
+  );
+
   const value: AppContextType = {
     purchases,
     activities,
@@ -540,6 +604,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addVendor,
     editVendor,
     removeVendor,
+    lostFoundItems,
+    reportLostItem,
+    addLostFoundResponse,
+    updateLostFoundStatus,
+    removeLostFoundItem,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

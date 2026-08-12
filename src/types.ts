@@ -156,6 +156,35 @@ export interface NewVendorInput {
   photoUrl?: string;
 }
 
+export type LostFoundStatus = 'open' | 'found' | 'resolved';
+
+export interface LostFoundItem {
+  id: string;
+  title: string;
+  description: string;
+  locationLastSeen: string;
+  status: LostFoundStatus;
+  reportedBy: User | null;
+  resolvedBy: User | null;
+  responses: LostFoundResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LostFoundResponse {
+  id: string;
+  itemId: string;
+  author: User | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface NewLostFoundInput {
+  title: string;
+  description?: string;
+  locationLastSeen?: string;
+}
+
 export type TabType = 'home' | 'search' | 'activity' | 'profile' | 'inventory';
 
 export interface NewPurchaseInput {

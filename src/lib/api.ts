@@ -4,7 +4,11 @@ import {
   Comment,
   InventoryItem,
   InventoryLogEntry,
+  LostFoundItem,
+  LostFoundResponse,
+  LostFoundStatus,
   NewInventoryItemInput,
+  NewLostFoundInput,
   NewPurchaseInput,
   NewQuotationInput,
   NewVendorInput,
@@ -649,5 +653,99 @@ export async function updateVendor(
 
 export async function deleteVendor(vendorId: string): Promise<void> {
   const { error } = await supabase.from('vendors').delete().eq('id', vendorId);
+  if (error) throw new Error(error.message);
+}
+
+// ------------------------------------------------------------------ lost & found
+
+const LOST_FOUND_SELECT = `
+  id, title, description, location_last_seen, status, created_at, updated_at,
+  reporter:profiles!lost_found_items_reported_by_fkey(${PROFILE_FIELDS}),
+  resolver:profiles!lost_found_items_resolved_by_fkey(${PROFILE_FIELDS}),
+  lost_found_responses(
+    id, item_id, body, created_at,
+    author:profiles!lost_found_responses_author_id_fkey(${PROFILE_FIELDS})
+  )
+`;
+
+function toLostFoundResponse(row: any): LostFoundResponse {
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    author: toUser(row.author),
+    body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
+function toLostFoundItem(row: any): LostFoundItem {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? '',
+    locationLastSeen: row.location_last_seen ?? '',
+    status: row.status,
+    reportedBy: toUser(row.reporter),
+    resolvedBy: toUser(row.resolver),
+    responses: dedupById((row.lost_found_responses ?? []).map(toLostFoundResponse)),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function fetchLostFoundItems(): Promise<LostFoundItem[]> {
+  const data = unwrap(
+    await supabase
+      .from('lost_found_items')
+      .select(LOST_FOUND_SELECT)
+      .order('created_at', { ascending: false })
+      .order('created_at', { referencedTable: 'lost_found_responses', ascending: true })
+  );
+  return (data as any[]).map(toLostFoundItem);
+}
+
+export async function reportLostItem(input: NewLostFoundInput, actor: User): Promise<LostFoundItem> {
+  const inserted = unwrap(
+    await supabase
+      .from('lost_found_items')
+      .insert({
+        title: input.title,
+        description: input.description || '',
+        location_last_seen: input.locationLastSeen || '',
+        reported_by: actor.id,
+      })
+      .select(LOST_FOUND_SELECT)
+      .single()
+  );
+  return toLostFoundItem(inserted);
+}
+
+export async function addLostFoundResponse(
+  itemId: string,
+  body: string,
+  actor: User
+): Promise<void> {
+  unwrap(
+    await supabase
+      .from('lost_found_responses')
+      .insert({ item_id: itemId, author_id: actor.id, body })
+      .select('id')
+  );
+}
+
+export async function updateLostFoundStatus(
+  itemId: string,
+  status: LostFoundStatus,
+  actor: User
+): Promise<void> {
+  const row: Record<string, unknown> = { status };
+  if (status === 'resolved' || status === 'found') row.resolved_by = actor.id;
+  unwrap(
+    await supabase.from('lost_found_items').update(row).eq('id', itemId).select('id')
+  );
+}
+
+export async function deleteLostFoundItem(itemId: string): Promise<void> {
+  const { error } = await supabase.from('lost_found_items').delete().eq('id', itemId);
   if (error) throw new Error(error.message);
 }
