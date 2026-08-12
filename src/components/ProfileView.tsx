@@ -3,10 +3,11 @@ import { useApp } from '../context/AppContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building, Store, Search, List } from 'lucide-react';
+import { UserCheck, Building, Store, Search, List, Sparkles } from 'lucide-react';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
 import { ListsView } from './ListsView';
+import { MuhuratView } from './MuhuratView';
 
 export const ProfileView: React.FC = () => {
   const { currentUser, allUsers, login, purchases, inventoryItems, vendors, lostFoundItems, labLists, verifyAdminPin, showToast } = useApp();
@@ -16,6 +17,7 @@ export const ProfileView: React.FC = () => {
   const [showVendors, setShowVendors] = useState(false);
   const [showLostFound, setShowLostFound] = useState(false);
   const [showLists, setShowLists] = useState(false);
+  const [showMuhurat, setShowMuhurat] = useState(false);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'
@@ -46,6 +48,10 @@ export const ProfileView: React.FC = () => {
 
   if (showLists) {
     return <ListsView onBack={() => setShowLists(false)} />;
+  }
+
+  if (showMuhurat) {
+    return <MuhuratView onBack={() => setShowMuhurat(false)} />;
   }
 
   return (
@@ -241,6 +247,23 @@ export const ProfileView: React.FC = () => {
           <p className="text-[11px] text-gray-400">
             {labLists.length} list{labLists.length !== 1 ? 's' : ''}
           </p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          chevron_right
+        </span>
+      </button>
+
+      {/* Shubh Muhurat */}
+      <button
+        onClick={() => setShowMuhurat(true)}
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+          <Sparkles className="w-5 h-5 text-amber-400" />
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">Shubh Muhurat</h3>
+          <p className="text-[11px] text-gray-400">Check auspicious timing</p>
         </div>
         <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
           chevron_right
