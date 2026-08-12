@@ -226,6 +226,94 @@ export interface NewListItemInput {
   data?: Record<string, unknown>;
 }
 
+export type EquipmentStatus = 'working' | 'needs_attention' | 'down' | 'under_service';
+
+export type IssueStatus = 'reported' | 'investigating' | 'vendor_called' | 'fixed';
+
+export interface MaintenanceLog {
+  id: string;
+  equipmentId: string;
+  performedBy: string;
+  description: string;
+  cost: number | null;
+  serviceDate: string;
+  nextDueDate: string | null;
+  loggedBy: User | null;
+  createdAt: string;
+}
+
+export interface IssueResponse {
+  id: string;
+  issueId: string;
+  author: User | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface EquipmentIssue {
+  id: string;
+  equipmentId: string;
+  reportedBy: User | null;
+  title: string;
+  description: string;
+  status: IssueStatus;
+  fixSummary: string;
+  fixedBy: string;
+  fixCost: number | null;
+  responses: IssueResponse[];
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface Equipment {
+  id: string;
+  name: string;
+  model: string;
+  manufacturer: string;
+  category: string;
+  location: string;
+  status: EquipmentStatus;
+  photoUrl: string | null;
+  purchaseDate: string | null;
+  warrantyExpiry: string | null;
+  serviceVendor: string;
+  serviceContactPerson: string;
+  servicePhone: string;
+  notes: string;
+  addedBy: User | null;
+  issues: EquipmentIssue[];
+  maintenanceLogs: MaintenanceLog[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NewEquipmentInput {
+  name: string;
+  model?: string;
+  manufacturer?: string;
+  category?: string;
+  location?: string;
+  serviceVendor?: string;
+  serviceContactPerson?: string;
+  servicePhone?: string;
+  notes?: string;
+  purchaseDate?: string;
+  warrantyExpiry?: string;
+}
+
+export interface NewIssueInput {
+  title: string;
+  description?: string;
+}
+
+export interface NewMaintenanceInput {
+  description: string;
+  performedBy?: string;
+  cost?: number;
+  serviceDate?: string;
+  nextDueDate?: string;
+}
+
 export type TabType = 'home' | 'search' | 'activity' | 'profile' | 'inventory';
 
 export interface NewPurchaseInput {

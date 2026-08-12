@@ -2,18 +2,27 @@ import { INVOICE_BUCKET, QUOTATION_BUCKET, supabase } from './supabase';
 import {
   Activity,
   Comment,
+  Equipment,
+  EquipmentIssue,
+  EquipmentStatus,
   InventoryItem,
   InventoryLogEntry,
+  IssueResponse,
+  IssueStatus,
   LabList,
   ListColumn,
   ListItem,
   LostFoundItem,
   LostFoundResponse,
   LostFoundStatus,
+  MaintenanceLog,
+  NewEquipmentInput,
   NewInventoryItemInput,
+  NewIssueInput,
   NewListInput,
   NewListItemInput,
   NewLostFoundInput,
+  NewMaintenanceInput,
   NewPurchaseInput,
   NewQuotationInput,
   NewVendorInput,
@@ -943,4 +952,220 @@ export async function updateListItem(
 export async function deleteListItem(itemId: string): Promise<void> {
   const { error } = await supabase.from('list_items').delete().eq('id', itemId);
   if (error) throw new Error(error.message);
+}
+
+// ------------------------------------------------------------------ equipment
+
+const EQUIPMENT_SELECT = `
+  id, name, model, manufacturer, category, location, status, photo_url,
+  purchase_date, warranty_expiry, service_vendor, service_contact_person,
+  service_phone, notes, created_at, updated_at,
+  added_by:profiles!equipment_added_by_fkey(${PROFILE_FIELDS}),
+  issues:equipment_issues(
+    id, equipment_id, title, description, status, fix_summary, fixed_by,
+    fix_cost, created_at, resolved_at,
+    reporter:profiles!equipment_issues_reported_by_fkey(${PROFILE_FIELDS}),
+    responses:issue_responses(
+      id, issue_id, body, created_at,
+      author:profiles!issue_responses_author_id_fkey(${PROFILE_FIELDS})
+    )
+  ),
+  maintenance:maintenance_logs(
+    id, equipment_id, performed_by, description, cost, service_date,
+    next_due_date, created_at,
+    logger:profiles!maintenance_logs_logged_by_fkey(${PROFILE_FIELDS})
+  )
+`;
+
+function toIssueResponse(row: any): IssueResponse {
+  return {
+    id: row.id,
+    issueId: row.issue_id,
+    author: toUser(row.author),
+    body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
+function toIssue(row: any): EquipmentIssue {
+  return {
+    id: row.id,
+    equipmentId: row.equipment_id,
+    reportedBy: toUser(row.reporter),
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    fixSummary: row.fix_summary,
+    fixedBy: row.fixed_by,
+    fixCost: row.fix_cost != null ? Number(row.fix_cost) : null,
+    responses: (row.responses ?? []).map(toIssueResponse),
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+  };
+}
+
+function toMaintenanceLog(row: any): MaintenanceLog {
+  return {
+    id: row.id,
+    equipmentId: row.equipment_id,
+    performedBy: row.performed_by,
+    description: row.description,
+    cost: row.cost != null ? Number(row.cost) : null,
+    serviceDate: row.service_date,
+    nextDueDate: row.next_due_date,
+    loggedBy: toUser(row.logger),
+    createdAt: row.created_at,
+  };
+}
+
+function toEquipment(row: any): Equipment {
+  return {
+    id: row.id,
+    name: row.name,
+    model: row.model,
+    manufacturer: row.manufacturer,
+    category: row.category,
+    location: row.location,
+    status: row.status,
+    photoUrl: row.photo_url,
+    purchaseDate: row.purchase_date,
+    warrantyExpiry: row.warranty_expiry,
+    serviceVendor: row.service_vendor,
+    serviceContactPerson: row.service_contact_person,
+    servicePhone: row.service_phone,
+    notes: row.notes,
+    addedBy: toUser(row.added_by),
+    issues: (row.issues ?? []).map(toIssue),
+    maintenanceLogs: (row.maintenance ?? []).map(toMaintenanceLog),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function fetchEquipment(): Promise<Equipment[]> {
+  const rows = unwrap(
+    await supabase
+      .from('equipment')
+      .select(EQUIPMENT_SELECT)
+      .order('name')
+  );
+  return rows.map(toEquipment);
+}
+
+export async function addEquipment(
+  input: NewEquipmentInput,
+  userId: string
+): Promise<Equipment> {
+  const row = unwrap(
+    await supabase
+      .from('equipment')
+      .insert({
+        name: input.name,
+        model: input.model ?? '',
+        manufacturer: input.manufacturer ?? '',
+        category: input.category ?? 'other',
+        location: input.location ?? '',
+        service_vendor: input.serviceVendor ?? '',
+        service_contact_person: input.serviceContactPerson ?? '',
+        service_phone: input.servicePhone ?? '',
+        notes: input.notes ?? '',
+        purchase_date: input.purchaseDate || null,
+        warranty_expiry: input.warrantyExpiry || null,
+        added_by: userId,
+      })
+      .select(EQUIPMENT_SELECT)
+      .single()
+  );
+  return toEquipment(row);
+}
+
+export async function updateEquipment(
+  equipmentId: string,
+  updates: Partial<NewEquipmentInput> & { status?: EquipmentStatus }
+): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (updates.name !== undefined) row.name = updates.name;
+  if (updates.model !== undefined) row.model = updates.model;
+  if (updates.manufacturer !== undefined) row.manufacturer = updates.manufacturer;
+  if (updates.category !== undefined) row.category = updates.category;
+  if (updates.location !== undefined) row.location = updates.location;
+  if (updates.serviceVendor !== undefined) row.service_vendor = updates.serviceVendor;
+  if (updates.serviceContactPerson !== undefined) row.service_contact_person = updates.serviceContactPerson;
+  if (updates.servicePhone !== undefined) row.service_phone = updates.servicePhone;
+  if (updates.notes !== undefined) row.notes = updates.notes;
+  if (updates.purchaseDate !== undefined) row.purchase_date = updates.purchaseDate || null;
+  if (updates.warrantyExpiry !== undefined) row.warranty_expiry = updates.warrantyExpiry || null;
+  if (updates.status !== undefined) row.status = updates.status;
+  unwrap(
+    await supabase.from('equipment').update(row).eq('id', equipmentId).select('id')
+  );
+}
+
+export async function deleteEquipment(equipmentId: string): Promise<void> {
+  const { error } = await supabase.from('equipment').delete().eq('id', equipmentId);
+  if (error) throw new Error(error.message);
+}
+
+export async function reportIssue(
+  equipmentId: string,
+  input: NewIssueInput,
+  userId: string
+): Promise<void> {
+  unwrap(
+    await supabase.from('equipment_issues').insert({
+      equipment_id: equipmentId,
+      reported_by: userId,
+      title: input.title,
+      description: input.description ?? '',
+    }).select('id')
+  );
+}
+
+export async function updateIssueStatus(
+  issueId: string,
+  status: IssueStatus,
+  fixSummary?: string,
+  fixedBy?: string,
+  fixCost?: number
+): Promise<void> {
+  const row: Record<string, unknown> = { status };
+  if (fixSummary !== undefined) row.fix_summary = fixSummary;
+  if (fixedBy !== undefined) row.fixed_by = fixedBy;
+  if (fixCost !== undefined) row.fix_cost = fixCost;
+  if (status === 'fixed') row.resolved_at = new Date().toISOString();
+  unwrap(
+    await supabase.from('equipment_issues').update(row).eq('id', issueId).select('id')
+  );
+}
+
+export async function addIssueResponse(
+  issueId: string,
+  body: string,
+  userId: string
+): Promise<void> {
+  unwrap(
+    await supabase.from('issue_responses').insert({
+      issue_id: issueId,
+      author_id: userId,
+      body,
+    }).select('id')
+  );
+}
+
+export async function addMaintenanceLog(
+  equipmentId: string,
+  input: NewMaintenanceInput,
+  userId: string
+): Promise<void> {
+  unwrap(
+    await supabase.from('maintenance_logs').insert({
+      equipment_id: equipmentId,
+      performed_by: input.performedBy ?? '',
+      description: input.description,
+      cost: input.cost ?? null,
+      service_date: input.serviceDate ?? new Date().toISOString().slice(0, 10),
+      next_due_date: input.nextDueDate || null,
+      logged_by: userId,
+    }).select('id')
+  );
 }

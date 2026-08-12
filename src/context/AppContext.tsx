@@ -12,16 +12,22 @@ import * as api from '../lib/api';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   Activity,
+  Equipment,
+  EquipmentStatus,
   InventoryItem,
   InventoryLogEntry,
+  IssueStatus,
   LabList,
   ListColumn,
   LostFoundItem,
   LostFoundStatus,
+  NewEquipmentInput,
   NewInventoryItemInput,
+  NewIssueInput,
   NewListInput,
   NewListItemInput,
   NewLostFoundInput,
+  NewMaintenanceInput,
   NewPurchaseInput,
   NewQuotationInput,
   NewVendorInput,
@@ -113,6 +119,15 @@ interface AppContextType {
   addListItem: (listId: string, input: NewListItemInput) => Promise<void>;
   updateListItem: (itemId: string, updates: { name?: string; checked?: boolean; data?: Record<string, unknown> }) => Promise<void>;
   removeListItem: (itemId: string) => Promise<void>;
+
+  equipment: Equipment[];
+  addEquipment: (input: NewEquipmentInput) => Promise<void>;
+  editEquipment: (equipmentId: string, updates: Partial<NewEquipmentInput> & { status?: EquipmentStatus }) => Promise<void>;
+  removeEquipment: (equipmentId: string) => Promise<void>;
+  reportIssue: (equipmentId: string, input: NewIssueInput) => Promise<void>;
+  updateIssueStatus: (issueId: string, status: IssueStatus, fixSummary?: string, fixedBy?: string, fixCost?: number) => Promise<void>;
+  addIssueResponse: (issueId: string, body: string) => Promise<void>;
+  addMaintenanceLog: (equipmentId: string, input: NewMaintenanceInput) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -137,6 +152,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [lostFoundItems, setLostFoundItems] = useState<LostFoundItem[]>([]);
   const [labLists, setLabLists] = useState<LabList[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_USER_KEY)
   );
@@ -210,6 +226,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {
         // Table not created yet — keep empty default.
       }
+
+      try {
+        const eq = await api.fetchEquipment();
+        setEquipment(dedup(eq));
+      } catch {
+        // Table not created yet — keep empty default.
+      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
@@ -245,6 +268,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lost_found_responses' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_issues' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'issue_responses' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_logs' }, refetch)
       .subscribe();
 
     return () => {
@@ -673,6 +700,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [run]
   );
 
+  // ---- equipment ----
+  const addEquipmentCb = useCallback(
+    async (input: NewEquipmentInput) => {
+      if (!currentUser) return;
+      await run(async () => {
+        await api.addEquipment(input, currentUser.id);
+        showToast(`Added "${input.name}".`, 'success');
+      }, 'Could not add equipment.');
+    },
+    [currentUser, run, showToast]
+  );
+
+  const editEquipmentCb = useCallback(
+    async (equipmentId: string, updates: Partial<NewEquipmentInput> & { status?: EquipmentStatus }) => {
+      await run(async () => {
+        await api.updateEquipment(equipmentId, updates);
+      }, 'Could not update equipment.');
+    },
+    [run]
+  );
+
+  const removeEquipmentCb = useCallback(
+    async (equipmentId: string) => {
+      const eq = equipment.find((e) => e.id === equipmentId);
+      await run(async () => {
+        await api.deleteEquipment(equipmentId);
+        showToast(`Deleted "${eq?.name ?? 'equipment'}".`, 'warning');
+      }, 'Could not delete equipment.');
+    },
+    [equipment, run, showToast]
+  );
+
+  const reportIssueCb = useCallback(
+    async (equipmentId: string, input: NewIssueInput) => {
+      if (!currentUser) return;
+      await run(async () => {
+        await api.reportIssue(equipmentId, input, currentUser.id);
+        showToast('Issue reported.', 'success');
+      }, 'Could not report issue.');
+    },
+    [currentUser, run, showToast]
+  );
+
+  const updateIssueStatusCb = useCallback(
+    async (issueId: string, status: IssueStatus, fixSummary?: string, fixedBy?: string, fixCost?: number) => {
+      await run(async () => {
+        await api.updateIssueStatus(issueId, status, fixSummary, fixedBy, fixCost);
+        if (status === 'fixed') showToast('Issue marked as fixed.', 'success');
+      }, 'Could not update issue.');
+    },
+    [run, showToast]
+  );
+
+  const addIssueResponseCb = useCallback(
+    async (issueId: string, body: string) => {
+      if (!currentUser) return;
+      await run(async () => {
+        await api.addIssueResponse(issueId, body, currentUser.id);
+      }, 'Could not add response.');
+    },
+    [currentUser, run]
+  );
+
+  const addMaintenanceLogCb = useCallback(
+    async (equipmentId: string, input: NewMaintenanceInput) => {
+      if (!currentUser) return;
+      await run(async () => {
+        await api.addMaintenanceLog(equipmentId, input, currentUser.id);
+        showToast('Maintenance logged.', 'success');
+      }, 'Could not log maintenance.');
+    },
+    [currentUser, run, showToast]
+  );
+
   const value: AppContextType = {
     purchases,
     activities,
@@ -735,6 +836,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addListItem,
     updateListItem: updateListItemCb,
     removeListItem,
+    equipment,
+    addEquipment: addEquipmentCb,
+    editEquipment: editEquipmentCb,
+    removeEquipment: removeEquipmentCb,
+    reportIssue: reportIssueCb,
+    updateIssueStatus: updateIssueStatusCb,
+    addIssueResponse: addIssueResponseCb,
+    addMaintenanceLog: addMaintenanceLogCb,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
