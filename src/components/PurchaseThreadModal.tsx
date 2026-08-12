@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Send,
   Paperclip,
-  ShieldAlert,
   Plus,
   Trash2,
   Check,
@@ -27,7 +26,6 @@ export const PurchaseThreadModal: React.FC = () => {
     currentUser,
     updateStatus,
     addComment,
-    approvePi,
     selectQuotation,
     deletePurchase,
   } = useApp();
@@ -215,49 +213,6 @@ export const PurchaseThreadModal: React.FC = () => {
                 })}
               </div>
             </div>
-
-            {/* PI Approval */}
-            {p.requiresPiApproval && (
-              <div
-                className={`p-4 rounded-xl border flex items-center justify-between gap-3 ${
-                  p.piApproved
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
-                    : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`p-2 rounded-lg ${
-                      p.piApproved
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-amber-500/20 text-amber-400'
-                    }`}
-                  >
-                    <ShieldAlert className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-xs">
-                      {p.piApproved
-                        ? 'PI Expenditure Approved'
-                        : 'PI Approval Required (> 25k)'}
-                    </h4>
-                    <p className="text-[11px] opacity-80">
-                      {p.piApproved
-                        ? 'The PI approved this purchase.'
-                        : 'Requires PI signoff before dispatch.'}
-                    </p>
-                  </div>
-                </div>
-                {!p.piApproved && currentUser.role === 'pi' && (
-                  <button
-                    onClick={() => void approvePi(p.id)}
-                    className="py-1.5 px-3 bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold rounded-lg transition-colors"
-                  >
-                    Approve
-                  </button>
-                )}
-              </div>
-            )}
 
             {/* Quotations */}
             <div className="space-y-3">

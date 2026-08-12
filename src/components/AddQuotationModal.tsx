@@ -135,11 +135,7 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                 onChange={(e) => setPrice(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm font-bold focus:ring-1 focus:ring-purple-500 focus:border-purple-500 outline-none placeholder:text-gray-600"
               />
-              {parseFloat(price) > 25000 && (
-                <p className="text-[11px] text-amber-400 font-medium mt-1">
-                  Quote exceeds 25,000 — will require PI approval.
-                </p>
-              )}
+
             </div>
 
             <div>
