@@ -105,11 +105,6 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
               {formatRupees(approvedQuote.price)} · {approvedQuote.vendor}
             </span>
           )}
-          {purchase.requiresPiApproval && !purchase.piApproved && (
-            <span className="inline-flex items-center gap-1 text-amber-300 text-[11px] font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-              Awaiting PI approval
-            </span>
-          )}
           {purchase.comments.length > 0 && (
             <span className="inline-flex items-center gap-1 text-gray-400 text-[11px] font-medium">
               <span className="material-symbols-outlined text-[14px]">chat_bubble</span>

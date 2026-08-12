@@ -49,7 +49,6 @@ export const HomeFeed: React.FC = () => {
   const pendingCount = purchases.filter(
     (p) => p.status === 'waiting' || p.status === 'quotes'
   ).length;
-  const awaitingApproval = purchases.filter((p) => p.requiresPiApproval && !p.piApproved).length;
   const committedSpend = purchases.reduce(
     (total, p) => total + (p.quotations.find((q) => q.isApproved)?.price ?? 0),
     0
@@ -86,11 +85,6 @@ export const HomeFeed: React.FC = () => {
             Committed: <span className="font-bold text-white">{formatRupees(committedSpend)}</span>
           </span>
           <span className="px-3">{pendingCount} pending</span>
-          {awaitingApproval > 0 && (
-            <span className="px-3 text-amber-300 font-semibold">
-              {awaitingApproval} awaiting PI
-            </span>
-          )}
         </div>
       )}
 
