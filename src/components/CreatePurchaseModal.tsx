@@ -89,13 +89,13 @@ export const CreatePurchaseModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs">
+      <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs">
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden"
+          className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden max-h-[90vh] overflow-y-auto"
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A2A]">
             <div className="flex items-center gap-2">
@@ -112,7 +112,7 @@ export const CreatePurchaseModal: React.FC = () => {
             </button>
           </div>
 
-          <form onSubmit={handleNext} className="p-6">
+          <form onSubmit={handleNext} className="p-6 pb-8 sm:pb-6">
             {step === 1 && (
               <motion.div
                 key="step1"
