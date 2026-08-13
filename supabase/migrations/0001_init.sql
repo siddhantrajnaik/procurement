@@ -227,7 +227,7 @@ insert into public.profiles (id, handle, name, role, email, department, accent) 
   ('a1000000-0000-4000-8000-000000000003', 'mrittika', 'Mrittika Dasgupta', 'lab_member',            'blz228266@bioschool.iitd.ac.in', 'Structural Biology Lab', 'emerald'),
   ('a1000000-0000-4000-8000-000000000004', 'rupam',    'Rupam Khatua',      'procurement_incharge',  'blz228500@bioschool.iitd.ac.in', 'Structural Biology Lab', 'indigo'),
   ('a1000000-0000-4000-8000-000000000005', 'bhawna',   'Bhawna',            'lab_member',            'srz238552@sire.iitd.ac.in',      'Structural Biology Lab', 'pink'),
-  ('a1000000-0000-4000-8000-000000000006', 'himanshu', 'Himanshu',          'lab_member',            'blz238595@bioschool.iitd.ac.in', 'Structural Biology Lab', 'orange'),
+  ('a1000000-0000-4000-8000-000000000006', 'himanshu', 'Himanshu',          'procurement_incharge',  'blz238595@bioschool.iitd.ac.in', 'Structural Biology Lab', 'orange'),
   ('a1000000-0000-4000-8000-000000000007', 'komal',    'Komal Arora',       'lab_member',            'srz238555@sire.iitd.ac.in',      'Structural Biology Lab', 'cyan'),
   ('a1000000-0000-4000-8000-000000000008', 'siddhant', 'Siddhant Raj Naik', 'procurement_incharge',  'blz258027@bioschool.iitd.ac.in', 'Structural Biology Lab', 'amber'),
   ('a1000000-0000-4000-8000-000000000009', 'sudipto',  'Sudipto Chaki',     'procurement_incharge',  'blz258030@bioschool.iitd.ac.in', 'Structural Biology Lab', 'red'),
