@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Calendar, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookableItem } from '../types';
-import { avatarClasses } from '../lib/accent';
-import { initialOf } from '../lib/format';
 import { AddBookableItemModal } from './AddBookableItemModal';
 import { BookingDayView } from './BookingDayView';
 import { ConfirmModal } from './ConfirmModal';
