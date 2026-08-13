@@ -3,15 +3,16 @@ import { useApp } from '../context/AppContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building, Store, Search, List, Sparkles, Wrench } from 'lucide-react';
+import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock } from 'lucide-react';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
 import { ListsView } from './ListsView';
 import { MuhuratView } from './MuhuratView';
 import { EquipmentView } from './EquipmentView';
+import { BookingView } from './BookingView';
 
 export const ProfileView: React.FC = () => {
-  const { currentUser, allUsers, login, purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, verifyAdminPin, showToast } = useApp();
+  const { currentUser, allUsers, login, purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, bookableItems, bookings, verifyAdminPin, showToast } = useApp();
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);
@@ -20,6 +21,7 @@ export const ProfileView: React.FC = () => {
   const [showLists, setShowLists] = useState(false);
   const [showMuhurat, setShowMuhurat] = useState(false);
   const [showEquipment, setShowEquipment] = useState(false);
+  const [showBookings, setShowBookings] = useState(false);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'
@@ -58,6 +60,10 @@ export const ProfileView: React.FC = () => {
 
   if (showEquipment) {
     return <EquipmentView onBack={() => setShowEquipment(false)} />;
+  }
+
+  if (showBookings) {
+    return <BookingView onBack={() => setShowBookings(false)} />;
   }
 
   return (
@@ -233,6 +239,25 @@ export const ProfileView: React.FC = () => {
           <h3 className="font-bold text-white text-sm">Lab Equipment</h3>
           <p className="text-[11px] text-gray-400">
             {equipment.length} instrument{equipment.length !== 1 ? 's' : ''} · {equipment.filter((e) => e.status === 'down').length} down
+          </p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          chevron_right
+        </span>
+      </button>
+
+      {/* Bookings */}
+      <button
+        onClick={() => setShowBookings(true)}
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/20 transition-colors">
+          <CalendarClock className="w-5 h-5 text-violet-400" />
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">Bookings</h3>
+          <p className="text-[11px] text-gray-400">
+            {bookableItems.length} item{bookableItems.length !== 1 ? 's' : ''} · {bookings.filter((b) => b.date >= new Date().toISOString().slice(0, 10) && b.status === 'confirmed').length} upcoming
           </p>
         </div>
         <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">

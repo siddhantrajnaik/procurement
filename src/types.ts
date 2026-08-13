@@ -314,6 +314,44 @@ export interface NewMaintenanceInput {
   nextDueDate?: string;
 }
 
+export type BookingStatus = 'confirmed' | 'cancelled';
+
+export interface BookableItem {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  createdBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Booking {
+  id: string;
+  itemId: string;
+  bookedBy: User | null;
+  date: string;
+  startTime: string;
+  endTime: string;
+  purpose: string;
+  status: BookingStatus;
+  createdAt: string;
+}
+
+export interface NewBookableItemInput {
+  name: string;
+  description?: string;
+  color?: string;
+}
+
+export interface NewBookingInput {
+  itemId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  purpose?: string;
+}
+
 export type TabType = 'home' | 'search' | 'activity' | 'profile' | 'inventory';
 
 export interface NewPurchaseInput {

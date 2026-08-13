@@ -1,6 +1,8 @@
 import { INVOICE_BUCKET, QUOTATION_BUCKET, supabase } from './supabase';
 import {
   Activity,
+  BookableItem,
+  Booking,
   Comment,
   Equipment,
   EquipmentIssue,
@@ -16,6 +18,8 @@ import {
   LostFoundResponse,
   LostFoundStatus,
   MaintenanceLog,
+  NewBookableItemInput,
+  NewBookingInput,
   NewEquipmentInput,
   NewInventoryItemInput,
   NewIssueInput,
@@ -1167,5 +1171,123 @@ export async function addMaintenanceLog(
       next_due_date: input.nextDueDate || null,
       logged_by: userId,
     }).select('id')
+  );
+}
+
+// ------------------------------------------------------------------ bookings
+
+const BOOKABLE_ITEM_SELECT = `
+  id, name, description, color, created_at, updated_at,
+  creator:profiles!bookable_items_created_by_fkey(${PROFILE_FIELDS})
+`;
+
+const BOOKING_SELECT = `
+  id, item_id, date, start_time, end_time, purpose, status, created_at,
+  booker:profiles!bookings_booked_by_fkey(${PROFILE_FIELDS})
+`;
+
+function toBookableItem(row: any): BookableItem {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? '',
+    color: row.color,
+    createdBy: toUser(row.creator),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toBooking(row: any): Booking {
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    bookedBy: toUser(row.booker),
+    date: row.date,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    purpose: row.purpose ?? '',
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+export async function fetchBookableItems(): Promise<BookableItem[]> {
+  const data = unwrap(
+    await supabase
+      .from('bookable_items')
+      .select(BOOKABLE_ITEM_SELECT)
+      .order('name')
+  );
+  return (data as any[]).map(toBookableItem);
+}
+
+export async function addBookableItem(
+  input: NewBookableItemInput,
+  userId: string
+): Promise<BookableItem> {
+  const row = unwrap(
+    await supabase
+      .from('bookable_items')
+      .insert({
+        name: input.name,
+        description: input.description || '',
+        color: input.color || '#8B5CF6',
+        created_by: userId,
+      })
+      .select(BOOKABLE_ITEM_SELECT)
+      .single()
+  );
+  return toBookableItem(row);
+}
+
+export async function deleteBookableItem(itemId: string): Promise<void> {
+  const { error } = await supabase.from('bookable_items').delete().eq('id', itemId);
+  if (error) throw new Error(error.message);
+}
+
+export async function fetchBookings(dateFrom?: string, dateTo?: string): Promise<Booking[]> {
+  let query = supabase
+    .from('bookings')
+    .select(BOOKING_SELECT)
+    .eq('status', 'confirmed')
+    .order('date')
+    .order('start_time');
+
+  if (dateFrom) query = query.gte('date', dateFrom);
+  if (dateTo) query = query.lte('date', dateTo);
+
+  const data = unwrap(await query);
+  return (data as any[]).map(toBooking);
+}
+
+export async function createBooking(
+  input: NewBookingInput,
+  userId: string
+): Promise<Booking> {
+  const row = unwrap(
+    await supabase
+      .from('bookings')
+      .insert({
+        item_id: input.itemId,
+        booked_by: userId,
+        date: input.date,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        purpose: input.purpose || '',
+      })
+      .select(BOOKING_SELECT)
+      .single()
+  );
+  return toBooking(row);
+}
+
+export async function cancelBooking(bookingId: string): Promise<void> {
+  unwrap(
+    await supabase
+      .from('bookings')
+      .update({ status: 'cancelled' })
+      .eq('id', bookingId)
+      .select('id')
   );
 }

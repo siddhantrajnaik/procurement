@@ -12,6 +12,8 @@ import * as api from '../lib/api';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   Activity,
+  BookableItem,
+  Booking,
   Equipment,
   EquipmentStatus,
   InventoryItem,
@@ -21,6 +23,8 @@ import {
   ListColumn,
   LostFoundItem,
   LostFoundStatus,
+  NewBookableItemInput,
+  NewBookingInput,
   NewEquipmentInput,
   NewInventoryItemInput,
   NewIssueInput,
@@ -128,6 +132,13 @@ interface AppContextType {
   updateIssueStatus: (issueId: string, status: IssueStatus, fixSummary?: string, fixedBy?: string, fixCost?: number) => Promise<void>;
   addIssueResponse: (issueId: string, body: string) => Promise<void>;
   addMaintenanceLog: (equipmentId: string, input: NewMaintenanceInput) => Promise<void>;
+
+  bookableItems: BookableItem[];
+  bookings: Booking[];
+  addBookableItem: (input: NewBookableItemInput) => Promise<void>;
+  removeBookableItem: (itemId: string) => Promise<void>;
+  createBooking: (input: NewBookingInput) => Promise<void>;
+  cancelBooking: (bookingId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -153,6 +164,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [lostFoundItems, setLostFoundItems] = useState<LostFoundItem[]>([]);
   const [labLists, setLabLists] = useState<LabList[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [bookableItems, setBookableItems] = useState<BookableItem[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_USER_KEY)
   );
@@ -233,6 +246,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {
         // Table not created yet — keep empty default.
       }
+
+      try {
+        const [bi, bk] = await Promise.all([
+          api.fetchBookableItems(),
+          api.fetchBookings(),
+        ]);
+        setBookableItems(dedup(bi));
+        setBookings(dedup(bk));
+      } catch {
+        // Table not created yet — keep empty default.
+      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
@@ -272,6 +296,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_issues' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'issue_responses' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_logs' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookable_items' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, refetch)
       .subscribe();
 
     return () => {
@@ -774,6 +800,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [currentUser, run, showToast]
   );
 
+  // ---- bookings ----
+  const addBookableItemCb = useCallback(
+    async (input: NewBookableItemInput) => {
+      if (!currentUser) return;
+      await run(async () => {
+        await api.addBookableItem(input, currentUser.id);
+        showToast(`Added "${input.name}" to bookable items.`, 'success');
+      }, 'Could not add bookable item.');
+    },
+    [currentUser, run, showToast]
+  );
+
+  const removeBookableItemCb = useCallback(
+    async (itemId: string) => {
+      const item = bookableItems.find((i) => i.id === itemId);
+      await run(async () => {
+        await api.deleteBookableItem(itemId);
+        showToast(`Removed "${item?.name ?? 'item'}".`, 'warning');
+      }, 'Could not remove bookable item.');
+    },
+    [bookableItems, run, showToast]
+  );
+
+  const createBookingCb = useCallback(
+    async (input: NewBookingInput) => {
+      if (!currentUser) return;
+      await run(async () => {
+        await api.createBooking(input, currentUser.id);
+        showToast('Slot booked.', 'success');
+      }, 'Could not create booking.');
+    },
+    [currentUser, run, showToast]
+  );
+
+  const cancelBookingCb = useCallback(
+    async (bookingId: string) => {
+      await run(async () => {
+        await api.cancelBooking(bookingId);
+        showToast('Booking cancelled.', 'warning');
+      }, 'Could not cancel booking.');
+    },
+    [run, showToast]
+  );
+
   const value: AppContextType = {
     purchases,
     activities,
@@ -844,6 +914,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateIssueStatus: updateIssueStatusCb,
     addIssueResponse: addIssueResponseCb,
     addMaintenanceLog: addMaintenanceLogCb,
+    bookableItems,
+    bookings,
+    addBookableItem: addBookableItemCb,
+    removeBookableItem: removeBookableItemCb,
+    createBooking: createBookingCb,
+    cancelBooking: cancelBookingCb,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
