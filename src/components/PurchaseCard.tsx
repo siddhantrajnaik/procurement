@@ -115,7 +115,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
 
         {(isAdmin || currentUser?.id === purchase.requestedBy?.id) && (
           <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-[#2A2A2A]">
-            {isAdmin && (purchase.status === 'ordered' || purchase.status === 'transit') && (
+            {(purchase.status === 'ordered' || purchase.status === 'transit') && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

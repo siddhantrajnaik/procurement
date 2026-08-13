@@ -183,7 +183,7 @@ export const PurchaseThreadModal: React.FC = () => {
                   return (
                     <button
                       key={s.id}
-                      onClick={() => canManage && handleStatusChange(s.id)}
+                      onClick={() => (canManage || s.id === 'delivered') && handleStatusChange(s.id)}
                       className="relative z-10 flex flex-col items-center group cursor-pointer"
                     >
                       <div
@@ -259,7 +259,7 @@ export const PurchaseThreadModal: React.FC = () => {
 
             {/* Invoice — only relevant once the goods have actually arrived */}
             {(p.status === 'delivered' || p.status === 'closed') && (
-              <InvoiceSection purchase={p} canManage={canManage} />
+              <InvoiceSection purchase={p} canManage={true} />
             )}
 
             {/* Comments */}
