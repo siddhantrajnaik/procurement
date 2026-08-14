@@ -38,7 +38,7 @@ export const Header: React.FC = () => {
   if (!currentUser) return null;
 
   return (
-    <header style={{ paddingTop: 'env(safe-area-inset-top)' }} className="flex justify-between items-center h-16 px-4 md:px-6 w-full sticky top-0 z-50 bg-background border-b border-[#2A2A2A]">
+    <header className="safe-top flex justify-between items-center h-16 px-4 md:px-6 w-full sticky top-0 z-50 bg-background border-b border-[#2A2A2A]">
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
           <span className="material-symbols-outlined text-white text-[18px]">biotech</span>
