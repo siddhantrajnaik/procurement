@@ -16,8 +16,6 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
@@ -92,8 +90,8 @@ body.modal-open {
 
 /* Safe-area utilities for iOS PWA standalone mode */
 .safe-top-sticky {
-  top: env(safe-area-inset-top);
-  padding-top: 0;
+  top: 0;
+  padding-top: env(safe-area-inset-top);
 }
 .safe-top-modal {
   padding-top: env(safe-area-inset-top);
