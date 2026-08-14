@@ -69,7 +69,7 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
           className="w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
         >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[#2A2A2A] flex items-center justify-between bg-[#1E1E1E] sticky top-0 z-20">
+          <div className="px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-[#2A2A2A] flex items-center justify-between bg-[#1E1E1E] sticky top-0 z-20">
             <button
               onClick={onClose}
               className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white px-2 py-1 rounded-lg hover:bg-[#2A2A2A] transition-colors"
