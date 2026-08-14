@@ -40,7 +40,7 @@ import {
 /** Quotes above this rupee amount need the PI to sign off before a PO is raised. */
 export const PI_APPROVAL_THRESHOLD = 25_000;
 
-const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department, birthday';
+const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department, birthday, email_notifications';
 
 const PURCHASE_BASE_SELECT = `
   id, title, description, quantity, category, priority, status, preferred_company,
@@ -100,6 +100,7 @@ function toUser(row: any): User | null {
     email: r.email,
     department: r.department,
     birthday: r.birthday ?? null,
+    emailNotifications: r.email_notifications ?? true,
   };
 }
 
@@ -221,6 +222,12 @@ export async function fetchActivities(limit = 60): Promise<Activity[]> {
       .limit(limit)
   );
   return (data as any[]).map(toActivity);
+}
+
+export async function updateEmailNotifications(userId: string, enabled: boolean): Promise<void> {
+  unwrap(
+    await supabase.from('profiles').update({ email_notifications: enabled }).eq('id', userId)
+  );
 }
 
 export async function updateBirthday(userId: string, birthday: string | null): Promise<void> {

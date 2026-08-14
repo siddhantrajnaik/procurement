@@ -33,6 +33,7 @@ export interface User {
   email: string | null;
   department: string | null;
   birthday: string | null;
+  emailNotifications: boolean;
 }
 
 export interface Quotation {
