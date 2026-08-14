@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
@@ -12,7 +14,9 @@ import { EquipmentView } from './EquipmentView';
 import { BookingView } from './BookingView';
 
 export const ProfileView: React.FC = () => {
-  const { currentUser, allUsers, login, purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, bookableItems, bookings, verifyAdminPin, showToast } = useApp();
+  const { purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, bookableItems, bookings } = useApp();
+  const { currentUser, allUsers, login, verifyAdminPin } = useAuth();
+  const { showToast } = useUI();
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);

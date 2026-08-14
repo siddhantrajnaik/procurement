@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import { PurchaseCard } from './PurchaseCard';
 import { QuickActionSheet } from './QuickActionSheet';
 import { Purchase } from '../types';
@@ -14,17 +16,9 @@ const TABS = [
 ];
 
 export const HomeFeed: React.FC = () => {
-  const {
-    purchases,
-    setSelectedPurchase,
-    setIsCreateModalOpen,
-    setEditingPurchase,
-    filterStatus,
-    setFilterStatus,
-    searchQuery,
-    setSearchQuery,
-    currentUser,
-  } = useApp();
+  const { purchases, setSelectedPurchase, setEditingPurchase } = useApp();
+  const { currentUser } = useAuth();
+  const { setIsCreateModalOpen, filterStatus, setFilterStatus, searchQuery, setSearchQuery } = useUI();
   const [activeQuickPurchase, setActiveQuickPurchase] = useState<Purchase | null>(null);
 
   const filtered = useMemo(

@@ -9,6 +9,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { PurchaseStatus, Quotation } from '../types';
 import { StatusChip } from './StatusChip';
 import { QuotationCard } from './QuotationCard';
@@ -23,12 +24,12 @@ export const PurchaseThreadModal: React.FC = () => {
   const {
     selectedPurchase,
     setSelectedPurchase,
-    currentUser,
     updateStatus,
     addComment,
     selectQuotation,
     deletePurchase,
   } = useApp();
+  const { currentUser } = useAuth();
 
   const [commentText, setCommentText] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
@@ -47,13 +48,11 @@ export const PurchaseThreadModal: React.FC = () => {
     return () => document.removeEventListener('keydown', onKey);
   }, [selectedPurchase, setSelectedPurchase, isAddQuoteOpen, previewQuote, showDeleteConfirm]);
 
-  if (!selectedPurchase || !currentUser) return null;
-
   const p = selectedPurchase;
 
   const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim() || isPostingComment) return;
+    if (!p || !commentText.trim() || isPostingComment) return;
     setIsPostingComment(true);
     try {
       await addComment(p.id, commentText.trim());
@@ -64,6 +63,7 @@ export const PurchaseThreadModal: React.FC = () => {
   };
 
   const handleStatusChange = (s: PurchaseStatus) => {
+    if (!p) return;
     void updateStatus(p.id, s);
   };
 
@@ -87,15 +87,27 @@ export const PurchaseThreadModal: React.FC = () => {
     return map[s] ?? 0;
   };
 
-  const curIdx = stepIndex(p.status);
-  const canManage =
-    currentUser.role === 'procurement_incharge' ||
-    currentUser.role === 'pi' ||
-    currentUser.id === p.requestedBy?.id;
+  const curIdx = p ? stepIndex(p.status) : 0;
+  const canManage = p && currentUser
+    ? currentUser.role === 'procurement_incharge' ||
+      currentUser.role === 'pi' ||
+      currentUser.id === p.requestedBy?.id
+    : false;
 
   return (
+    <>
     <AnimatePresence>
-      <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex justify-center" role="dialog" aria-modal="true" aria-label="Purchase thread">
+      {p && currentUser && (
+      <motion.div
+        key="purchase-thread"
+        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Purchase thread"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -333,30 +345,36 @@ export const PurchaseThreadModal: React.FC = () => {
             </form>
           </div>
         </motion.div>
-      </div>
-
-      <AddQuotationModal
-        purchaseId={p.id}
-        isOpen={isAddQuoteOpen}
-        onClose={() => setIsAddQuoteOpen(false)}
-      />
-
-      <PdfViewerModal
-        quotation={previewQuote}
-        purchase={p}
-        onClose={() => setPreviewQuote(null)}
-      />
-
-      <ConfirmModal
-        open={showDeleteConfirm}
-        title="Delete request?"
-        message={`"${p.title}" and all its quotations, comments, and history will be permanently removed.`}
-        onConfirm={async () => {
-          await deletePurchase(p.id);
-          setShowDeleteConfirm(false);
-        }}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      </motion.div>
+      )}
     </AnimatePresence>
+
+    {p && (
+      <>
+        <AddQuotationModal
+          purchaseId={p.id}
+          isOpen={isAddQuoteOpen}
+          onClose={() => setIsAddQuoteOpen(false)}
+        />
+
+        <PdfViewerModal
+          quotation={previewQuote}
+          purchase={p}
+          onClose={() => setPreviewQuote(null)}
+        />
+
+        <ConfirmModal
+          open={showDeleteConfirm}
+          title="Delete request?"
+          message={`"${p.title}" and all its quotations, comments, and history will be permanently removed.`}
+          onConfirm={async () => {
+            await deletePurchase(p.id);
+            setShowDeleteConfirm(false);
+          }}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      </>
+    )}
+    </>
   );
 };

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { AnimatePresence } from 'motion/react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { EquipmentCard } from './EquipmentCard';
@@ -163,12 +164,15 @@ export const EquipmentView: React.FC<Props> = ({ onBack }) => {
       </div>
 
       {/* Thread modal */}
-      {selectedEquipment && (
-        <EquipmentThreadModal
-          equipment={selectedEquipment}
-          onClose={() => setSelectedId(null)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedEquipment && (
+          <EquipmentThreadModal
+            key="eq-thread"
+            equipment={selectedEquipment}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Add modal */}
       <AddEquipmentModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />

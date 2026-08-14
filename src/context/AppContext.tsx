@@ -10,6 +10,8 @@ import React, {
 import confetti from 'canvas-confetti';
 import * as api from '../lib/api';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useAuth } from './AuthContext';
+import { useUI } from './UIContext';
 import {
   Activity,
   BookableItem,
@@ -38,50 +40,20 @@ import {
   Purchase,
   PurchaseStatus,
   Quotation,
-  TabType,
-  User,
   Vendor,
 } from '../types';
-
-type ToastType = 'info' | 'success' | 'warning' | 'error';
-
-interface ToastInfo {
-  id: string;
-  message: string;
-  type: ToastType;
-}
 
 interface AppContextType {
   purchases: Purchase[];
   activities: Activity[];
-  allUsers: User[];
-  currentUser: User | null;
   isLoading: boolean;
   loadError: string | null;
   reload: () => Promise<void>;
 
-  activeTab: TabType;
-  setActiveTab: (tab: TabType) => void;
   selectedPurchase: Purchase | null;
   setSelectedPurchase: (p: Purchase | null) => void;
-  isCreateModalOpen: boolean;
-  setIsCreateModalOpen: (open: boolean) => void;
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
-  filterStatus: string;
-  setFilterStatus: (status: string) => void;
-
-  toast: ToastInfo | null;
-  showToast: (msg: string, type?: ToastType) => void;
-
-  isAuthenticated: boolean;
-  login: (userId: string) => void;
-  logout: () => void;
-  verifyAdminPin: (pin: string) => Promise<boolean>;
-
   editingPurchase: Purchase | null;
   setEditingPurchase: (p: Purchase | null) => void;
-
   pendingDeliveryPurchase: Purchase | null;
   clearPendingDelivery: () => void;
 
@@ -143,8 +115,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const SESSION_USER_KEY = 'procure.session.userId';
-
 function dedup<T extends { id: string }>(arr: T[]): T[] {
   const seen = new Set<string>();
   return arr.filter((item) => {
@@ -155,9 +125,11 @@ function dedup<T extends { id: string }>(arr: T[]): T[] {
 }
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser } = useAuth();
+  const { showToast } = useUI();
+
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [inventoryLog, setInventoryLog] = useState<InventoryLogEntry[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -166,30 +138,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [bookableItems, setBookableItems] = useState<BookableItem[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
-    localStorage.getItem(SESSION_USER_KEY)
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [toast, setToast] = useState<ToastInfo | null>(null);
   const [pendingDeliveryPurchaseId, setPendingDeliveryPurchaseId] = useState<string | null>(null);
 
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Stable ref so callbacks don't re-create when currentUser changes
+  const currentUserRef = useRef(currentUser);
+  currentUserRef.current = currentUser;
 
-  const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    setToast({ id: `${Date.now()}`, message, type });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 4500);
-  }, []);
-
-  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
 
   const reload = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -198,12 +159,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     try {
-      const [users, rows, acts] = await Promise.all([
-        api.fetchUsers(),
+      const [rows, acts] = await Promise.all([
         api.fetchPurchases(),
         api.fetchActivities(),
       ]);
-      setAllUsers(dedup(users));
       setPurchases(dedup(rows));
       setActivities(dedup(acts));
       setLoadError(null);
@@ -215,37 +174,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ]);
         setInventoryItems(dedup(items));
         setInventoryLog(dedup(logs));
-      } catch {
-        // Tables not created yet — keep empty defaults.
-      }
+      } catch {}
 
       try {
         const v = await api.fetchVendors();
         setVendors(dedup(v));
-      } catch {
-        // Table not created yet — keep empty default.
-      }
+      } catch {}
 
       try {
         const lf = await api.fetchLostFoundItems();
         setLostFoundItems(dedup(lf));
-      } catch {
-        // Table not created yet — keep empty default.
-      }
+      } catch {}
 
       try {
         const ll = await api.fetchLists();
         setLabLists(dedup(ll));
-      } catch {
-        // Table not created yet — keep empty default.
-      }
+      } catch {}
 
       try {
         const eq = await api.fetchEquipment();
         setEquipment(dedup(eq));
-      } catch {
-        // Table not created yet — keep empty default.
-      }
+      } catch {}
 
       try {
         const [bi, bk] = await Promise.all([
@@ -254,9 +203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ]);
         setBookableItems(dedup(bi));
         setBookings(dedup(bk));
-      } catch {
-        // Table not created yet — keep empty default.
-      }
+      } catch {}
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
@@ -268,8 +215,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     void reload();
   }, [reload]);
 
-  // Any write from any device touches one of these tables; refetching the whole
-  // (small) working set is simpler and less bug-prone than patching rows locally.
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
@@ -306,11 +251,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [reload]);
 
-  const currentUser = useMemo(
-    () => allUsers.find((u) => u.id === currentUserId) ?? null,
-    [allUsers, currentUserId]
-  );
-
   const selectedPurchase = useMemo(
     () => purchases.find((p) => p.id === selectedPurchaseId) ?? null,
     [purchases, selectedPurchaseId]
@@ -338,38 +278,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPendingDeliveryPurchaseId(null);
   }, []);
 
-  const login = useCallback((userId: string) => {
-    localStorage.setItem(SESSION_USER_KEY, userId);
-    setCurrentUserId(userId);
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem(SESSION_USER_KEY);
-    setCurrentUserId(null);
-    setActiveTab('home');
-    setSelectedPurchaseId(null);
-  }, []);
-
-  // Wraps a write so failures surface as a toast instead of an unhandled rejection.
   const run = useCallback(
     async (action: () => Promise<void>, fallbackMessage: string) => {
       try {
         await action();
         await reload();
       } catch (err) {
-        showToast(err instanceof Error ? err.message : fallbackMessage, 'error');
+        showToastRef.current(err instanceof Error ? err.message : fallbackMessage, 'error');
       }
     },
-    [reload, showToast]
+    [reload]
   );
 
-  const requireUser = useCallback((): User | null => {
-    if (!currentUser) {
-      showToast('Your session expired. Please sign in again.', 'error');
+  const requireUser = useCallback((): import('../types').User | null => {
+    const user = currentUserRef.current;
+    if (!user) {
+      showToastRef.current('Your session expired. Please sign in again.', 'error');
       return null;
     }
-    return currentUser;
-  }, [currentUser, showToast]);
+    return user;
+  }, []);
 
   const findPurchase = useCallback(
     (id: string) => purchases.find((p) => p.id === id) ?? null,
@@ -382,10 +310,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         const created = await api.createPurchase(data, actor);
-        showToast(`Requested "${created.title}".`, 'success');
+        showToastRef.current(`Requested "${created.title}".`, 'success');
       }, 'Could not create the request.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const editPurchase = useCallback(
@@ -395,11 +323,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor || !purchase) return;
       await run(async () => {
         await api.updatePurchaseFields(purchaseId, updates);
-        showToast(`Updated "${updates.title ?? purchase.title}".`, 'success');
+        showToastRef.current(`Updated "${updates.title ?? purchase.title}".`, 'success');
         setEditingPurchaseId(null);
       }, 'Could not update the request.');
     },
-    [requireUser, findPurchase, run, showToast]
+    [requireUser, findPurchase, run]
   );
 
   const updateStatus = useCallback(
@@ -411,14 +339,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await api.updatePurchaseStatus(purchase, status, actor);
         if (status === 'delivered') {
           confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
-          showToast(`"${purchase.title}" marked as delivered.`, 'success');
+          showToastRef.current(`"${purchase.title}" marked as delivered.`, 'success');
           setPendingDeliveryPurchaseId(purchaseId);
         } else {
-          showToast(`Status set to ${api.STATUS_LABELS[status]}.`, 'info');
+          showToastRef.current(`Status set to ${api.STATUS_LABELS[status]}.`, 'info');
         }
       }, 'Could not update the status.');
     },
-    [findPurchase, requireUser, run, showToast]
+    [findPurchase, requireUser, run]
   );
 
   const addComment = useCallback(
@@ -438,10 +366,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor || !purchase) return;
       await run(async () => {
         await api.addQuotation(purchase, input, actor);
-        showToast(`Quotation from ${input.vendor} added.`, 'success');
+        showToastRef.current(`Quotation from ${input.vendor} added.`, 'success');
       }, 'Could not add the quotation.');
     },
-    [findPurchase, requireUser, run, showToast]
+    [findPurchase, requireUser, run]
   );
 
   const selectQuotation = useCallback(
@@ -451,10 +379,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor || !purchase) return;
       await run(async () => {
         await api.selectQuotation(purchase, quotation, actor);
-        showToast(`${quotation.vendor} selected for the purchase order.`, 'success');
+        showToastRef.current(`${quotation.vendor} selected for the purchase order.`, 'success');
       }, 'Could not select the quotation.');
     },
-    [findPurchase, requireUser, run, showToast]
+    [findPurchase, requireUser, run]
   );
 
   const approvePi = useCallback(
@@ -464,10 +392,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor || !purchase) return;
       await run(async () => {
         await api.approvePi(purchase, actor);
-        showToast('Expenditure approved.', 'success');
+        showToastRef.current('Expenditure approved.', 'success');
       }, 'Could not record the approval.');
     },
-    [findPurchase, requireUser, run, showToast]
+    [findPurchase, requireUser, run]
   );
 
   const deletePurchase = useCallback(
@@ -477,10 +405,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await run(async () => {
         await api.deletePurchase(purchaseId);
         if (selectedPurchaseId === purchaseId) setSelectedPurchaseId(null);
-        showToast(`Deleted "${purchase.title}".`, 'warning');
+        showToastRef.current(`Deleted "${purchase.title}".`, 'warning');
       }, 'Could not delete the request.');
     },
-    [findPurchase, run, selectedPurchaseId, showToast]
+    [findPurchase, run, selectedPurchaseId]
   );
 
   const uploadInvoice = useCallback(
@@ -493,14 +421,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const result = await compressImage(file);
         await api.uploadInvoice(purchase, result.file, actor);
         if (result.skipped) {
-          showToast('Invoice attached.', 'success');
+          showToastRef.current('Invoice attached.', 'success');
         } else {
           const saved = Math.round((1 - result.compressedSize / result.originalSize) * 100);
-          showToast(`Invoice attached — compressed ${saved}% smaller.`, 'success');
+          showToastRef.current(`Invoice attached — compressed ${saved}% smaller.`, 'success');
         }
       }, 'Could not attach the invoice.');
     },
-    [findPurchase, requireUser, run, showToast]
+    [findPurchase, requireUser, run]
   );
 
   const removeInvoice = useCallback(
@@ -509,10 +437,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!purchase) return;
       await run(async () => {
         await api.removeInvoice(purchase);
-        showToast('Invoice removed.', 'warning');
+        showToastRef.current('Invoice removed.', 'warning');
       }, 'Could not remove the invoice.');
     },
-    [findPurchase, run, showToast]
+    [findPurchase, run]
   );
 
   const addInventoryItem = useCallback(
@@ -521,10 +449,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         const created = await api.addInventoryItem(input, actor);
-        showToast(`Added "${created.name}" to inventory.`, 'success');
+        showToastRef.current(`Added "${created.name}" to inventory.`, 'success');
       }, 'Could not add the item.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const consumeItem = useCallback(
@@ -533,10 +461,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         await api.consumeInventoryItem(item, quantity, actor, notes);
-        showToast(`Used ${quantity} ${item.unit} of "${item.name}".`, 'info');
+        showToastRef.current(`Used ${quantity} ${item.unit} of "${item.name}".`, 'info');
       }, 'Could not record usage.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const restockItem = useCallback(
@@ -545,10 +473,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         await api.restockInventoryItem(item, quantity, actor, notes);
-        showToast(`Restocked ${quantity} ${item.unit} of "${item.name}".`, 'success');
+        showToastRef.current(`Restocked ${quantity} ${item.unit} of "${item.name}".`, 'success');
       }, 'Could not record restock.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const moveItem = useCallback(
@@ -557,10 +485,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         await api.moveInventoryItem(item, newLocation, actor, notes);
-        showToast(`Moved "${item.name}" to ${newLocation}.`, 'info');
+        showToastRef.current(`Moved "${item.name}" to ${newLocation}.`, 'info');
       }, 'Could not move the item.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const editInventoryItem = useCallback(
@@ -569,10 +497,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         await api.updateInventoryItem(item, updates, actor);
-        showToast(`Updated "${updates.name ?? item.name}".`, 'success');
+        showToastRef.current(`Updated "${updates.name ?? item.name}".`, 'success');
       }, 'Could not update the item.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const removeInventoryItem = useCallback(
@@ -581,10 +509,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         await api.deleteInventoryItem(item.id, item.name, actor);
-        showToast(`Removed "${item.name}" from inventory.`, 'warning');
+        showToastRef.current(`Removed "${item.name}" from inventory.`, 'warning');
       }, 'Could not remove the item.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const addVendor = useCallback(
@@ -593,20 +521,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         const created = await api.addVendor(input, actor);
-        showToast(`Added vendor "${created.name}".`, 'success');
+        showToastRef.current(`Added vendor "${created.name}".`, 'success');
       }, 'Could not add the vendor.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const editVendor = useCallback(
     async (vendorId: string, updates: Partial<NewVendorInput>) => {
       await run(async () => {
         await api.updateVendor(vendorId, updates);
-        showToast(`Vendor updated.`, 'success');
+        showToastRef.current(`Vendor updated.`, 'success');
       }, 'Could not update the vendor.');
     },
-    [run, showToast]
+    [run]
   );
 
   const removeVendor = useCallback(
@@ -614,10 +542,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const vendor = vendors.find((v) => v.id === vendorId);
       await run(async () => {
         await api.deleteVendor(vendorId);
-        showToast(`Removed "${vendor?.name ?? 'vendor'}".`, 'warning');
+        showToastRef.current(`Removed "${vendor?.name ?? 'vendor'}".`, 'warning');
       }, 'Could not remove the vendor.');
     },
-    [vendors, run, showToast]
+    [vendors, run]
   );
 
   const reportLostItem = useCallback(
@@ -626,10 +554,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         await api.reportLostItem(input, actor);
-        showToast(`Reported "${input.title}" as lost.`, 'success');
+        showToastRef.current(`Reported "${input.title}" as lost.`, 'success');
       }, 'Could not report the item.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const addLostFoundResponse = useCallback(
@@ -648,10 +576,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const label = status === 'found' ? 'found' : status === 'resolved' ? 'resolved' : 'reopened';
       await run(async () => {
         await api.updateLostFoundStatus(itemId, status, actor);
-        showToast(`Item marked as ${label}.`, 'success');
+        showToastRef.current(`Item marked as ${label}.`, 'success');
       }, 'Could not update status.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const removeLostFoundItem = useCallback(
@@ -659,10 +587,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const item = lostFoundItems.find((i) => i.id === itemId);
       await run(async () => {
         await api.deleteLostFoundItem(itemId);
-        showToast(`Removed "${item?.title ?? 'item'}".`, 'warning');
+        showToastRef.current(`Removed "${item?.title ?? 'item'}".`, 'warning');
       }, 'Could not remove the item.');
     },
-    [lostFoundItems, run, showToast]
+    [lostFoundItems, run]
   );
 
   const createLabList = useCallback(
@@ -671,10 +599,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!actor) return;
       await run(async () => {
         const created = await api.createList(input, actor);
-        showToast(`Created list "${created.title}".`, 'success');
+        showToastRef.current(`Created list "${created.title}".`, 'success');
       }, 'Could not create the list.');
     },
-    [requireUser, run, showToast]
+    [requireUser, run]
   );
 
   const updateLabList = useCallback(
@@ -691,10 +619,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const list = labLists.find((l) => l.id === listId);
       await run(async () => {
         await api.deleteList(listId);
-        showToast(`Deleted "${list?.title ?? 'list'}".`, 'warning');
+        showToastRef.current(`Deleted "${list?.title ?? 'list'}".`, 'warning');
       }, 'Could not delete the list.');
     },
-    [labLists, run, showToast]
+    [labLists, run]
   );
 
   const addListItem = useCallback(
@@ -726,16 +654,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [run]
   );
 
-  // ---- equipment ----
   const addEquipmentCb = useCallback(
     async (input: NewEquipmentInput) => {
-      if (!currentUser) return;
+      const user = currentUserRef.current;
+      if (!user) return;
       await run(async () => {
-        await api.addEquipment(input, currentUser.id);
-        showToast(`Added "${input.name}".`, 'success');
+        await api.addEquipment(input, user.id);
+        showToastRef.current(`Added "${input.name}".`, 'success');
       }, 'Could not add equipment.');
     },
-    [currentUser, run, showToast]
+    [run]
   );
 
   const editEquipmentCb = useCallback(
@@ -752,64 +680,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const eq = equipment.find((e) => e.id === equipmentId);
       await run(async () => {
         await api.deleteEquipment(equipmentId);
-        showToast(`Deleted "${eq?.name ?? 'equipment'}".`, 'warning');
+        showToastRef.current(`Deleted "${eq?.name ?? 'equipment'}".`, 'warning');
       }, 'Could not delete equipment.');
     },
-    [equipment, run, showToast]
+    [equipment, run]
   );
 
   const reportIssueCb = useCallback(
     async (equipmentId: string, input: NewIssueInput) => {
-      if (!currentUser) return;
+      const user = currentUserRef.current;
+      if (!user) return;
       await run(async () => {
-        await api.reportIssue(equipmentId, input, currentUser.id);
-        showToast('Issue reported.', 'success');
+        await api.reportIssue(equipmentId, input, user.id);
+        showToastRef.current('Issue reported.', 'success');
       }, 'Could not report issue.');
     },
-    [currentUser, run, showToast]
+    [run]
   );
 
   const updateIssueStatusCb = useCallback(
     async (issueId: string, status: IssueStatus, fixSummary?: string, fixedBy?: string, fixCost?: number) => {
       await run(async () => {
         await api.updateIssueStatus(issueId, status, fixSummary, fixedBy, fixCost);
-        if (status === 'fixed') showToast('Issue marked as fixed.', 'success');
+        if (status === 'fixed') showToastRef.current('Issue marked as fixed.', 'success');
       }, 'Could not update issue.');
     },
-    [run, showToast]
+    [run]
   );
 
   const addIssueResponseCb = useCallback(
     async (issueId: string, body: string) => {
-      if (!currentUser) return;
+      const user = currentUserRef.current;
+      if (!user) return;
       await run(async () => {
-        await api.addIssueResponse(issueId, body, currentUser.id);
+        await api.addIssueResponse(issueId, body, user.id);
       }, 'Could not add response.');
     },
-    [currentUser, run]
+    [run]
   );
 
   const addMaintenanceLogCb = useCallback(
     async (equipmentId: string, input: NewMaintenanceInput) => {
-      if (!currentUser) return;
+      const user = currentUserRef.current;
+      if (!user) return;
       await run(async () => {
-        await api.addMaintenanceLog(equipmentId, input, currentUser.id);
-        showToast('Maintenance logged.', 'success');
+        await api.addMaintenanceLog(equipmentId, input, user.id);
+        showToastRef.current('Maintenance logged.', 'success');
       }, 'Could not log maintenance.');
     },
-    [currentUser, run, showToast]
+    [run]
   );
 
-  // ---- bookings ----
   const addBookableItemCb = useCallback(
     async (input: NewBookableItemInput) => {
-      if (!currentUser) return;
+      const user = currentUserRef.current;
+      if (!user) return;
       await run(async () => {
-        await api.addBookableItem(input, currentUser.id);
-        showToast(`Added "${input.name}" to bookable items.`, 'success');
+        await api.addBookableItem(input, user.id);
+        showToastRef.current(`Added "${input.name}" to bookable items.`, 'success');
       }, 'Could not add bookable item.');
     },
-    [currentUser, run, showToast]
+    [run]
   );
 
   const removeBookableItemCb = useCallback(
@@ -817,57 +748,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const item = bookableItems.find((i) => i.id === itemId);
       await run(async () => {
         await api.deleteBookableItem(itemId);
-        showToast(`Removed "${item?.name ?? 'item'}".`, 'warning');
+        showToastRef.current(`Removed "${item?.name ?? 'item'}".`, 'warning');
       }, 'Could not remove bookable item.');
     },
-    [bookableItems, run, showToast]
+    [bookableItems, run]
   );
 
   const createBookingCb = useCallback(
     async (input: NewBookingInput) => {
-      if (!currentUser) return;
+      const user = currentUserRef.current;
+      if (!user) return;
       await run(async () => {
-        await api.createBooking(input, currentUser.id);
-        showToast('Slot booked.', 'success');
+        await api.createBooking(input, user.id);
+        showToastRef.current('Slot booked.', 'success');
       }, 'Could not create booking.');
     },
-    [currentUser, run, showToast]
+    [run]
   );
 
   const cancelBookingCb = useCallback(
     async (bookingId: string) => {
       await run(async () => {
         await api.cancelBooking(bookingId);
-        showToast('Booking cancelled.', 'warning');
+        showToastRef.current('Booking cancelled.', 'warning');
       }, 'Could not cancel booking.');
     },
-    [run, showToast]
+    [run]
   );
 
   const value: AppContextType = {
     purchases,
     activities,
-    allUsers,
-    currentUser,
     isLoading,
     loadError,
     reload,
-    activeTab,
-    setActiveTab,
     selectedPurchase,
     setSelectedPurchase,
-    isCreateModalOpen,
-    setIsCreateModalOpen,
-    searchQuery,
-    setSearchQuery,
-    filterStatus,
-    setFilterStatus,
-    toast,
-    showToast,
-    isAuthenticated: currentUser !== null,
-    login,
-    logout,
-    verifyAdminPin: api.verifyAdminPin,
     editingPurchase,
     setEditingPurchase,
     pendingDeliveryPurchase,

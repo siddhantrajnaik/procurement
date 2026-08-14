@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import { TabType } from '../types';
 import { avatarClasses } from '../lib/accent';
 import { initialOf, roleLabel } from '../lib/format';
@@ -13,7 +15,9 @@ const DESKTOP_TABS: { id: TabType; label: string; icon: string }[] = [
 ];
 
 export const Header: React.FC = () => {
-  const { currentUser, logout, setIsCreateModalOpen, activeTab, setActiveTab, inventoryItems } = useApp();
+  const { inventoryItems } = useApp();
+  const { currentUser, logout } = useAuth();
+  const { setIsCreateModalOpen, activeTab, setActiveTab } = useUI();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 

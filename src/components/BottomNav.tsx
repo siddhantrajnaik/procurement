@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { useUI } from '../context/UIContext';
 import { TabType } from '../types';
 
 const NAV_ITEMS: { id: TabType; label: string; icon: string }[] = [
@@ -11,7 +12,8 @@ const NAV_ITEMS: { id: TabType; label: string; icon: string }[] = [
 ];
 
 export const BottomNav: React.FC = () => {
-  const { activeTab, setActiveTab, inventoryItems } = useApp();
+  const { inventoryItems } = useApp();
+  const { activeTab, setActiveTab } = useUI();
 
   const lowStockCount = useMemo(
     () => inventoryItems.filter((i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold).length,

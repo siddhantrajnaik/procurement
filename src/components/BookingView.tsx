@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Calendar, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { BookableItem } from '../types';
 import { AddBookableItemModal } from './AddBookableItemModal';
 import { BookingDayView } from './BookingDayView';
@@ -23,7 +24,8 @@ interface Props {
 }
 
 export const BookingView: React.FC<Props> = ({ onBack }) => {
-  const { bookableItems, bookings, cancelBooking, removeBookableItem, currentUser } = useApp();
+  const { bookableItems, bookings, cancelBooking, removeBookableItem } = useApp();
+  const { currentUser } = useAuth();
   const [selectedItem, setSelectedItem] = useState<BookableItem | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [tab, setTab] = useState<'items' | 'my'>('items');

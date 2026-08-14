@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { ArrowLeft, Send, MapPin, Trash2, Check, Eye } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { LostFoundItem, LostFoundStatus } from '../types';
 import { avatarClasses } from '../lib/accent';
 import { initialOf, timeAgo } from '../lib/format';
@@ -18,7 +20,8 @@ const STATUS_CFG: Record<LostFoundStatus, { label: string; bg: string; text: str
 };
 
 export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
-  const { currentUser, addLostFoundResponse, updateLostFoundStatus, removeLostFoundItem } = useApp();
+  const { addLostFoundResponse, updateLostFoundStatus, removeLostFoundItem } = useApp();
+  const { currentUser } = useAuth();
   const [responseText, setResponseText] = useState('');
   const [posting, setPosting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -32,11 +35,9 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
     return () => document.removeEventListener('keydown', onKey);
   }, [item, onClose, showDelete]);
 
-  if (!item || !currentUser) return null;
-
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!responseText.trim() || posting) return;
+    if (!item || !responseText.trim() || posting) return;
     setPosting(true);
     try {
       await addLostFoundResponse(item.id, responseText.trim());
@@ -46,12 +47,27 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
     }
   };
 
+  if (!item || !currentUser) return null;
+
   const cfg = STATUS_CFG[item.status];
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex justify-center" role="dialog" aria-modal="true">
-        <div className="w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]">
+      <motion.div
+        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex justify-center"
+        role="dialog"
+        aria-modal="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <motion.div
+          initial={{ y: '100%', opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: '100%', opacity: 0 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          className="w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
+        >
           {/* Header */}
           <div className="px-4 py-3 border-b border-[#2A2A2A] flex items-center justify-between bg-[#1E1E1E] sticky top-0 z-20">
             <button
@@ -195,8 +211,8 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
               </button>
             </form>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <ConfirmModal
         open={showDelete}

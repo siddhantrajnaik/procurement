@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ArrowRight, Check, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useUI } from '../context/UIContext';
 import { UrgencyLevel } from '../types';
 
 export const CreatePurchaseModal: React.FC = () => {
-  const { isCreateModalOpen, setIsCreateModalOpen, createPurchase } = useApp();
+  const { createPurchase } = useApp();
+  const { isCreateModalOpen, setIsCreateModalOpen } = useUI();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [title, setTitle] = useState('');
@@ -27,8 +29,6 @@ export const CreatePurchaseModal: React.FC = () => {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [isCreateModalOpen, setIsCreateModalOpen]);
-
-  if (!isCreateModalOpen) return null;
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,14 +89,21 @@ export const CreatePurchaseModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs">
+      {isCreateModalOpen && (
         <motion.div
-          initial={{ y: '100%', opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden max-h-[90vh] overflow-y-auto"
+          key="create-purchase"
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         >
+          <motion.div
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden max-h-[90vh] overflow-y-auto"
+          >
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A2A]">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -324,8 +331,9 @@ export const CreatePurchaseModal: React.FC = () => {
               </motion.div>
             )}
           </form>
+          </motion.div>
         </motion.div>
-      </div>
+      )}
     </AnimatePresence>
   );
 };

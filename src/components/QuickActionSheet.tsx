@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Purchase, PurchaseStatus } from '../types';
 import { useApp } from '../context/AppContext';
+import { useUI } from '../context/UIContext';
 
 interface QuickActionSheetProps {
   purchase: Purchase | null;
@@ -22,7 +23,8 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({
   purchase,
   onClose,
 }) => {
-  const { updateStatus, showToast, deletePurchase } = useApp();
+  const { updateStatus, deletePurchase } = useApp();
+  const { showToast } = useUI();
 
   useEffect(() => {
     if (!purchase) return;
@@ -33,14 +35,14 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({
     return () => document.removeEventListener('keydown', onKey);
   }, [purchase, onClose]);
 
-  if (!purchase) return null;
-
   const handleStatus = (status: PurchaseStatus) => {
+    if (!purchase) return;
     void updateStatus(purchase.id, status);
     onClose();
   };
 
   const handleCopy = () => {
+    if (!purchase) return;
     const text = `Procure: ${purchase.title} (${purchase.quantity}) requested by ${purchase.requestedBy?.name ?? 'unknown'} - Status: ${purchase.status}`;
     navigator.clipboard.writeText(text);
     showToast('Copied item details to clipboard!', 'info');
@@ -49,14 +51,21 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4">
+      {purchase && (
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl p-5 border border-[#2A2A2A] shadow-2xl space-y-4"
+          key="quick-actions"
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         >
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl p-5 border border-[#2A2A2A] shadow-2xl space-y-4"
+          >
           <div className="flex items-center justify-between border-b border-[#2A2A2A] pb-3">
             <div>
               <h3 className="font-bold text-white text-base">{purchase.title}</h3>
@@ -139,8 +148,9 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({
               Delete Request
             </button>
           </div>
+          </motion.div>
         </motion.div>
-      </div>
+      )}
     </AnimatePresence>
   );
 };

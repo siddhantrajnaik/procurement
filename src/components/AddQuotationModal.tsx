@@ -79,8 +79,6 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
     return () => document.removeEventListener('mousedown', onClick);
   }, [showSuggestions]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vendor.trim() || !price) return;
@@ -105,13 +103,20 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs">
+      {isOpen && (
         <motion.div
-          initial={{ y: '100%', opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: '100%', opacity: 0 }}
-          className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden"
+          key="add-quotation"
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         >
+          <motion.div
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden"
+          >
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A2A]">
             <div className="flex items-center gap-2">
               <ReceiptIndianRupee className="w-4 h-4 text-purple-400" />
@@ -228,8 +233,9 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
               {submitting ? 'Saving…' : 'Save Quotation'}
             </button>
           </form>
+          </motion.div>
         </motion.div>
-      </div>
+      )}
     </AnimatePresence>
   );
 };

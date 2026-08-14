@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
 
 export const LoginScreen: React.FC = () => {
-  const { allUsers, login, showToast, verifyAdminPin } = useApp();
+  const { allUsers, login, verifyAdminPin } = useAuth();
+  const { showToast } = useUI();
   const [selectedAdmin, setSelectedAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);

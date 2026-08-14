@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Receipt, FileUp, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useUI } from '../context/UIContext';
 import { Purchase } from '../types';
 import { getInvoiceFileUrl } from '../lib/api';
 import { formatFileSize, timeAgo } from '../lib/format';
@@ -12,7 +13,8 @@ interface Props {
 }
 
 export const InvoiceSection: React.FC<Props> = ({ purchase, canManage }) => {
-  const { uploadInvoice, removeInvoice, showToast } = useApp();
+  const { uploadInvoice, removeInvoice } = useApp();
+  const { showToast } = useUI();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [showRemove, setShowRemove] = useState(false);

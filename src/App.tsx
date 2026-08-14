@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { UIProvider, useUI } from './context/UIContext';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -131,7 +133,9 @@ const TAB_TITLES: Record<string, string> = {
 };
 
 function AppContent() {
-  const { activeTab, isAuthenticated, isLoading, loadError, reload, setIsCreateModalOpen } = useApp();
+  const { isAuthenticated } = useAuth();
+  const { activeTab, setIsCreateModalOpen } = useUI();
+  const { isLoading, loadError, reload } = useApp();
 
   useEffect(() => {
     document.title = `${TAB_TITLES[activeTab] ?? 'MB Lab'} - MB Lab Procurement`;
@@ -180,8 +184,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AuthProvider>
+      <UIProvider>
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
+      </UIProvider>
+    </AuthProvider>
   );
 }

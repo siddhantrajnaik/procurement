@@ -40,17 +40,22 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     return () => document.removeEventListener('keydown', onKey);
   }, [quotation, onClose]);
 
-  if (!quotation) return null;
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+      {quotation && (
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="w-full max-w-md bg-[#1E1E1E] rounded-xl shadow-2xl overflow-hidden border border-[#2A2A2A] flex flex-col max-h-[85vh]"
+          key="pdf-viewer"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="w-full max-w-md bg-[#1E1E1E] rounded-xl shadow-2xl overflow-hidden border border-[#2A2A2A] flex flex-col max-h-[85vh]"
+          >
           {/* Top bar */}
           <div className="flex items-center justify-between px-5 py-3.5 bg-[#161616] border-b border-[#2A2A2A]">
             <div className="flex items-center gap-2 min-w-0">
@@ -183,8 +188,9 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
               </button>
             )}
           </div>
+          </motion.div>
         </motion.div>
-      </div>
+      )}
     </AnimatePresence>
   );
 };

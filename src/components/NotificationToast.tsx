@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { useApp } from '../context/AppContext';
+import { useUI } from '../context/UIContext';
 import { CheckCircle2, Info, AlertTriangle, XCircle } from 'lucide-react';
 
 const STYLES = {
@@ -17,7 +17,7 @@ const ICONS = {
 } as const;
 
 export const NotificationToast: React.FC = () => {
-  const { toast } = useApp();
+  const { toast } = useUI();
 
   return (
     <div

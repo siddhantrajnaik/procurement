@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Purchase } from '../types';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { StatusChip } from './StatusChip';
 import { ConfirmModal } from './ConfirmModal';
 import { avatarClasses } from '../lib/accent';
@@ -20,7 +21,8 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
   onOpenQuickMenu,
   onEdit,
 }) => {
-  const { updateStatus, deletePurchase, currentUser } = useApp();
+  const { updateStatus, deletePurchase } = useApp();
+  const { currentUser } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const image = imageForItem(purchase.title, purchase.category);
   const requester = purchase.requestedBy;

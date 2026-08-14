@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { AnimatePresence } from 'motion/react';
 import { ArrowLeft, Plus, MapPin } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LostFoundItem, LostFoundStatus } from '../types';
@@ -182,10 +183,15 @@ export const LostFoundView: React.FC<Props> = ({ onBack }) => {
         onClose={() => setIsReportOpen(false)}
       />
 
-      <LostFoundThreadModal
-        item={liveItem}
-        onClose={() => setSelectedItem(null)}
-      />
+      <AnimatePresence>
+        {liveItem && (
+          <LostFoundThreadModal
+            key="lf-thread"
+            item={liveItem}
+            onClose={() => setSelectedItem(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

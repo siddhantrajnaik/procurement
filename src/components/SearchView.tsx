@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useUI } from '../context/UIContext';
 import { Search, X } from 'lucide-react';
 import { PurchaseCard } from './PurchaseCard';
 import { QuickActionSheet } from './QuickActionSheet';
@@ -8,7 +9,8 @@ import { avatarClasses } from '../lib/accent';
 import { initialOf, timeAgo } from '../lib/format';
 
 export const SearchView: React.FC = () => {
-  const { purchases, inventoryItems, searchQuery, setSearchQuery, setSelectedPurchase, setEditingPurchase, setActiveTab } = useApp();
+  const { purchases, inventoryItems, setSelectedPurchase, setEditingPurchase } = useApp();
+  const { searchQuery, setSearchQuery, setActiveTab } = useUI();
   const [activeQuickPurchase, setActiveQuickPurchase] = useState<Purchase | null>(null);
 
   const shortcuts = useMemo(() => {

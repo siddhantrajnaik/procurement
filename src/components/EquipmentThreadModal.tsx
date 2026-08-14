@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   ArrowLeft,
   Send,
@@ -14,6 +14,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { Equipment, EquipmentIssue, EquipmentStatus, IssueStatus } from '../types';
 import { equipmentIconSvg, equipmentLabel, EquipmentCategory } from '../lib/equipmentIcons';
 import { avatarClasses } from '../lib/accent';
@@ -41,7 +42,6 @@ interface Props {
 
 export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }) => {
   const {
-    currentUser,
     editEquipment,
     removeEquipment,
     reportIssue,
@@ -49,6 +49,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
     addIssueResponse,
     addMaintenanceLog,
   } = useApp();
+  const { currentUser } = useAuth();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReportIssue, setShowReportIssue] = useState(false);
@@ -264,8 +265,15 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex justify-center" role="dialog" aria-modal="true">
+    <>
+      <motion.div
+        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex justify-center"
+        role="dialog"
+        aria-modal="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -636,7 +644,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
           }}
           onCancel={() => setShowDeleteConfirm(false)}
         />
-      </div>
-    </AnimatePresence>
+      </motion.div>
+    </>
   );
 };
