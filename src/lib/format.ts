@@ -38,8 +38,9 @@ const CUSTOM_TITLES: Record<string, string> = {
 };
 
 export function roleLabel(role?: string, handle?: string): string {
-  if (handle && CUSTOM_TITLES[handle]) return CUSTOM_TITLES[handle];
+  if (handle && CUSTOM_TITLES[handle.toLowerCase()]) return CUSTOM_TITLES[handle.toLowerCase()];
   if (role === 'guest') return 'Guest';
   if (role === 'pi') return 'Principal Investigator';
+  if (role === 'procurement_incharge') return 'Procurement Incharge';
   return 'PhD';
 }

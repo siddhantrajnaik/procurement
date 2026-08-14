@@ -14,5 +14,5 @@ create policy "Anyone can read quick_links"
 create policy "Authenticated can insert quick_links"
   on public.quick_links for insert with check (true);
 
-create policy "Creator can delete own quick_links"
-  on public.quick_links for delete using (added_by = auth.uid());
+create policy "Anyone can delete quick_links"
+  on public.quick_links for delete using (true);
