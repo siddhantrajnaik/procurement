@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowLeft, Sun, Moon, Clock, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { ArrowLeft, Sun, Moon, Clock, AlertTriangle, MapPin, Search, X } from 'lucide-react';
 import {
   getMuhurat,
   formatPanchangTime,
@@ -16,6 +16,14 @@ interface MuhuratProfile {
   name: string;
   dob: string;
   birthplace: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface NominatimResult {
+  display_name: string;
+  lat: string;
+  lon: string;
 }
 
 const STORAGE_KEY = 'muhurat_profile';
@@ -73,13 +81,72 @@ const progressBar: Record<ChoghadiyaNature, string> = {
 export const MuhuratView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [profile, setProfile] = useState<MuhuratProfile>(loadProfile);
   const [tick, setTick] = useState(0);
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, []);
+
+  const searchPlace = useCallback((query: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    setIsSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=in&addressdetails=0`;
+        const res = await fetch(url, {
+          headers: { 'Accept-Language': 'en' },
+        });
+        if (res.ok) {
+          const data: NominatimResult[] = await res.json();
+          setSuggestions(data);
+          setShowSuggestions(data.length > 0);
+        }
+      } catch {
+        /* network error — keep existing suggestions */
+      } finally {
+        setIsSearching(false);
+      }
+    }, 350);
+  }, []);
+
+  const selectPlace = useCallback((result: NominatimResult) => {
+    const name = result.display_name.split(',')[0].trim();
+    setProfile((p) => ({
+      ...p,
+      birthplace: name,
+      lat: parseFloat(result.lat),
+      lng: parseFloat(result.lon),
+    }));
+    setPlaceQuery('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }, []);
 
   const getCoords = useCallback(() => {
+    if (profile.lat != null && profile.lng != null) {
+      return { lat: profile.lat, lng: profile.lng };
+    }
     const city = Object.keys(CITY_COORDS).find((c) =>
       profile.birthplace.toLowerCase().includes(c.toLowerCase()),
     );
     return city ? CITY_COORDS[city] : DEFAULT_COORDS;
-  }, [profile.birthplace]);
+  }, [profile.birthplace, profile.lat, profile.lng]);
 
   const muhurat: MuhuratResult = useMemo(() => {
     void tick;
@@ -244,22 +311,67 @@ export const MuhuratView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               }
               className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-1 focus:ring-amber-400/50 focus:border-amber-400/30 outline-none [color-scheme:dark] transition-colors"
             />
-            <input
-              type="text"
-              placeholder="Birth place"
-              value={profile.birthplace}
-              onChange={(e) =>
-                setProfile((p) => ({ ...p, birthplace: e.target.value }))
-              }
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-1 focus:ring-amber-400/50 focus:border-amber-400/30 outline-none placeholder:text-white/20 transition-colors"
-            />
+            {/* Location autocomplete */}
+            <div className="relative" ref={suggestionsRef}>
+              {profile.birthplace ? (
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-amber-400/20">
+                  <MapPin className="w-4 h-4 text-amber-400/70 shrink-0" />
+                  <span className="text-sm text-white flex-1">{profile.birthplace}</span>
+                  <button
+                    type="button"
+                    onClick={() => setProfile((p) => ({ ...p, birthplace: '', lat: undefined, lng: undefined }))}
+                    className="p-0.5 rounded-full hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search birth place..."
+                    value={placeQuery}
+                    onChange={(e) => {
+                      setPlaceQuery(e.target.value);
+                      searchPlace(e.target.value);
+                    }}
+                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-1 focus:ring-amber-400/50 focus:border-amber-400/30 outline-none placeholder:text-white/20 transition-colors"
+                  />
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-white/20 border-t-amber-400 rounded-full animate-spin" />
+                  )}
+                </div>
+              )}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute z-30 left-0 right-0 mt-1.5 rounded-xl bg-[#1a1230] border border-white/10 shadow-2xl overflow-hidden max-h-52 overflow-y-auto">
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => selectPlace(s)}
+                      className="w-full text-left px-3.5 py-2.5 flex items-start gap-2.5 hover:bg-white/[0.06] transition-colors border-b border-white/[0.04] last:border-b-0"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-amber-400/50 mt-0.5 shrink-0" />
+                      <span className="text-xs text-white/70 leading-relaxed">{s.display_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {Object.keys(CITY_COORDS).map((city) => (
                 <button
                   key={city}
                   type="button"
                   onClick={() =>
-                    setProfile((p) => ({ ...p, birthplace: city }))
+                    setProfile((p) => ({
+                      ...p,
+                      birthplace: city,
+                      lat: CITY_COORDS[city].lat,
+                      lng: CITY_COORDS[city].lng,
+                    }))
                   }
                   className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
                     profile.birthplace === city

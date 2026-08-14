@@ -226,6 +226,7 @@ export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   Goa: { lat: 15.491, lng: 73.828 },
   Ahmedabad: { lat: 23.023, lng: 72.571 },
   Nagpur: { lat: 21.146, lng: 79.089 },
+  Sundargarh: { lat: 22.119, lng: 84.043 },
 };
 
 export const DEFAULT_COORDS = { lat: 21.146, lng: 79.089 };
