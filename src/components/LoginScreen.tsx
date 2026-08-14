@@ -128,7 +128,7 @@ export const LoginScreen: React.FC = () => {
                     </div>
                     <div>
                       <div className="font-semibold text-white text-sm">{admin.name}</div>
-                      <div className="text-xs text-gray-400">{roleLabel(admin.role)} · PIN required</div>
+                      <div className="text-xs text-gray-400">{roleLabel(admin.role, admin.handle)} · PIN required</div>
                     </div>
                   </button>
                 ))}
@@ -155,7 +155,7 @@ export const LoginScreen: React.FC = () => {
                     </div>
                     <div>
                       <div className="font-semibold text-white text-sm">{member.name}</div>
-                      <div className="text-xs text-gray-400">{roleLabel(member.role)}</div>
+                      <div className="text-xs text-gray-400">{roleLabel(member.role, member.handle)}</div>
                     </div>
                   </button>
                 ))}

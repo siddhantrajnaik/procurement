@@ -31,15 +31,15 @@ export function initialOf(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?';
 }
 
-export function roleLabel(role?: string): string {
-  switch (role) {
-    case 'procurement_incharge':
-      return 'Procurement Incharge';
-    case 'pi':
-      return 'Principal Investigator';
-    case 'guest':
-      return 'Guest';
-    default:
-      return 'Lab Member';
-  }
+const CUSTOM_TITLES: Record<string, string> = {
+  milan: 'Godfather',
+  shalini: 'Post Doc',
+  jha: 'Post Doc',
+};
+
+export function roleLabel(role?: string, handle?: string): string {
+  if (handle && CUSTOM_TITLES[handle]) return CUSTOM_TITLES[handle];
+  if (role === 'guest') return 'Guest';
+  if (role === 'pi') return 'Principal Investigator';
+  return 'PhD';
 }

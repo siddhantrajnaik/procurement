@@ -130,7 +130,7 @@ export const ProfileView: React.FC = () => {
               {currentUser.email ? ` · ${currentUser.email}` : ''}
             </p>
             <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20 capitalize">
-              {roleLabel(currentUser.role)}
+              {roleLabel(currentUser.role, currentUser.handle)}
             </span>
           </div>
         </div>
@@ -319,7 +319,7 @@ export const ProfileView: React.FC = () => {
                       u.id === currentUser.id ? 'text-orange-100' : 'text-gray-500'
                     }`}
                   >
-                    {roleLabel(u.role)}
+                    {roleLabel(u.role, u.handle)}
                   </p>
                 </div>
               </div>

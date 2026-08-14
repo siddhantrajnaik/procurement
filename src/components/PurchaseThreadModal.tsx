@@ -296,7 +296,7 @@ export const PurchaseThreadModal: React.FC = () => {
                           {c.author?.name ?? 'Someone'}
                         </span>
                         <span className="text-[10px] text-gray-600 capitalize">
-                          ({roleLabel(c.author?.role)})
+                          ({roleLabel(c.author?.role, c.author?.handle)})
                         </span>
                       </div>
                       <span className="text-[10px] text-gray-600">

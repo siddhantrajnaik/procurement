@@ -96,7 +96,7 @@ export const Header: React.FC = () => {
             >
               <div className="px-3 py-2 border-b border-[#2A2A2A] mb-1">
                 <p className="text-xs font-semibold text-white truncate">{currentUser.name}</p>
-                <p className="text-[11px] text-gray-400">{roleLabel(currentUser.role)}</p>
+                <p className="text-[11px] text-gray-400">{roleLabel(currentUser.role, currentUser.handle)}</p>
               </div>
               <button
                 onClick={() => {
