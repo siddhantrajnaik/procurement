@@ -30,7 +30,7 @@ interface EquipmentIconDef {
 }
 
 const icon = (paths: string) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 
 export const EQUIPMENT_ICONS: Record<EquipmentCategory, EquipmentIconDef> = {
   microscope: {
