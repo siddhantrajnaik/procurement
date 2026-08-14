@@ -1,7 +1,5 @@
--- Add guest role to profiles check constraint
-alter table public.profiles drop constraint if exists profiles_role_check;
-alter table public.profiles add constraint profiles_role_check
-  check (role in ('lab_member', 'procurement_incharge', 'pi', 'guest'));
+-- Add guest to the user_role enum
+alter type user_role add value 'guest';
 
 -- Add guest user
 insert into public.profiles (id, handle, name, role, email, department, accent) values
