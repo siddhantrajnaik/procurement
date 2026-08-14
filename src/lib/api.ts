@@ -40,7 +40,7 @@ import {
 /** Quotes above this rupee amount need the PI to sign off before a PO is raised. */
 export const PI_APPROVAL_THRESHOLD = 25_000;
 
-const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department, birthday, email_notifications';
+const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department, birthday';
 
 const PURCHASE_BASE_SELECT = `
   id, title, description, quantity, category, priority, status, preferred_company,
@@ -100,7 +100,6 @@ function toUser(row: any): User | null {
     email: r.email,
     department: r.department,
     birthday: r.birthday ?? null,
-    emailNotifications: r.email_notifications ?? true,
   };
 }
 
@@ -224,11 +223,6 @@ export async function fetchActivities(limit = 60): Promise<Activity[]> {
   return (data as any[]).map(toActivity);
 }
 
-export async function updateEmailNotifications(userId: string, enabled: boolean): Promise<void> {
-  unwrap(
-    await supabase.from('profiles').update({ email_notifications: enabled }).eq('id', userId)
-  );
-}
 
 export async function updateBirthday(userId: string, birthday: string | null): Promise<void> {
   unwrap(
@@ -291,13 +285,6 @@ export async function updatePurchaseStatus(
     'status_changed',
     `moved the request to ${STATUS_LABELS[status]}`
   );
-  if (status === 'delivered') {
-    supabase.rpc('notify_delivery', {
-      p_title: purchase.title,
-      p_quantity: purchase.quantity,
-      p_requester_name: purchase.requestedBy?.name ?? 'Someone',
-    }).then(() => {}, () => {});
-  }
 }
 
 export async function updatePurchaseFields(
@@ -624,9 +611,6 @@ export async function consumeInventoryItem(
     quantityChange: -quantity,
     notes,
   });
-  if (item.lowStockThreshold != null && newQty <= item.lowStockThreshold) {
-    supabase.rpc('notify_low_stock').then(() => {}, () => {});
-  }
 }
 
 export async function restockInventoryItem(

@@ -5,7 +5,7 @@ import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, Bell, BellOff } from 'lucide-react';
+import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake } from 'lucide-react';
 import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
@@ -186,36 +186,6 @@ export const ProfileView: React.FC = () => {
         )}
       </div>
 
-      {/* Email notifications toggle */}
-      {currentUser.email && (
-        <button
-          onClick={async () => {
-            const next = !currentUser.emailNotifications;
-            try {
-              await api.updateEmailNotifications(currentUser.id, next);
-              patchUser(currentUser.id, { emailNotifications: next });
-              showToast(next ? 'Email notifications enabled' : 'Email notifications disabled', 'success');
-            } catch {
-              showToast('Could not update preference.', 'error');
-            }
-          }}
-          className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] flex items-center justify-between hover:border-primary/30 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            {currentUser.emailNotifications
-              ? <Bell className="w-4 h-4 text-emerald-400" />
-              : <BellOff className="w-4 h-4 text-gray-500" />
-            }
-            <div className="text-left">
-              <p className="text-sm font-bold text-white">Email Notifications</p>
-              <p className="text-[11px] text-gray-400">Delivery alerts to {currentUser.email}</p>
-            </div>
-          </div>
-          <div className={`w-10 h-6 rounded-full relative transition-colors ${currentUser.emailNotifications ? 'bg-emerald-500' : 'bg-[#333]'}`}>
-            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${currentUser.emailNotifications ? 'left-5' : 'left-1'}`} />
-          </div>
-        </button>
-      )}
 
       {/* Upcoming Birthdays */}
       {upcomingBirthdays.length > 0 && (
