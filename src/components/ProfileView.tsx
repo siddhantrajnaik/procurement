@@ -16,7 +16,7 @@ import { BookingView } from './BookingView';
 
 export const ProfileView: React.FC = () => {
   const { purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, bookableItems, bookings } = useApp();
-  const { currentUser, allUsers, login, verifyAdminPin } = useAuth();
+  const { currentUser, allUsers, login, verifyAdminPin, patchUser } = useAuth();
   const { showToast } = useUI();
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
@@ -68,7 +68,7 @@ export const ProfileView: React.FC = () => {
     setSavingBirthday(true);
     try {
       await api.updateBirthday(currentUser!.id, birthdayInput);
-      currentUser!.birthday = birthdayInput;
+      patchUser(currentUser!.id, { birthday: birthdayInput });
       showToast('Birthday saved!', 'success');
       setEditingBirthday(false);
     } catch {
@@ -193,7 +193,7 @@ export const ProfileView: React.FC = () => {
             const next = !currentUser.emailNotifications;
             try {
               await api.updateEmailNotifications(currentUser.id, next);
-              currentUser.emailNotifications = next;
+              patchUser(currentUser.id, { emailNotifications: next });
               showToast(next ? 'Email notifications enabled' : 'Email notifications disabled', 'success');
             } catch {
               showToast('Could not update preference.', 'error');

@@ -26,7 +26,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const image = imageForItem(purchase.title, purchase.category);
   const requester = purchase.requestedBy;
-  const isAdmin = currentUser?.role !== 'lab_member';
+  const isAdmin = currentUser?.role === 'procurement_incharge' || currentUser?.role === 'pi';
   const approvedQuote = purchase.quotations.find((q) => q.isApproved);
   const isUrgent = purchase.priority === 'urgent' || purchase.priority === 'critical';
 

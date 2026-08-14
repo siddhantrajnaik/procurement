@@ -48,7 +48,7 @@ export const HomeFeed: React.FC = () => {
     0
   );
 
-  const isAdmin = currentUser?.role !== 'lab_member';
+  const isAdmin = currentUser?.role === 'procurement_incharge' || currentUser?.role === 'pi';
 
   return (
     <div className="flex-1 w-full mx-auto pb-24 md:pb-8 flex flex-col max-w-3xl px-4 md:px-0 overflow-x-hidden">

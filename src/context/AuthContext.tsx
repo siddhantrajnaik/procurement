@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (userId: string) => void;
   logout: () => void;
   verifyAdminPin: (pin: string) => Promise<boolean>;
+  patchUser: (userId: string, patch: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +43,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUserId(null);
   }, []);
 
+  const patchUser = useCallback((userId: string, patch: Partial<User>) => {
+    setAllUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...patch } : u)));
+  }, []);
+
   const value: AuthContextType = useMemo(() => ({
     allUsers,
     currentUser,
@@ -49,7 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     verifyAdminPin: api.verifyAdminPin,
-  }), [allUsers, currentUser, login, logout]);
+    patchUser,
+  }), [allUsers, currentUser, login, logout, patchUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

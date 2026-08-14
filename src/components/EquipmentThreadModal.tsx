@@ -85,7 +85,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose, showDeleteConfirm, showReportIssue, showAddMaintenance, fixingIssueId]);
 
-  const isAdmin = currentUser?.role !== 'lab_member';
+  const isAdmin = currentUser?.role === 'procurement_incharge' || currentUser?.role === 'pi';
   const openIssues = eq.issues.filter((i) => i.status !== 'fixed');
   const fixedIssues = eq.issues.filter((i) => i.status === 'fixed');
   const warrantyActive = eq.warrantyExpiry && new Date(eq.warrantyExpiry) > new Date();

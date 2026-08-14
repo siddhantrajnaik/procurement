@@ -101,6 +101,7 @@ export const Header: React.FC = () => {
               <button
                 onClick={() => {
                   logout();
+                  setActiveTab('home');
                   setIsMenuOpen(false);
                 }}
                 className="w-full text-left px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-400/10 rounded transition-colors flex items-center gap-2"
