@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mb-lab-v2';
+const CACHE_NAME = 'mb-lab-v3';
 
 const PRECACHE_URLS = [
   './',
