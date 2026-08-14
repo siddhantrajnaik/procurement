@@ -32,6 +32,7 @@ export interface User {
   accent: AccentToken;
   email: string | null;
   department: string | null;
+  birthday: string | null;
 }
 
 export interface Quotation {

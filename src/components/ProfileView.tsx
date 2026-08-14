@@ -5,7 +5,8 @@ import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock } from 'lucide-react';
+import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake } from 'lucide-react';
+import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
 import { ListsView } from './ListsView';
@@ -26,6 +27,9 @@ export const ProfileView: React.FC = () => {
   const [showMuhurat, setShowMuhurat] = useState(false);
   const [showEquipment, setShowEquipment] = useState(false);
   const [showBookings, setShowBookings] = useState(false);
+  const [editingBirthday, setEditingBirthday] = useState(false);
+  const [birthdayInput, setBirthdayInput] = useState('');
+  const [savingBirthday, setSavingBirthday] = useState(false);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'
@@ -43,6 +47,36 @@ export const ProfileView: React.FC = () => {
   const lowStockCount = inventoryItems.filter(
     (i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold
   ).length;
+
+  const upcomingBirthdays = allUsers
+    .filter((u) => u.birthday)
+    .map((u) => {
+      const today = new Date();
+      const [, mm, dd] = u.birthday!.split('-').map(Number);
+      const next = new Date(today.getFullYear(), mm - 1, dd);
+      if (next < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+        next.setFullYear(today.getFullYear() + 1);
+      }
+      const daysAway = Math.round((next.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86400000);
+      return { user: u, daysAway, date: next };
+    })
+    .filter((b) => b.daysAway <= 30)
+    .sort((a, b) => a.daysAway - b.daysAway);
+
+  const handleSaveBirthday = async () => {
+    if (!birthdayInput || savingBirthday) return;
+    setSavingBirthday(true);
+    try {
+      await api.updateBirthday(currentUser!.id, birthdayInput);
+      currentUser!.birthday = birthdayInput;
+      showToast('Birthday saved!', 'success');
+      setEditingBirthday(false);
+    } catch {
+      showToast('Could not save birthday.', 'error');
+    } finally {
+      setSavingBirthday(false);
+    }
+  };
 
   if (!currentUser) return null;
 
@@ -105,7 +139,86 @@ export const ProfileView: React.FC = () => {
             </span>
           </div>
         )}
+
+        {/* Birthday */}
+        {editingBirthday ? (
+          <div className="p-3 rounded-lg bg-background border border-[#2A2A2A] space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Your Birthday</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={birthdayInput}
+                onChange={(e) => setBirthdayInput(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg bg-[#1E1E1E] border border-[#2A2A2A] text-white text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                autoFocus
+              />
+              <button
+                onClick={handleSaveBirthday}
+                disabled={!birthdayInput || savingBirthday}
+                className="px-3 py-2 bg-primary text-white text-xs font-bold rounded-lg disabled:opacity-40"
+              >
+                {savingBirthday ? '...' : 'Save'}
+              </button>
+              <button
+                onClick={() => setEditingBirthday(false)}
+                className="px-3 py-2 bg-[#2A2A2A] text-gray-300 text-xs font-bold rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              setBirthdayInput(currentUser.birthday ?? '');
+              setEditingBirthday(true);
+            }}
+            className="w-full p-3 rounded-lg bg-background border border-[#2A2A2A] text-xs text-gray-300 flex items-center justify-between hover:border-pink-500/30 transition-colors"
+          >
+            <span className="flex items-center gap-1.5 font-medium">
+              <Cake className="w-3.5 h-3.5 text-pink-400" />
+              {currentUser.birthday
+                ? new Date(currentUser.birthday + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })
+                : 'Add your birthday'}
+            </span>
+            <span className="text-[10px] text-gray-500">{currentUser.birthday ? 'Edit' : 'Set'}</span>
+          </button>
+        )}
       </div>
+
+      {/* Upcoming Birthdays */}
+      {upcomingBirthdays.length > 0 && (
+        <div className="bg-[#1E1E1E] p-4 rounded-xl border border-pink-500/20 space-y-3">
+          <h3 className="text-[10px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
+            <Cake className="w-3.5 h-3.5" />
+            Upcoming Birthdays
+          </h3>
+          <div className="space-y-2">
+            {upcomingBirthdays.map((b) => (
+              <div key={b.user.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-background border border-[#2A2A2A]">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${avatarClasses(b.user.accent)}`}>
+                  {initialOf(b.user.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-white truncate">{b.user.name}</p>
+                  <p className="text-[10px] text-gray-500">
+                    {b.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}
+                  </p>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                  b.daysAway === 0
+                    ? 'bg-pink-500/20 text-pink-300 border border-pink-500/30'
+                    : b.daysAway <= 7
+                    ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
+                    : 'bg-[#2A2A2A] text-gray-400 border border-[#333]'
+                }`}>
+                  {b.daysAway === 0 ? 'Today!' : b.daysAway === 1 ? 'Tomorrow' : `${b.daysAway}d`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-2.5">

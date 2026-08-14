@@ -40,7 +40,7 @@ import {
 /** Quotes above this rupee amount need the PI to sign off before a PO is raised. */
 export const PI_APPROVAL_THRESHOLD = 25_000;
 
-const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department';
+const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department, birthday';
 
 const PURCHASE_BASE_SELECT = `
   id, title, description, quantity, category, priority, status, preferred_company,
@@ -99,6 +99,7 @@ function toUser(row: any): User | null {
     accent: r.accent,
     email: r.email,
     department: r.department,
+    birthday: r.birthday ?? null,
   };
 }
 
@@ -220,6 +221,12 @@ export async function fetchActivities(limit = 60): Promise<Activity[]> {
       .limit(limit)
   );
   return (data as any[]).map(toActivity);
+}
+
+export async function updateBirthday(userId: string, birthday: string | null): Promise<void> {
+  unwrap(
+    await supabase.from('profiles').update({ birthday }).eq('id', userId)
+  );
 }
 
 // ------------------------------------------------------------------ writes
