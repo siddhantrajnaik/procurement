@@ -438,6 +438,25 @@ export const ProfileView: React.FC = () => {
         </span>
       </button>
 
+      {/* SidLab Tools */}
+      <a
+        href="https://siddhantrajnaik.github.io/SidLab-Tools/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
+          <span className="material-symbols-outlined text-cyan-400 text-[20px]">science</span>
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">SidLab Tools</h3>
+          <p className="text-[11px] text-gray-400">Scientific tools & calculators</p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          open_in_new
+        </span>
+      </a>
+
       {pendingAdmin && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPendingAdmin(null)} />
