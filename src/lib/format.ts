@@ -37,6 +37,8 @@ export function roleLabel(role?: string): string {
       return 'Procurement Incharge';
     case 'pi':
       return 'Principal Investigator';
+    case 'guest':
+      return 'Guest';
     default:
       return 'Lab Member';
   }

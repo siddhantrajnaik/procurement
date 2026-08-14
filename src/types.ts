@@ -2,7 +2,7 @@ export type PurchaseStatus = 'waiting' | 'quotes' | 'ordered' | 'transit' | 'del
 
 export type UrgencyLevel = 'low' | 'normal' | 'urgent' | 'critical';
 
-export type UserRole = 'lab_member' | 'procurement_incharge' | 'pi';
+export type UserRole = 'lab_member' | 'procurement_incharge' | 'pi' | 'guest';
 
 export type ActivityType =
   | 'created'
