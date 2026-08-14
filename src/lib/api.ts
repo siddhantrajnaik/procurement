@@ -284,6 +284,13 @@ export async function updatePurchaseStatus(
     'status_changed',
     `moved the request to ${STATUS_LABELS[status]}`
   );
+  if (status === 'delivered') {
+    supabase.rpc('notify_delivery', {
+      p_title: purchase.title,
+      p_quantity: purchase.quantity,
+      p_requester_name: purchase.requestedBy?.name ?? 'Someone',
+    }).then(() => {}, () => {});
+  }
 }
 
 export async function updatePurchaseFields(
