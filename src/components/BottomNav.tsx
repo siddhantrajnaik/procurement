@@ -21,7 +21,7 @@ export const BottomNav: React.FC = () => {
   );
 
   return (
-    <nav className="safe-bottom fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] glass-nav md:hidden">
+    <nav className="safe-bottom-fixed fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] glass-nav md:hidden">
       {NAV_ITEMS.map((item) => {
         const isActive = activeTab === item.id;
         const badge = item.id === 'inventory' && lowStockCount > 0 ? lowStockCount : 0;
