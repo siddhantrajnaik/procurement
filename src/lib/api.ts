@@ -624,6 +624,9 @@ export async function consumeInventoryItem(
     quantityChange: -quantity,
     notes,
   });
+  if (item.lowStockThreshold != null && newQty <= item.lowStockThreshold) {
+    supabase.rpc('notify_low_stock').then(() => {}, () => {});
+  }
 }
 
 export async function restockInventoryItem(
