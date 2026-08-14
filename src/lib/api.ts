@@ -32,6 +32,7 @@ import {
   NewVendorInput,
   Purchase,
   PurchaseStatus,
+  QuickLink,
   Quotation,
   User,
   Vendor,
@@ -1298,4 +1299,41 @@ export async function cancelBooking(bookingId: string): Promise<void> {
       .eq('id', bookingId)
       .select('id')
   );
+}
+
+// ------------------------------------------------------------------ quick links
+
+const QUICK_LINK_SELECT = `id, title, url, created_at, added_by_profile:profiles!quick_links_added_by_fkey(${PROFILE_FIELDS})`;
+
+function toQuickLink(row: any): QuickLink {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    url: row.url as string,
+    addedBy: toUser(row.added_by_profile),
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function fetchQuickLinks(): Promise<QuickLink[]> {
+  const { data } = await supabase
+    .from('quick_links')
+    .select(QUICK_LINK_SELECT)
+    .order('created_at', { ascending: true });
+  return (data ?? []).map(toQuickLink);
+}
+
+export async function addQuickLink(title: string, url: string, userId: string): Promise<QuickLink> {
+  const inserted = unwrap(
+    await supabase
+      .from('quick_links')
+      .insert({ title, url, added_by: userId })
+      .select(QUICK_LINK_SELECT)
+      .single()
+  );
+  return toQuickLink(inserted);
+}
+
+export async function removeQuickLink(id: string): Promise<void> {
+  unwrap(await supabase.from('quick_links').delete().eq('id', id).select('id'));
 }

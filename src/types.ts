@@ -355,6 +355,14 @@ export interface NewBookingInput {
 
 export type TabType = 'home' | 'search' | 'activity' | 'profile' | 'inventory';
 
+export interface QuickLink {
+  id: string;
+  title: string;
+  url: string;
+  addedBy: User | null;
+  createdAt: string;
+}
+
 export interface NewPurchaseInput {
   title: string;
   description: string;

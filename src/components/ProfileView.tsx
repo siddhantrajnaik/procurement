@@ -13,6 +13,8 @@ import { ListsView } from './ListsView';
 import { MuhuratView } from './MuhuratView';
 import { EquipmentView } from './EquipmentView';
 import { BookingView } from './BookingView';
+import { QuickLinksView } from './QuickLinksView';
+import { Link } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
   const { purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, bookableItems, bookings } = useApp();
@@ -25,6 +27,7 @@ export const ProfileView: React.FC = () => {
   const [showLostFound, setShowLostFound] = useState(false);
   const [showLists, setShowLists] = useState(false);
   const [showMuhurat, setShowMuhurat] = useState(false);
+  const [showQuickLinks, setShowQuickLinks] = useState(false);
   const [showEquipment, setShowEquipment] = useState(false);
   const [showBookings, setShowBookings] = useState(false);
   const [editingBirthday, setEditingBirthday] = useState(false);
@@ -94,6 +97,10 @@ export const ProfileView: React.FC = () => {
 
   if (showMuhurat) {
     return <MuhuratView onBack={() => setShowMuhurat(false)} />;
+  }
+
+  if (showQuickLinks) {
+    return <QuickLinksView onBack={() => setShowQuickLinks(false)} />;
   }
 
   if (showEquipment) {
@@ -456,6 +463,23 @@ export const ProfileView: React.FC = () => {
           open_in_new
         </span>
       </a>
+
+      {/* Quick Links */}
+      <button
+        onClick={() => setShowQuickLinks(true)}
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+          <Link className="w-5 h-5 text-blue-400" />
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">Quick Links</h3>
+          <p className="text-[11px] text-gray-400">IITD portals & useful links</p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          chevron_right
+        </span>
+      </button>
 
       {pendingAdmin && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
