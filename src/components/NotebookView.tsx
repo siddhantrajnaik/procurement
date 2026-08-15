@@ -131,7 +131,7 @@ export const NotebookView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="h-[72px] rounded-xl bg-[#1E1E1E] border border-[#2A2A2A] animate-pulse"
+              className="h-[88px] rounded-xl bg-[#1E1E1E] border border-[#2A2A2A] animate-pulse"
             />
           ))}
         </div>

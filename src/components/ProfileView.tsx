@@ -458,8 +458,8 @@ export const ProfileView: React.FC = () => {
         rel="noopener noreferrer"
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
-        <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
-          <span className="material-symbols-outlined text-cyan-400 text-[20px]">science</span>
+        <div className="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center group-hover:bg-sky-500/20 transition-colors">
+          <span className="material-symbols-outlined text-sky-400 text-[20px]">science</span>
         </div>
         <div className="flex-1 text-left">
           <h3 className="font-bold text-white text-sm">SidLab Tools</h3>
@@ -492,8 +492,8 @@ export const ProfileView: React.FC = () => {
         onClick={() => setShowQuickLinks(true)}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
-        <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
-          <Link className="w-5 h-5 text-blue-400" />
+        <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+          <Link className="w-5 h-5 text-indigo-400" />
         </div>
         <div className="flex-1 text-left">
           <h3 className="font-bold text-white text-sm">Quick Links</h3>

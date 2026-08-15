@@ -144,7 +144,8 @@ export const PageDetailView: React.FC<Props> = ({ page, onBack, onChange, onDele
           </button>
           <button
             onClick={() => setShowDelete(true)}
-            className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            aria-label="Delete page"
+            className="p-2.5 -mr-1 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
             title="Delete page"
           >
             <Trash2 className="w-4 h-4" />
@@ -169,7 +170,7 @@ export const PageDetailView: React.FC<Props> = ({ page, onBack, onChange, onDele
           {showEmoji && (
             <div
               role="menu"
-              className="absolute top-14 left-0 z-30 w-64 p-2 rounded-xl bg-[#1E1E1E] border border-[#2A2A2A] shadow-2xl grid grid-cols-8 gap-1"
+              className="absolute top-14 left-0 z-30 w-72 p-2 rounded-xl bg-[#1E1E1E] border border-[#2A2A2A] shadow-2xl grid grid-cols-6 gap-1"
             >
               {EMOJI_CHOICES.map((emoji) => (
                 <button
@@ -304,9 +305,10 @@ export const PageDetailView: React.FC<Props> = ({ page, onBack, onChange, onDele
                     e.stopPropagation();
                     void handleRemoveLink(link.url);
                   }}
-                  className="p-1.5 rounded-md text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                  aria-label={`Remove link ${link.title}`}
+                  className="p-2.5 -mr-1 rounded-md text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </a>
             ))}

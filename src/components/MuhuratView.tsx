@@ -320,7 +320,8 @@ export const MuhuratView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   <button
                     type="button"
                     onClick={() => setProfile((p) => ({ ...p, birthplace: '', lat: undefined, lng: undefined }))}
-                    className="p-0.5 rounded-full hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+                    aria-label="Clear birth place"
+                    className="p-2 -mr-1 rounded-full hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -337,7 +338,7 @@ export const MuhuratView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       searchPlace(e.target.value);
                     }}
                     onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-1 focus:ring-amber-400/50 focus:border-amber-400/30 outline-none placeholder:text-white/20 transition-colors"
+                    className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-1 focus:ring-amber-400/50 focus:border-amber-400/30 outline-none placeholder:text-white/20 transition-colors"
                   />
                   {isSearching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-white/20 border-t-amber-400 rounded-full animate-spin" />

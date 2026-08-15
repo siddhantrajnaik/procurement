@@ -102,6 +102,12 @@ body.modal-open {
 
 
 /* Rendered markdown inside notebook pages */
+/* Pasted reagent names, IDs and raw URLs are long and unbroken — without this
+   they push the whole page sideways on a phone. */
+.notebook-prose {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
 .notebook-prose > *:first-child { margin-top: 0; }
 .notebook-prose > *:last-child { margin-bottom: 0; }
 .notebook-prose h1,
