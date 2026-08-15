@@ -56,7 +56,7 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
   return (
     <>
       <motion.div
-        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex justify-center"
+        className="fixed inset-0 z-[60] bg-black/50 sm:backdrop-blur-xs flex justify-center"
         role="dialog"
         aria-modal="true"
         initial={{ opacity: 0 }}

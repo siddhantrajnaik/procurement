@@ -62,15 +62,14 @@ button, a, div {
   outline-offset: 2px;
 }
 
-/* Prevent body scroll when a modal is open. `overflow: hidden` alone does not
-   hold on iOS Safari, so the body is pinned and the scroll offset restored on
-   close — see useScrollLock. */
+/* Prevent body scroll when a modal is open. `overflow: hidden` stops the wheel
+   and the arrow keys; on iOS the finger is stopped by a touchmove blocker
+   instead, so the body keeps its position and the page never reflows — see
+   useScrollLock. `overscroll-behavior` is what keeps a scroll inside the modal
+   from chaining out to the page once it hits either end. */
 body.modal-open {
-  position: fixed;
-  left: 0;
-  right: 0;
-  width: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .material-symbols-outlined {
