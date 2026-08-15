@@ -30,6 +30,8 @@ import {
   NewPurchaseInput,
   NewQuotationInput,
   NewVendorInput,
+  NotebookPage,
+  DriveLink,
   Purchase,
   PurchaseStatus,
   QuickLink,
@@ -1336,4 +1338,76 @@ export async function addQuickLink(title: string, url: string, userId: string): 
 
 export async function removeQuickLink(id: string): Promise<void> {
   unwrap(await supabase.from('quick_links').delete().eq('id', id).select('id'));
+}
+
+// ------------------------------------------------------------------ notebook
+
+const NOTEBOOK_SELECT = `id, title, icon, body, drive_links, created_at, updated_at, added_by_profile:profiles!notebook_pages_added_by_fkey(${PROFILE_FIELDS})`;
+
+function toNotebookPage(row: any): NotebookPage {
+  const links = Array.isArray(row.drive_links) ? row.drive_links : [];
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    icon: (row.icon as string) || '📄',
+    body: (row.body as string) ?? '',
+    driveLinks: links
+      .filter((l: any) => l && typeof l.url === 'string')
+      .map((l: any) => ({ url: l.url as string, title: (l.title as string) || l.url })),
+    addedBy: toUser(row.added_by_profile),
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+/** Pages belonging to one user, most recently edited first. */
+export async function fetchNotebookPages(userId: string): Promise<NotebookPage[]> {
+  const rows = unwrap(
+    await supabase
+      .from('notebook_pages')
+      .select(NOTEBOOK_SELECT)
+      .eq('added_by', userId)
+      .order('updated_at', { ascending: false })
+  );
+  return (rows ?? []).map(toNotebookPage);
+}
+
+export async function createNotebookPage(
+  title: string,
+  icon: string,
+  userId: string
+): Promise<NotebookPage> {
+  const inserted = unwrap(
+    await supabase
+      .from('notebook_pages')
+      .insert({ title, icon, added_by: userId })
+      .select(NOTEBOOK_SELECT)
+      .single()
+  );
+  return toNotebookPage(inserted);
+}
+
+export async function updateNotebookPage(
+  id: string,
+  updates: { title?: string; icon?: string; body?: string; driveLinks?: DriveLink[] }
+): Promise<NotebookPage> {
+  const row: Record<string, unknown> = {};
+  if (updates.title !== undefined) row.title = updates.title;
+  if (updates.icon !== undefined) row.icon = updates.icon;
+  if (updates.body !== undefined) row.body = updates.body;
+  if (updates.driveLinks !== undefined) row.drive_links = updates.driveLinks;
+
+  const updated = unwrap(
+    await supabase
+      .from('notebook_pages')
+      .update(row)
+      .eq('id', id)
+      .select(NOTEBOOK_SELECT)
+      .single()
+  );
+  return toNotebookPage(updated);
+}
+
+export async function deleteNotebookPage(id: string): Promise<void> {
+  unwrap(await supabase.from('notebook_pages').delete().eq('id', id).select('id'));
 }

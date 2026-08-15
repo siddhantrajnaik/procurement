@@ -5,7 +5,7 @@ import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake } from 'lucide-react';
+import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen } from 'lucide-react';
 import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
@@ -14,6 +14,7 @@ import { MuhuratView } from './MuhuratView';
 import { EquipmentView } from './EquipmentView';
 import { BookingView } from './BookingView';
 import { QuickLinksView } from './QuickLinksView';
+import { NotebookView } from './NotebookView';
 import { Link } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
@@ -28,6 +29,7 @@ export const ProfileView: React.FC = () => {
   const [showLists, setShowLists] = useState(false);
   const [showMuhurat, setShowMuhurat] = useState(false);
   const [showQuickLinks, setShowQuickLinks] = useState(false);
+  const [showNotebook, setShowNotebook] = useState(false);
   const [showEquipment, setShowEquipment] = useState(false);
   const [showBookings, setShowBookings] = useState(false);
   const [editingBirthday, setEditingBirthday] = useState(false);
@@ -101,6 +103,10 @@ export const ProfileView: React.FC = () => {
 
   if (showQuickLinks) {
     return <QuickLinksView onBack={() => setShowQuickLinks(false)} />;
+  }
+
+  if (showNotebook) {
+    return <NotebookView onBack={() => setShowNotebook(false)} />;
   }
 
   if (showEquipment) {
@@ -463,6 +469,23 @@ export const ProfileView: React.FC = () => {
           open_in_new
         </span>
       </a>
+
+      {/* Lab Notebook */}
+      <button
+        onClick={() => setShowNotebook(true)}
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+          <NotebookPen className="w-5 h-5 text-emerald-400" />
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">Lab Notebook</h3>
+          <p className="text-[11px] text-gray-400">Your private notes &amp; protocols</p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          chevron_right
+        </span>
+      </button>
 
       {/* Quick Links */}
       <button

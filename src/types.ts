@@ -363,6 +363,22 @@ export interface QuickLink {
   createdAt: string;
 }
 
+export interface DriveLink {
+  url: string;
+  title: string;
+}
+
+export interface NotebookPage {
+  id: string;
+  title: string;
+  icon: string;
+  body: string;
+  driveLinks: DriveLink[];
+  addedBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NewPurchaseInput {
   title: string;
   description: string;
