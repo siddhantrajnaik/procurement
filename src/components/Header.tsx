@@ -84,7 +84,7 @@ export const Header: React.FC = () => {
             <div
               className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${avatarClasses(currentUser.accent)}`}
             >
-              {initialOf(currentUser.name)}
+              {initialOf(currentUser.name, currentUser.handle)}
             </div>
             {currentUser.name}
           </button>

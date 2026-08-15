@@ -116,7 +116,7 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
               <div className="flex items-center justify-between pt-1 text-xs text-gray-500">
                 <div className="flex items-center gap-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${avatarClasses(item.reportedBy?.accent)}`}>
-                    {initialOf(item.reportedBy?.name ?? '?')}
+                    {initialOf(item.reportedBy?.name ?? '?', item.reportedBy?.handle)}
                   </div>
                   <span>
                     Reported by <strong className="text-gray-300">{item.reportedBy?.name ?? 'Unknown'}</strong>
@@ -171,7 +171,7 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${avatarClasses(r.author?.accent)}`}>
-                            {initialOf(r.author?.name ?? '?')}
+                            {initialOf(r.author?.name ?? '?', r.author?.handle)}
                           </div>
                           <span className="font-bold text-white text-xs">{r.author?.name ?? 'Someone'}</span>
                         </div>
@@ -189,7 +189,7 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
           <div className="p-3 bg-[#1E1E1E] border-t border-[#2A2A2A] sticky bottom-0 z-20">
             <form onSubmit={handlePost} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${avatarClasses(currentUser.accent)}`}>
-                {initialOf(currentUser.name)}
+                {initialOf(currentUser.name, currentUser.handle)}
               </div>
               <input
                 type="text"

@@ -57,7 +57,7 @@ export const ActivityView: React.FC = () => {
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${avatarClasses(act.actor?.accent)}`}
                 >
-                  {initialOf(act.actor?.name ?? '?')}
+                  {initialOf(act.actor?.name ?? '?', act.actor?.handle)}
                 </div>
 
                 <div className="flex-1 min-w-0">

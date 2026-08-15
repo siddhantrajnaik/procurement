@@ -165,7 +165,7 @@ export const PurchaseThreadModal: React.FC = () => {
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${avatarClasses(p.requestedBy?.accent)}`}
                   >
-                    {initialOf(p.requestedBy?.name ?? '?')}
+                    {initialOf(p.requestedBy?.name ?? '?', p.requestedBy?.handle)}
                   </div>
                   <span>
                     By{' '}
@@ -290,7 +290,7 @@ export const PurchaseThreadModal: React.FC = () => {
                         <div
                           className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${avatarClasses(c.author?.accent)}`}
                         >
-                          {initialOf(c.author?.name ?? '?')}
+                          {initialOf(c.author?.name ?? '?', c.author?.handle)}
                         </div>
                         <span className="font-bold text-white text-xs">
                           {c.author?.name ?? 'Someone'}
@@ -322,7 +322,7 @@ export const PurchaseThreadModal: React.FC = () => {
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${avatarClasses(currentUser.accent)}`}
               >
-                {initialOf(currentUser.name)}
+                {initialOf(currentUser.name, currentUser.handle)}
               </div>
               <input
                 type="text"

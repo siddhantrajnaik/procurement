@@ -36,7 +36,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
         className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-bold text-[13px] z-10 border-4 border-background ${avatarClasses(requester?.accent)}`}
         title={requester?.name}
       >
-        {initialOf(requester?.name ?? '?')}
+        {initialOf(requester?.name ?? '?', requester?.handle)}
       </div>
 
       <div

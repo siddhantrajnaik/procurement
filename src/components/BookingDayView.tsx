@@ -171,7 +171,7 @@ export const BookingDayView: React.FC<Props> = ({ item, onBack }) => {
                               <div
                                 className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${avatarClasses(booking.bookedBy.accent)}`}
                               >
-                                {initialOf(booking.bookedBy.name)}
+                                {initialOf(booking.bookedBy.name, booking.bookedBy.handle)}
                               </div>
                             )}
                             <span className="text-xs font-bold text-white truncate">

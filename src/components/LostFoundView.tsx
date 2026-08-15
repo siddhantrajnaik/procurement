@@ -136,7 +136,7 @@ export const LostFoundView: React.FC<Props> = ({ onBack }) => {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${avatarClasses(item.reportedBy?.accent)}`}>
-                      {initialOf(item.reportedBy?.name ?? '?')}
+                      {initialOf(item.reportedBy?.name ?? '?', item.reportedBy?.handle)}
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-bold text-white text-sm truncate">{item.title}</h3>

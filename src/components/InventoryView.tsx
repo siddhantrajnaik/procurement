@@ -409,7 +409,7 @@ function ItemCard({
       {item.addedBy && (
         <div className="flex items-center gap-1.5 mb-3">
           <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${avatarClasses(item.addedBy.accent)}`}>
-            {initialOf(item.addedBy.name)}
+            {initialOf(item.addedBy.name, item.addedBy.handle)}
           </div>
           <span className="text-[11px] text-gray-500">
             Added by {item.addedBy.name} · {timeAgo(item.createdAt)}

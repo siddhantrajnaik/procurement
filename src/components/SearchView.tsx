@@ -193,7 +193,7 @@ function InventoryResultCard({ item, onNavigate }: { item: InventoryItem; onNavi
           {item.addedBy && (
             <span className="flex items-center gap-1 shrink-0">
               <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold ${avatarClasses(item.addedBy.accent)}`}>
-                {initialOf(item.addedBy.name)}
+                {initialOf(item.addedBy.name, item.addedBy.handle)}
               </span>
               {timeAgo(item.createdAt)}
             </span>

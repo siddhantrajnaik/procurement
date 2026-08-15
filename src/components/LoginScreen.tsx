@@ -43,7 +43,7 @@ export const LoginScreen: React.FC = () => {
           <div
             className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-[20px] mb-4 ${avatarClasses(selectedAdmin.accent)}`}
           >
-            {initialOf(selectedAdmin.name)}
+            {initialOf(selectedAdmin.name, selectedAdmin.handle)}
           </div>
           <h1 className="font-bold text-xl text-white mb-1 tracking-tight">Enter admin PIN</h1>
           <p className="text-gray-400 text-sm mb-6 text-center">
@@ -125,7 +125,7 @@ export const LoginScreen: React.FC = () => {
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] ${avatarClasses(admin.accent)}`}
                     >
-                      {initialOf(admin.name)}
+                      {initialOf(admin.name, admin.handle)}
                     </div>
                     <div>
                       <div className="font-semibold text-white text-sm">{admin.name}</div>
@@ -152,7 +152,7 @@ export const LoginScreen: React.FC = () => {
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] ${avatarClasses(member.accent)}`}
                     >
-                      {initialOf(member.name)}
+                      {initialOf(member.name, member.handle)}
                     </div>
                     <div>
                       <div className="font-semibold text-white text-sm">{member.name}</div>
@@ -178,7 +178,7 @@ export const LoginScreen: React.FC = () => {
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] ${avatarClasses(guest.accent)}`}
                     >
-                      {initialOf(guest.name)}
+                      {initialOf(guest.name, guest.handle)}
                     </div>
                     <div>
                       <div className="font-semibold text-white text-sm">{guest.name}</div>

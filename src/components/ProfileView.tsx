@@ -125,7 +125,7 @@ export const ProfileView: React.FC = () => {
           <div
             className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl ${avatarClasses(currentUser.accent)}`}
           >
-            {initialOf(currentUser.name)}
+            {initialOf(currentUser.name, currentUser.handle)}
           </div>
           <div>
             <h2 className="font-extrabold text-white text-lg tracking-tight">
@@ -211,7 +211,7 @@ export const ProfileView: React.FC = () => {
             {upcomingBirthdays.map((b) => (
               <div key={b.user.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-background border border-[#2A2A2A]">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${avatarClasses(b.user.accent)}`}>
-                  {initialOf(b.user.name)}
+                  {initialOf(b.user.name, b.user.handle)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-white truncate">{b.user.name}</p>
@@ -481,7 +481,7 @@ export const ProfileView: React.FC = () => {
                       : avatarClasses(u.accent)
                   }`}
                 >
-                  {initialOf(u.name)}
+                  {initialOf(u.name, u.handle)}
                 </div>
                 <div>
                   <p className="font-bold">{u.name}</p>
@@ -509,7 +509,7 @@ export const ProfileView: React.FC = () => {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPendingAdmin(null)} />
           <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6 flex flex-col items-center">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg mb-3 ${avatarClasses(pendingAdmin.accent)}`}>
-              {initialOf(pendingAdmin.name)}
+              {initialOf(pendingAdmin.name, pendingAdmin.handle)}
             </div>
             <h3 className="font-bold text-white text-base mb-1">Enter admin PIN</h3>
             <p className="text-xs text-gray-400 mb-4">Switching to {pendingAdmin.name}</p>

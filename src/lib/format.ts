@@ -27,7 +27,27 @@ export function formatFileSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function initialOf(name: string): string {
+const USER_EMOJI: Record<string, string> = {
+  paulomi:  '🦋',
+  milan:    '🦁',
+  mrittika: '🌸',
+  rupam:    '🐯',
+  bhawna:   '🦊',
+  himanshu: '🐼',
+  komal:    '🦄',
+  siddhant: '🐉',
+  sudipto:  '🦅',
+  nalini:   '🐬',
+  shalini:  '🦜',
+  jha:      '🦉',
+  guest:    '👻',
+};
+
+export function initialOf(name: string, handle?: string): string {
+  if (handle) {
+    const emoji = USER_EMOJI[handle.toLowerCase()];
+    if (emoji) return emoji;
+  }
   return name.trim().charAt(0).toUpperCase() || '?';
 }
 
