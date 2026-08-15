@@ -41,6 +41,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
   const [unit, setUnit] = useState('pcs');
   const [location, setLocation] = useState('');
   const [lowStock, setLowStock] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,6 +59,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
         setUnit(editItem.unit);
         setLocation(editItem.location);
         setLowStock(editItem.lowStockThreshold != null ? String(editItem.lowStockThreshold) : '');
+        setExpiryDate(editItem.expiryDate ?? '');
         setNotes(editItem.notes ?? '');
       } else if (prefill) {
         setName(prefill.name);
@@ -66,6 +68,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
         setUnit('pcs');
         setLocation('');
         setLowStock('');
+        setExpiryDate('');
         setNotes(prefill.notes ?? '');
       } else {
         setName('');
@@ -74,6 +77,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
         setUnit('pcs');
         setLocation('');
         setLowStock('');
+        setExpiryDate('');
         setNotes('');
       }
     }
@@ -104,6 +108,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
           unit,
           location: location.trim(),
           lowStockThreshold: lowStock ? Number(lowStock) : null,
+          expiryDate: expiryDate || null,
           notes: notes.trim() || undefined,
         });
       } else {
@@ -114,6 +119,7 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
           unit,
           location: location.trim(),
           lowStockThreshold: lowStock ? Number(lowStock) : null,
+          expiryDate: expiryDate || null,
           notes: notes.trim() || undefined,
         };
         await addInventoryItem(input);
@@ -231,6 +237,19 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
               placeholder="Alert when quantity drops below..."
               value={lowStock}
               onChange={(e) => setLowStock(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+              Expiry date
+              <span className="text-gray-500 font-normal normal-case ml-1">(optional)</span>
+            </label>
+            <input
+              type="date"
+              className="w-full px-3 py-2 bg-[#161616] border border-[#2A2A2A] rounded-md text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [color-scheme:dark]"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
             />
           </div>
 

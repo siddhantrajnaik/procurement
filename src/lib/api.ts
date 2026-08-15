@@ -542,7 +542,7 @@ export const STATUS_LABELS: Record<PurchaseStatus, string> = {
 // ------------------------------------------------------------------ inventory
 
 const INVENTORY_ITEM_SELECT = `
-  id, name, category, quantity, unit, location, low_stock_threshold, notes,
+  id, name, category, quantity, unit, location, low_stock_threshold, expiry_date, notes,
   linked_purchase_id, created_at, updated_at,
   added_by_profile:profiles!inventory_items_added_by_fkey(${PROFILE_FIELDS})
 `;
@@ -562,6 +562,7 @@ function toInventoryItem(row: any): InventoryItem {
     unit: row.unit,
     location: row.location,
     lowStockThreshold: row.low_stock_threshold != null ? Number(row.low_stock_threshold) : null,
+    expiryDate: row.expiry_date ?? null,
     notes: row.notes,
     linkedPurchaseId: row.linked_purchase_id,
     addedBy: toUser(row.added_by_profile),
@@ -640,6 +641,7 @@ export async function addInventoryItem(
         unit: input.unit,
         location: input.location,
         low_stock_threshold: input.lowStockThreshold ?? null,
+        expiry_date: input.expiryDate || null,
         notes: input.notes || null,
         added_by: actor.id,
       })
@@ -717,7 +719,7 @@ export async function moveInventoryItem(
 
 export async function updateInventoryItem(
   item: InventoryItem,
-  updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'notes'>>,
+  updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'expiryDate' | 'notes'>>,
   actor: User
 ): Promise<void> {
   const row: Record<string, unknown> = {};
@@ -727,6 +729,7 @@ export async function updateInventoryItem(
   if (updates.unit !== undefined) row.unit = updates.unit;
   if (updates.location !== undefined) row.location = updates.location;
   if (updates.lowStockThreshold !== undefined) row.low_stock_threshold = updates.lowStockThreshold;
+  if (updates.expiryDate !== undefined) row.expiry_date = updates.expiryDate || null;
   if (updates.notes !== undefined) row.notes = updates.notes || null;
 
   unwrap(

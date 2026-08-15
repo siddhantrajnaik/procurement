@@ -21,7 +21,7 @@ const ACTION_META: Record<string, { icon: string; color: string; label: string }
 export const InventoryView: React.FC = () => {
   const { inventoryItems, inventoryLog } = useApp();
 
-  const [subTab, setSubTab] = useState<'stock' | 'log'>('stock');
+  const [subTab, setSubTab] = useState<'stock' | 'expiry' | 'log'>('stock');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'low-first'>('recent');
@@ -90,6 +90,24 @@ export const InventoryView: React.FC = () => {
     [inventoryItems]
   );
 
+  const expiryItems = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return inventoryItems
+      .filter((i) => i.expiryDate != null)
+      .sort((a, b) => a.expiryDate!.localeCompare(b.expiryDate!))
+      .map((item) => {
+        const daysLeft = Math.ceil(
+          (new Date(item.expiryDate!).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return { item, daysLeft };
+      });
+  }, [inventoryItems]);
+
+  const expiringSoonCount = useMemo(
+    () => expiryItems.filter((e) => e.daysLeft <= 30).length,
+    [expiryItems]
+  );
+
   return (
     <div className="flex-1 w-full mx-auto pb-24 md:pb-8 flex flex-col max-w-3xl px-4 md:px-0">
       <div className="py-4 mt-2 md:mt-6">
@@ -113,6 +131,19 @@ export const InventoryView: React.FC = () => {
             }`}
           >
             Stock
+          </button>
+          <button
+            onClick={() => setSubTab('expiry')}
+            className={`relative px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              subTab === 'expiry' ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Expiry
+            {expiringSoonCount > 0 && subTab !== 'expiry' && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                {expiringSoonCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setSubTab('log')}
@@ -204,6 +235,73 @@ export const InventoryView: React.FC = () => {
             )}
           </div>
         </>
+      )}
+
+      {subTab === 'expiry' && (
+        <div className="flex flex-col gap-3">
+          {expiryItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#2A2A2A] rounded-xl bg-[#1E1E1E]">
+              <span className="material-symbols-outlined text-gray-600 text-4xl mb-3">event_available</span>
+              <h3 className="text-white font-medium text-sm mb-1">No expiry dates set</h3>
+              <p className="text-gray-400 text-sm max-w-xs">
+                Add expiry dates when editing inventory items to track them here.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500">{expiryItems.length} item{expiryItems.length !== 1 ? 's' : ''} with expiry dates</p>
+              {expiryItems.map(({ item, daysLeft }) => {
+                const isExpired = daysLeft < 0;
+                const isUrgent = daysLeft >= 0 && daysLeft <= 7;
+                const isWarning = daysLeft > 7 && daysLeft <= 30;
+
+                let statusColor = 'text-gray-400 bg-[#2A2A2A]';
+                let statusText = `${daysLeft}d left`;
+                if (isExpired) {
+                  statusColor = 'text-red-400 bg-red-500/10 border border-red-500/20';
+                  statusText = daysLeft === -1 ? 'Expired yesterday' : `Expired ${Math.abs(daysLeft)}d ago`;
+                } else if (daysLeft === 0) {
+                  statusColor = 'text-red-400 bg-red-500/10 border border-red-500/20';
+                  statusText = 'Expires today';
+                } else if (isUrgent) {
+                  statusColor = 'text-red-400 bg-red-500/10 border border-red-500/20';
+                  statusText = daysLeft === 1 ? 'Expires tomorrow' : `${daysLeft}d left`;
+                } else if (isWarning) {
+                  statusColor = 'text-amber-300 bg-amber-500/10 border border-amber-500/20';
+                }
+
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3.5 flex items-center gap-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-white text-sm truncate">{item.name}</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 bg-[#2A2A2A] px-2 py-0.5 rounded shrink-0">
+                          {item.category}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <span>{item.quantity} {item.unit}</span>
+                        {item.location && (
+                          <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">location_on</span>
+                            {item.location}
+                          </span>
+                        )}
+                        <span>{item.expiryDate}</span>
+                      </div>
+                    </div>
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${statusColor}`}>
+                      {statusText}
+                    </span>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
       )}
 
       {subTab === 'log' && (
@@ -344,6 +442,11 @@ function ItemCard({
   const isLow =
     item.lowStockThreshold != null && item.quantity <= item.lowStockThreshold;
   const isEmpty = item.quantity === 0;
+  const expiryDays = item.expiryDate
+    ? Math.ceil((new Date(item.expiryDate).getTime() - new Date(new Date().toISOString().slice(0, 10)).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const isExpired = expiryDays != null && expiryDays < 0;
+  const isExpiringSoon = expiryDays != null && expiryDays >= 0 && expiryDays <= 30;
 
   return (
     <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4">
@@ -360,6 +463,20 @@ function ItemCard({
           {isLow && !isEmpty && (
             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
               Low stock
+            </span>
+          )}
+          {isExpired && (
+            <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded">
+              Expired
+            </span>
+          )}
+          {isExpiringSoon && !isExpired && (
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+              expiryDays! <= 7
+                ? 'text-red-400 bg-red-500/10 border border-red-500/20'
+                : 'text-amber-300 bg-amber-500/10 border border-amber-500/20'
+            }`}>
+              {expiryDays === 0 ? 'Expires today' : `${expiryDays}d to expiry`}
             </span>
           )}
         </div>
@@ -399,6 +516,13 @@ function ItemCard({
         <div className="flex items-center gap-1.5 text-sm text-gray-400 mb-2">
           <span className="material-symbols-outlined text-[16px] text-gray-500">location_on</span>
           <span>{item.location}</span>
+        </div>
+      )}
+
+      {item.expiryDate && (
+        <div className="flex items-center gap-1.5 text-sm text-gray-400 mb-2">
+          <span className="material-symbols-outlined text-[16px] text-gray-500">event</span>
+          <span>Expires {item.expiryDate}</span>
         </div>
       )}
 

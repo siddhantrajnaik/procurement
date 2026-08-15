@@ -121,6 +121,7 @@ export interface InventoryItem {
   unit: string;
   location: string;
   lowStockThreshold: number | null;
+  expiryDate: string | null;
   notes: string | null;
   linkedPurchaseId: string | null;
   addedBy: User | null;
@@ -148,6 +149,7 @@ export interface NewInventoryItemInput {
   unit: string;
   location: string;
   lowStockThreshold?: number | null;
+  expiryDate?: string | null;
   notes?: string;
 }
 

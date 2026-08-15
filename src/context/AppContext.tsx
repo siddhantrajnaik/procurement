@@ -77,7 +77,7 @@ interface AppContextType {
   consumeItem: (item: InventoryItem, quantity: number, notes?: string) => Promise<void>;
   restockItem: (item: InventoryItem, quantity: number, notes?: string) => Promise<void>;
   moveItem: (item: InventoryItem, newLocation: string, notes?: string) => Promise<void>;
-  editInventoryItem: (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'notes'>>) => Promise<void>;
+  editInventoryItem: (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'expiryDate' | 'notes'>>) => Promise<void>;
   removeInventoryItem: (item: InventoryItem) => Promise<void>;
 
   vendors: Vendor[];
@@ -547,7 +547,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const editInventoryItem = useCallback(
-    async (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'notes'>>) => {
+    async (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'expiryDate' | 'notes'>>) => {
       const actor = requireUser();
       if (!actor) return;
       await run(async () => {
