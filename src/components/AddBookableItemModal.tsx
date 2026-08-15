@@ -52,20 +52,20 @@ export const AddBookableItemModal: React.FC<Props> = ({ isOpen, onClose }) => {
       {isOpen && (
         <motion.div
           key="add-bookable-item"
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs"
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
         >
           <ScrollLock />
+          {/* Dim on its own layer, entry in CSS — see PurchaseThreadModal. */}
           <motion.div
-            initial={{ y: '100%', opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs animate-overlay"
+            exit={{ opacity: 0 }}
+          />
+          <motion.div
+            exit={{ y: '100%' }}
             transition={SHEET_SPRING}
-            className="w-full max-w-sm bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden"
+            className="animate-sheet-solid relative w-full max-w-sm bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden"
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A2A]">
               <h3 className="font-bold text-white text-sm">Add Bookable Item</h3>

@@ -481,11 +481,9 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
         {/* Report Issue Overlay */}
         {showReportIssue && (
           <div className="fixed inset-0 z-[65] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs">
-            <motion.form
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
+            <form
               onSubmit={(e) => void handleReportIssue(e)}
-              className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] p-6 space-y-4"
+              className="animate-sheet-solid w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] p-6 space-y-4"
             >
               <h3 className="font-bold text-white text-sm flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-400" />
@@ -515,17 +513,15 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                   Report
                 </button>
               </div>
-            </motion.form>
+            </form>
           </div>
         )}
 
         {/* Mark Fixed Overlay */}
         {fixingIssueId && (
           <div className="fixed inset-0 z-[65] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs">
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] p-6 space-y-4"
+            <div
+              className="animate-sheet-solid w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] p-6 space-y-4"
             >
               <h3 className="font-bold text-white text-sm flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -561,18 +557,16 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                   Mark Fixed
                 </button>
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
 
         {/* Add Maintenance Overlay */}
         {showAddMaintenance && (
           <div className="fixed inset-0 z-[65] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs">
-            <motion.form
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
+            <form
               onSubmit={(e) => void handleAddMaintenance(e)}
-              className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] p-6 space-y-4"
+              className="animate-sheet-solid w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] p-6 space-y-4"
             >
               <h3 className="font-bold text-white text-sm flex items-center gap-2">
                 <Wrench className="w-4 h-4 text-blue-400" />
@@ -632,7 +626,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                   Log Service
                 </button>
               </div>
-            </motion.form>
+            </form>
           </div>
         )}
 

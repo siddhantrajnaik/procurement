@@ -56,20 +56,20 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({
       {purchase && (
         <motion.div
           key="quick-actions"
-          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
         >
           <ScrollLock />
+          {/* Dim on its own layer, entry in CSS — see PurchaseThreadModal. */}
           <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs animate-overlay"
+            exit={{ opacity: 0 }}
+          />
+          <motion.div
             exit={{ y: '100%' }}
             transition={SHEET_SPRING}
-            className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl p-5 border border-[#2A2A2A] shadow-2xl space-y-4"
+            className="animate-sheet-solid relative w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl p-5 border border-[#2A2A2A] shadow-2xl space-y-4"
           >
           <div className="flex items-center justify-between border-b border-[#2A2A2A] pb-3">
             <div>
