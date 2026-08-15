@@ -46,6 +46,8 @@ import {
 interface AppContextType {
   purchases: Purchase[];
   activities: Activity[];
+  unreadActivityCount: number;
+  markActivitiesRead: () => void;
   isLoading: boolean;
   loadError: string | null;
   reload: () => Promise<void>;
@@ -152,6 +154,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
+
+  const NOTIF_KEY = currentUser ? `procure.notif.${currentUser.id}` : '';
+
+  const [activitiesReadAt, setActivitiesReadAt] = useState<string>(() => {
+    if (!NOTIF_KEY) return new Date().toISOString();
+    return localStorage.getItem(NOTIF_KEY) ?? new Date().toISOString();
+  });
+
+  useEffect(() => {
+    if (!NOTIF_KEY) return;
+    const stored = localStorage.getItem(NOTIF_KEY);
+    if (stored) setActivitiesReadAt(stored);
+    else {
+      const now = new Date().toISOString();
+      localStorage.setItem(NOTIF_KEY, now);
+      setActivitiesReadAt(now);
+    }
+  }, [NOTIF_KEY]);
+
+  const unreadActivityCount = useMemo(() => {
+    if (!currentUser) return 0;
+    return activities.filter(
+      (a) => a.createdAt > activitiesReadAt && a.actor?.id !== currentUser.id
+    ).length;
+  }, [activities, activitiesReadAt, currentUser]);
+
+  const markActivitiesRead = useCallback(() => {
+    if (!NOTIF_KEY) return;
+    const now = new Date().toISOString();
+    localStorage.setItem(NOTIF_KEY, now);
+    setActivitiesReadAt(now);
+  }, [NOTIF_KEY]);
 
   const reload = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -800,6 +834,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const value: AppContextType = {
     purchases,
     activities,
+    unreadActivityCount,
+    markActivitiesRead,
     isLoading,
     loadError,
     reload,

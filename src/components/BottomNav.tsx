@@ -20,11 +20,18 @@ export const BottomNav: React.FC = () => {
     [inventoryItems]
   );
 
+  const { unreadActivityCount } = useApp();
+
   return (
     <nav className="safe-bottom-fixed fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] glass-nav md:hidden">
       {NAV_ITEMS.map((item) => {
         const isActive = activeTab === item.id;
-        const badge = item.id === 'inventory' && lowStockCount > 0 ? lowStockCount : 0;
+        const badge =
+          item.id === 'inventory' && lowStockCount > 0
+            ? lowStockCount
+            : item.id === 'activity' && unreadActivityCount > 0
+              ? unreadActivityCount
+              : 0;
         return (
           <button
             key={item.id}
@@ -37,8 +44,10 @@ export const BottomNav: React.FC = () => {
             <div className={`relative p-1.5 rounded-xl transition-colors ${isActive ? 'bg-primary/10' : ''}`}>
               <span className="material-symbols-outlined text-[24px]">{item.icon}</span>
               {badge > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-black">
-                  {badge}
+                <span className={`absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full text-[9px] font-bold ${
+                  item.id === 'activity' ? 'bg-primary text-white' : 'bg-amber-500 text-black'
+                }`}>
+                  {badge > 99 ? '99+' : badge}
                 </span>
               )}
             </div>

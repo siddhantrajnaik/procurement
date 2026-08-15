@@ -35,6 +35,8 @@ export const Header: React.FC = () => {
     [inventoryItems]
   );
 
+  const { unreadActivityCount } = useApp();
+
   if (!currentUser) return null;
 
   return (
@@ -64,6 +66,11 @@ export const Header: React.FC = () => {
                 {tab.id === 'inventory' && lowStockCount > 0 && (
                   <span className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center rounded-full bg-amber-500 text-[8px] font-bold text-black">
                     {lowStockCount}
+                  </span>
+                )}
+                {tab.id === 'activity' && unreadActivityCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center rounded-full bg-primary text-[8px] font-bold text-white">
+                    {unreadActivityCount > 99 ? '99+' : unreadActivityCount}
                   </span>
                 )}
               </span>

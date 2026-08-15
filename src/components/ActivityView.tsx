@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { ActivityType } from '../types';
 import { avatarClasses } from '../lib/accent';
@@ -24,7 +25,11 @@ const ICONS: Record<ActivityType, React.ReactNode> = {
 };
 
 export const ActivityView: React.FC = () => {
-  const { activities, purchases, setSelectedPurchase } = useApp();
+  const { activities, purchases, setSelectedPurchase, markActivitiesRead } = useApp();
+
+  useEffect(() => {
+    markActivitiesRead();
+  }, [markActivitiesRead]);
 
   return (
     <div className="flex-1 flex flex-col pb-28 pt-4 max-w-3xl mx-auto w-full px-4 space-y-4">
