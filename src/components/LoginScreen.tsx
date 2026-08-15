@@ -14,6 +14,7 @@ export const LoginScreen: React.FC = () => {
 
   const admins = allUsers.filter((u) => u.role === 'pi' || u.role === 'procurement_incharge');
   const labMembers = allUsers.filter((u) => u.role === 'lab_member');
+  const guests = allUsers.filter((u) => u.role === 'guest');
 
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,6 +157,32 @@ export const LoginScreen: React.FC = () => {
                     <div>
                       <div className="font-semibold text-white text-sm">{member.name}</div>
                       <div className="text-xs text-gray-400">{roleLabel(member.role, member.handle)}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          {guests.length > 0 && (
+            <section>
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1 border-b border-[#2A2A2A] pb-2">
+                Guest access
+              </h2>
+              <div className="space-y-2">
+                {guests.map((guest) => (
+                  <button
+                    key={guest.id}
+                    onClick={() => login(guest.id)}
+                    className="w-full text-left p-3 rounded-lg border border-[#2A2A2A] hover:border-primary/50 hover:bg-[#2A2A2A] transition-colors flex items-center gap-3"
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] ${avatarClasses(guest.accent)}`}
+                    >
+                      {initialOf(guest.name)}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-white text-sm">{guest.name}</div>
+                      <div className="text-xs text-gray-400">{roleLabel(guest.role, guest.handle)}</div>
                     </div>
                   </button>
                 ))}

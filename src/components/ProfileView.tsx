@@ -277,68 +277,6 @@ export const ProfileView: React.FC = () => {
         </div>
       </div>
 
-      {/* User switcher */}
-      <div className="bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-gray-300 text-xs uppercase tracking-wider">
-            Switch Persona
-          </h3>
-          <span className="text-[10px] text-gray-500">Click to switch</span>
-        </div>
-
-        <div className="space-y-1.5">
-          {allUsers.map((u) => {
-            const isAdmin = u.role === 'pi' || u.role === 'procurement_incharge';
-            const handleClick = () => {
-              if (u.id === currentUser.id) return;
-              if (isAdmin) {
-                setPendingAdmin(u);
-                setPin('');
-              } else {
-                login(u.id);
-              }
-            };
-            return (
-            <button
-              key={u.id}
-              onClick={handleClick}
-              className={`w-full text-left p-2.5 rounded-lg flex items-center justify-between text-xs transition-colors ${
-                u.id === currentUser.id
-                  ? 'bg-primary text-white font-semibold'
-                  : 'bg-background hover:bg-[#2A2A2A] text-gray-300 border border-[#2A2A2A]'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                    u.id === currentUser.id
-                      ? 'bg-white/20 text-white'
-                      : avatarClasses(u.accent)
-                  }`}
-                >
-                  {initialOf(u.name)}
-                </div>
-                <div>
-                  <p className="font-bold">{u.name}</p>
-                  <p
-                    className={`text-[10px] capitalize ${
-                      u.id === currentUser.id ? 'text-orange-100' : 'text-gray-500'
-                    }`}
-                  >
-                    {roleLabel(u.role, u.handle)}
-                  </p>
-                </div>
-              </div>
-              {u.id === currentUser.id && <UserCheck className="w-4 h-4 text-white" />}
-              {u.id !== currentUser.id && isAdmin && (
-                <span className="material-symbols-outlined text-[14px] text-gray-500">lock</span>
-              )}
-            </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Vendor directory */}
       <button
         onClick={() => setShowVendors(true)}
@@ -503,6 +441,68 @@ export const ProfileView: React.FC = () => {
           chevron_right
         </span>
       </button>
+
+      {/* User switcher */}
+      <div className="bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-gray-300 text-xs uppercase tracking-wider">
+            Switch Persona
+          </h3>
+          <span className="text-[10px] text-gray-500">Click to switch</span>
+        </div>
+
+        <div className="space-y-1.5">
+          {allUsers.map((u) => {
+            const isAdmin = u.role === 'pi' || u.role === 'procurement_incharge';
+            const handleClick = () => {
+              if (u.id === currentUser.id) return;
+              if (isAdmin) {
+                setPendingAdmin(u);
+                setPin('');
+              } else {
+                login(u.id);
+              }
+            };
+            return (
+            <button
+              key={u.id}
+              onClick={handleClick}
+              className={`w-full text-left p-2.5 rounded-lg flex items-center justify-between text-xs transition-colors ${
+                u.id === currentUser.id
+                  ? 'bg-primary text-white font-semibold'
+                  : 'bg-background hover:bg-[#2A2A2A] text-gray-300 border border-[#2A2A2A]'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
+                    u.id === currentUser.id
+                      ? 'bg-white/20 text-white'
+                      : avatarClasses(u.accent)
+                  }`}
+                >
+                  {initialOf(u.name)}
+                </div>
+                <div>
+                  <p className="font-bold">{u.name}</p>
+                  <p
+                    className={`text-[10px] capitalize ${
+                      u.id === currentUser.id ? 'text-orange-100' : 'text-gray-500'
+                    }`}
+                  >
+                    {roleLabel(u.role, u.handle)}
+                  </p>
+                </div>
+              </div>
+              {u.id === currentUser.id && <UserCheck className="w-4 h-4 text-white" />}
+              {u.id !== currentUser.id && isAdmin && (
+                <span className="material-symbols-outlined text-[14px] text-gray-500">lock</span>
+              )}
+            </button>
+            );
+          })}
+        </div>
+      </div>
 
       {pendingAdmin && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
