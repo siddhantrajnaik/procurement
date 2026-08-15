@@ -269,20 +269,24 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
   return (
     <>
       <motion.div
-        className="fixed inset-0 z-[60] bg-black/50 sm:backdrop-blur-xs flex justify-center"
+        className="fixed inset-0 z-[60] flex justify-center"
         role="dialog"
         aria-modal="true"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
       >
         <ScrollLock />
+        {/* Dim on its own layer — see PurchaseThreadModal. */}
         <motion.div
-          initial={{ y: '100%', opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: '100%', opacity: 0 }}
+          className="absolute inset-0 bg-black/50 sm:backdrop-blur-xs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        />
+        <motion.div
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
           transition={SHEET_SPRING}
-          className="w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
+          className="relative w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
         >
           {/* Header */}
           <div className="safe-top-modal px-4 pb-3 border-b border-[#2A2A2A] flex items-center justify-between bg-[#1E1E1E] sticky top-0 z-20">
