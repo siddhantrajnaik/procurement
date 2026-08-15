@@ -108,22 +108,22 @@ export const PurchaseThreadModal: React.FC = () => {
         aria-label="Purchase thread"
       >
         <ScrollLock />
-        {/* The dim is its own layer. Fading the container instead would put the
-            whole full-screen subtree — sheet included — into a transparency
-            layer for the length of the slide, which iOS re-rasterises every
-            frame and shows as a flash. */}
+        {/* Opening is a CSS animation, closing is the spring. The plain-CSS
+            sheets in this app never flashed on iOS and these did, and the one
+            thing that separates them is who drives the entry: a keyframe is
+            resolved by the style system before the first paint and runs off
+            the main thread, where a JS spring writes the transform frame by
+            frame and can miss that first paint on a full-screen element.
+            Exit keeps the spring — by then the sheet is already on screen,
+            and AnimatePresence needs a motion component to delay unmount. */}
         <motion.div
-          className="absolute inset-0 bg-black/50 sm:backdrop-blur-xs"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          className="absolute inset-0 bg-black/50 sm:backdrop-blur-xs animate-overlay"
           exit={{ opacity: 0 }}
         />
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={SHEET_SPRING}
-          className="relative w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
+          className="animate-sheet-solid relative w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
         >
           {/* Header */}
           <div className="safe-top-modal px-4 pb-3 border-b border-[#2A2A2A] flex items-center justify-between bg-[#1E1E1E] sticky top-0 z-20">

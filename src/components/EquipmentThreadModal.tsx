@@ -274,19 +274,15 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
         aria-modal="true"
       >
         <ScrollLock />
-        {/* Dim on its own layer — see PurchaseThreadModal. */}
+        {/* CSS in, spring out — see PurchaseThreadModal. */}
         <motion.div
-          className="absolute inset-0 bg-black/50 sm:backdrop-blur-xs"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          className="absolute inset-0 bg-black/50 sm:backdrop-blur-xs animate-overlay"
           exit={{ opacity: 0 }}
         />
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={SHEET_SPRING}
-          className="relative w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
+          className="animate-sheet-solid relative w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
         >
           {/* Header */}
           <div className="safe-top-modal px-4 pb-3 border-b border-[#2A2A2A] flex items-center justify-between bg-[#1E1E1E] sticky top-0 z-20">

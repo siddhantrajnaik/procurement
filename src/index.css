@@ -106,6 +106,18 @@ body.modal-open {
   animation: overlay-in 0.2s ease-out;
 }
 
+/* Transform only, for the sheets that fill the whole screen. Fading one of
+   those makes the browser hold the entire viewport in a transparency layer
+   for the length of the slide; they are opaque anyway, so there is nothing
+   to fade. */
+@keyframes sheet-up-solid {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-sheet-solid {
+  animation: sheet-up-solid 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 /* Alerts sit centred rather than rising from the bottom edge, so they scale
    in — a slide-up reads as a sheet that lost its way. */
 @keyframes pop-in {
