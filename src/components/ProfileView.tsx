@@ -44,7 +44,7 @@ export const ProfileView: React.FC = () => {
     (p) => p.status === 'waiting' || p.status === 'quotes'
   ).length;
   const orderedCount = purchases.filter(
-    (p) => p.status === 'ordered' || p.status === 'transit'
+    (p) => p.status === 'ordered' || p.status === 'transit' || p.status === 'partial'
   ).length;
   const totalSpend = purchases.reduce((acc, p) => {
     const aq = p.quotations.find((q) => q.isApproved);

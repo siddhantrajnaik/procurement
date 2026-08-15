@@ -1,4 +1,4 @@
-export type PurchaseStatus = 'waiting' | 'quotes' | 'ordered' | 'transit' | 'delivered' | 'closed';
+export type PurchaseStatus = 'waiting' | 'quotes' | 'ordered' | 'transit' | 'partial' | 'delivered' | 'closed';
 
 export type UrgencyLevel = 'low' | 'normal' | 'urgent' | 'critical';
 
@@ -10,7 +10,8 @@ export type ActivityType =
   | 'status_changed'
   | 'comment_added'
   | 'pi_approved'
-  | 'assigned';
+  | 'assigned'
+  | 'delivery_recorded';
 
 export type AccentToken =
   | 'purple'
@@ -59,6 +60,15 @@ export interface Comment {
   createdAt: string;
 }
 
+export interface Delivery {
+  id: string;
+  purchaseId: string;
+  quantityReceived: string;
+  notes: string;
+  receivedBy: User | null;
+  createdAt: string;
+}
+
 export interface Purchase {
   id: string;
   title: string;
@@ -81,6 +91,7 @@ export interface Purchase {
   updatedAt: string;
   quotations: Quotation[];
   comments: Comment[];
+  deliveries: Delivery[];
 }
 
 export interface Activity {

@@ -35,6 +35,7 @@ export const HomeFeed: React.FC = () => {
         if (filterStatus === 'all') return true;
         // "Requested" covers both pre-quote and quotes-received states.
         if (filterStatus === 'waiting') return p.status === 'waiting' || p.status === 'quotes';
+        if (filterStatus === 'transit') return p.status === 'transit' || p.status === 'partial';
         return p.status === filterStatus;
       }),
     [purchases, searchQuery, filterStatus]

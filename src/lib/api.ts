@@ -4,6 +4,7 @@ import {
   BookableItem,
   Booking,
   Comment,
+  Delivery,
   Equipment,
   EquipmentIssue,
   EquipmentStatus,
@@ -45,7 +46,7 @@ export const PI_APPROVAL_THRESHOLD = 25_000;
 
 const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department, birthday';
 
-const PURCHASE_BASE_SELECT = `
+const PURCHASE_CORE_SELECT = `
   id, title, description, quantity, category, priority, status, preferred_company,
   requires_pi_approval, pi_approved, created_at, updated_at,
   requester:profiles!purchases_requested_by_fkey(${PROFILE_FIELDS}),
@@ -61,22 +62,33 @@ const PURCHASE_BASE_SELECT = `
   )
 `;
 
+const DELIVERY_FIELDS = `,
+  deliveries(
+    id, purchase_id, quantity_received, notes, created_at,
+    receiver:profiles!deliveries_received_by_fkey(${PROFILE_FIELDS})
+  )
+`;
+
 const PURCHASE_INVOICE_FIELDS = `
   invoice_path, invoice_name, invoice_size, invoice_uploaded_at,
   invoice_uploader:profiles!purchases_invoice_uploaded_by_fkey(${PROFILE_FIELDS}),
 `;
 
-const PURCHASE_SELECT = PURCHASE_INVOICE_FIELDS + PURCHASE_BASE_SELECT;
-
 /**
- * Migration 0006 adds the invoice columns. Until it has been run they don't
- * exist, and selecting them would 400 the whole feed — so the first failure
- * latches this flag and every later query uses the legacy shape.
+ * Migration 0006 adds the invoice columns, 0020 adds the deliveries table.
+ * Until each has been run its fields don't exist and selecting them would 400
+ * the whole feed — so the first failure latches the flag and every later query
+ * drops the missing fields.
  */
 let invoiceColumnsAvailable = true;
+let deliveriesAvailable = true;
 
 function purchaseSelect(): string {
-  return invoiceColumnsAvailable ? PURCHASE_SELECT : PURCHASE_BASE_SELECT;
+  let select = invoiceColumnsAvailable
+    ? PURCHASE_INVOICE_FIELDS + PURCHASE_CORE_SELECT
+    : PURCHASE_CORE_SELECT;
+  if (deliveriesAvailable) select += DELIVERY_FIELDS;
+  return select;
 }
 
 const ACTIVITY_SELECT = `
@@ -134,6 +146,17 @@ function toComment(row: any): Comment {
   };
 }
 
+function toDelivery(row: any): Delivery {
+  return {
+    id: row.id,
+    purchaseId: row.purchase_id,
+    quantityReceived: row.quantity_received,
+    notes: row.notes ?? '',
+    receivedBy: toUser(row.receiver),
+    createdAt: row.created_at,
+  };
+}
+
 function toPurchase(row: any): Purchase {
   return {
     id: row.id,
@@ -157,6 +180,7 @@ function toPurchase(row: any): Purchase {
     updatedAt: row.updated_at,
     quotations: dedupById((row.quotations ?? []).map(toQuotation)),
     comments: dedupById((row.comments ?? []).map(toComment)),
+    deliveries: dedupById((row.deliveries ?? []).map(toDelivery)),
   };
 }
 
@@ -196,19 +220,28 @@ export async function fetchUsers(): Promise<User[]> {
 }
 
 export async function fetchPurchases(): Promise<Purchase[]> {
-  const query = () =>
-    supabase
+  const query = () => {
+    let q = supabase
       .from('purchases')
       .select(purchaseSelect())
       .order('created_at', { ascending: false })
       .order('created_at', { referencedTable: 'quotations', ascending: false })
       .order('created_at', { referencedTable: 'comments', ascending: true });
+    if (deliveriesAvailable) {
+      q = q.order('created_at', { referencedTable: 'deliveries', ascending: true });
+    }
+    return q;
+  };
 
   let result = await query();
 
-  // Retry once without the invoice columns if migration 0006 hasn't been run.
   if (result.error && invoiceColumnsAvailable) {
     invoiceColumnsAvailable = false;
+    result = await query();
+  }
+
+  if (result.error && deliveriesAvailable) {
+    deliveriesAvailable = false;
     result = await query();
   }
 
@@ -288,6 +321,31 @@ export async function updatePurchaseStatus(
     'status_changed',
     `moved the request to ${STATUS_LABELS[status]}`
   );
+}
+
+export async function recordDelivery(
+  purchase: Purchase,
+  quantityReceived: string,
+  notes: string,
+  isFinal: boolean,
+  actor: User
+): Promise<void> {
+  unwrap(
+    await supabase.from('deliveries').insert({
+      purchase_id: purchase.id,
+      quantity_received: quantityReceived,
+      notes: notes || '',
+      received_by: actor.id,
+    }).select('id')
+  );
+  const nextStatus: PurchaseStatus = isFinal ? 'delivered' : 'partial';
+  unwrap(
+    await supabase.from('purchases').update({ status: nextStatus }).eq('id', purchase.id).select('id')
+  );
+  const detail = isFinal
+    ? `received ${quantityReceived} — delivery complete`
+    : `received ${quantityReceived} — more pending`;
+  await logActivity(purchase.id, purchase.title, actor.id, 'status_changed', detail);
 }
 
 export async function updatePurchaseFields(
@@ -476,6 +534,7 @@ export const STATUS_LABELS: Record<PurchaseStatus, string> = {
   quotes: 'Quotes received',
   ordered: 'Ordered',
   transit: 'In transit',
+  partial: 'Partial delivery',
   delivered: 'Delivered',
   closed: 'Closed',
 };

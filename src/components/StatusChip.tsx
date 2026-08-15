@@ -26,6 +26,11 @@ const CONFIG: Record<PurchaseStatus, { label: string; chip: string; dot: string 
     chip: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/25',
     dot: 'bg-indigo-400',
   },
+  partial: {
+    label: 'Partial delivery',
+    chip: 'bg-amber-500/10 text-amber-300 border-amber-500/25',
+    dot: 'bg-amber-400',
+  },
   delivered: {
     label: 'Delivered',
     chip: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25',

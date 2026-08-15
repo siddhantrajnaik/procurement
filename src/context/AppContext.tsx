@@ -65,6 +65,7 @@ interface AppContextType {
   selectQuotation: (purchaseId: string, quotation: Quotation) => Promise<void>;
   approvePi: (purchaseId: string) => Promise<void>;
   deletePurchase: (purchaseId: string) => Promise<void>;
+  recordDelivery: (purchaseId: string, quantityReceived: string, notes: string, isFinal: boolean) => Promise<void>;
   uploadInvoice: (purchaseId: string, file: File) => Promise<void>;
   removeInvoice: (purchaseId: string) => Promise<void>;
 
@@ -229,6 +230,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'quotations' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_log' }, refetch)
@@ -409,6 +411,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }, 'Could not delete the request.');
     },
     [findPurchase, run, selectedPurchaseId]
+  );
+
+  const recordDelivery = useCallback(
+    async (purchaseId: string, quantityReceived: string, notes: string, isFinal: boolean) => {
+      const actor = requireUser();
+      const purchase = findPurchase(purchaseId);
+      if (!actor || !purchase) return;
+      await run(async () => {
+        await api.recordDelivery(purchase, quantityReceived, notes, isFinal, actor);
+        if (isFinal) {
+          confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
+          showToastRef.current(`"${purchase.title}" fully delivered.`, 'success');
+          setPendingDeliveryPurchaseId(purchaseId);
+        } else {
+          showToastRef.current(`Recorded ${quantityReceived} for "${purchase.title}".`, 'info');
+        }
+      }, 'Could not record the delivery.');
+    },
+    [findPurchase, requireUser, run]
   );
 
   const uploadInvoice = useCallback(
@@ -796,6 +817,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     selectQuotation,
     approvePi,
     deletePurchase,
+    recordDelivery,
     uploadInvoice,
     removeInvoice,
     inventoryItems,

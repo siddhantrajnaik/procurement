@@ -7,6 +7,7 @@ import {
   Plus,
   Trash2,
   Check,
+  Package,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +15,7 @@ import { PurchaseStatus, Quotation } from '../types';
 import { StatusChip } from './StatusChip';
 import { QuotationCard } from './QuotationCard';
 import { AddQuotationModal } from './AddQuotationModal';
+import { RecordDeliveryModal } from './RecordDeliveryModal';
 import { PdfViewerModal } from './PdfViewerModal';
 import { ConfirmModal } from './ConfirmModal';
 import { InvoiceSection } from './InvoiceSection';
@@ -36,19 +38,20 @@ export const PurchaseThreadModal: React.FC = () => {
   const [commentText, setCommentText] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [isAddQuoteOpen, setIsAddQuoteOpen] = useState(false);
+  const [isDeliveryOpen, setIsDeliveryOpen] = useState(false);
   const [previewQuote, setPreviewQuote] = useState<Quotation | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (!selectedPurchase) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isAddQuoteOpen && !previewQuote && !showDeleteConfirm) {
+      if (e.key === 'Escape' && !isAddQuoteOpen && !isDeliveryOpen && !previewQuote && !showDeleteConfirm) {
         setSelectedPurchase(null);
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selectedPurchase, setSelectedPurchase, isAddQuoteOpen, previewQuote, showDeleteConfirm]);
+  }, [selectedPurchase, setSelectedPurchase, isAddQuoteOpen, isDeliveryOpen, previewQuote, showDeleteConfirm]);
 
   const p = selectedPurchase;
 
@@ -66,6 +69,10 @@ export const PurchaseThreadModal: React.FC = () => {
 
   const handleStatusChange = (s: PurchaseStatus) => {
     if (!p) return;
+    if (s === 'delivered') {
+      setIsDeliveryOpen(true);
+      return;
+    }
     void updateStatus(p.id, s);
   };
 
@@ -83,6 +90,7 @@ export const PurchaseThreadModal: React.FC = () => {
       quotes: 1,
       ordered: 2,
       transit: 3,
+      partial: 3.5,
       delivered: 4,
       closed: 4,
     };
@@ -236,6 +244,68 @@ export const PurchaseThreadModal: React.FC = () => {
               </div>
             </div>
 
+            {/* Deliveries — visible when there are delivery records or when tracking partial */}
+            {(p.deliveries.length > 0 || p.status === 'partial') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-gray-600" />
+                    Deliveries ({p.deliveries.length})
+                  </h3>
+                  {canManage && p.status === 'partial' && (
+                    <button
+                      onClick={() => setIsDeliveryOpen(true)}
+                      className="flex items-center gap-1 text-xs font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-full transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Record more
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {p.deliveries.map((d) => (
+                    <div
+                      key={d.id}
+                      className="bg-[#1E1E1E] p-3 rounded-xl border border-[#2A2A2A] flex items-start gap-3"
+                    >
+                      <div
+                        className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${avatarClasses(d.receivedBy?.accent)}`}
+                      >
+                        {initialOf(d.receivedBy?.name ?? '?', d.receivedBy?.handle)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-amber-300">
+                            {d.quantityReceived}
+                          </span>
+                          <span className="text-[10px] text-gray-600 shrink-0">
+                            {timeAgo(d.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          Received by {d.receivedBy?.name ?? 'someone'}
+                        </p>
+                        {d.notes && (
+                          <p className="text-[11px] text-gray-500 mt-1">{d.notes}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {p.status === 'partial' && (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex items-start gap-2">
+                    <Package className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <span>
+                      Partial delivery — some items are still pending.
+                      {canManage && ' Tap "Record more" when the next batch arrives, or mark as delivered in the timeline.'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Quotations */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -279,8 +349,8 @@ export const PurchaseThreadModal: React.FC = () => {
               )}
             </div>
 
-            {/* Invoice — only relevant once the goods have actually arrived */}
-            {(p.status === 'delivered' || p.status === 'closed') && (
+            {/* Invoice — relevant once goods start arriving */}
+            {(p.status === 'partial' || p.status === 'delivered' || p.status === 'closed') && (
               <InvoiceSection purchase={p} canManage={true} />
             )}
 
@@ -365,6 +435,12 @@ export const PurchaseThreadModal: React.FC = () => {
           purchaseId={p.id}
           isOpen={isAddQuoteOpen}
           onClose={() => setIsAddQuoteOpen(false)}
+        />
+
+        <RecordDeliveryModal
+          purchase={p}
+          isOpen={isDeliveryOpen}
+          onClose={() => setIsDeliveryOpen(false)}
         />
 
         <PdfViewerModal

@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { StatusChip } from './StatusChip';
 import { ConfirmModal } from './ConfirmModal';
+import { RecordDeliveryModal } from './RecordDeliveryModal';
 import { avatarClasses } from '../lib/accent';
 import { imageForItem } from '../lib/images';
 import { formatRupees, initialOf, timeAgo } from '../lib/format';
@@ -21,9 +22,10 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
   onOpenQuickMenu,
   onEdit,
 }) => {
-  const { updateStatus, deletePurchase } = useApp();
+  const { deletePurchase } = useApp();
   const { currentUser } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const image = imageForItem(purchase.title, purchase.category);
   const requester = purchase.requestedBy;
   const isAdmin = currentUser?.role === 'procurement_incharge' || currentUser?.role === 'pi';
@@ -96,6 +98,12 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
               {purchase.priority === 'critical' ? 'Critical' : 'Urgent'}
             </span>
           )}
+          {purchase.status === 'partial' && purchase.deliveries.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-amber-300 text-[11px] font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              <span className="material-symbols-outlined text-[14px]">local_shipping</span>
+              {purchase.deliveries.length} delivery{purchase.deliveries.length > 1 ? ' batches' : ''}
+            </span>
+          )}
           {purchase.quotations.length > 0 && (
             <span className="inline-flex items-center gap-1 text-gray-300 text-[11px] font-medium bg-[#2A2A2A] px-2 py-0.5 rounded border border-[#333]">
               <span className="material-symbols-outlined text-[14px]">description</span>
@@ -117,18 +125,18 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
 
         {(isAdmin || currentUser?.id === purchase.requestedBy?.id) && (
           <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-[#2A2A2A]">
-            {(purchase.status === 'ordered' || purchase.status === 'transit') && (
+            {(purchase.status === 'ordered' || purchase.status === 'transit' || purchase.status === 'partial') && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  void updateStatus(purchase.id, 'delivered');
+                  setShowDeliveryModal(true);
                 }}
                 className="text-[13px] font-semibold px-3 py-1.5 rounded-md bg-primary text-white hover:bg-orange-600 transition-colors"
               >
-                Mark received
+                {purchase.status === 'partial' ? 'Record delivery' : 'Mark received'}
               </button>
             )}
-            {isAdmin && purchase.status !== 'ordered' && purchase.status !== 'transit' && (
+            {isAdmin && purchase.status !== 'ordered' && purchase.status !== 'transit' && purchase.status !== 'partial' && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -173,6 +181,12 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
           onCancel={() => setShowDeleteConfirm(false)}
         />
       </div>
+
+      <RecordDeliveryModal
+        purchase={purchase}
+        isOpen={showDeliveryModal}
+        onClose={() => setShowDeliveryModal(false)}
+      />
     </article>
   );
 };

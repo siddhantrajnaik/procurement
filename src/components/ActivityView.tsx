@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Clock,
   UserPlus,
+  Package,
 } from 'lucide-react';
 
 const ICONS: Record<ActivityType, React.ReactNode> = {
@@ -19,6 +20,7 @@ const ICONS: Record<ActivityType, React.ReactNode> = {
   comment_added: <MessageSquare className="w-4 h-4 text-emerald-400" />,
   pi_approved: <ShieldCheck className="w-4 h-4 text-amber-400" />,
   assigned: <UserPlus className="w-4 h-4 text-gray-400" />,
+  delivery_recorded: <Package className="w-4 h-4 text-amber-400" />,
 };
 
 export const ActivityView: React.FC = () => {
