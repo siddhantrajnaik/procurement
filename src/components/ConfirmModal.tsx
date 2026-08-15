@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { ScrollLock } from '../lib/useScrollLock';
 
 interface Props {
   open: boolean;
   title: string;
   message: string;
   confirmLabel?: string;
+  /** Shown while the action runs; pairs with confirmLabel. */
+  busyLabel?: string;
   confirmColor?: 'red' | 'primary';
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
@@ -15,6 +18,7 @@ export const ConfirmModal: React.FC<Props> = ({
   title,
   message,
   confirmLabel = 'Delete',
+  busyLabel = 'Deleting…',
   confirmColor = 'red',
   onConfirm,
   onCancel,
@@ -47,9 +51,10 @@ export const ConfirmModal: React.FC<Props> = ({
       : 'bg-primary hover:bg-orange-600';
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 shadow-2xl text-center space-y-4">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center" role="dialog" aria-modal="true">
+      <ScrollLock />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-overlay" onClick={onCancel} />
+      <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 shadow-2xl text-center space-y-4 animate-sheet">
         <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
           <span className="material-symbols-outlined text-red-400 text-[20px]">warning</span>
         </div>
@@ -69,7 +74,7 @@ export const ConfirmModal: React.FC<Props> = ({
             disabled={busy}
             className={`flex-1 py-2.5 text-sm font-medium text-white rounded-md transition-colors disabled:opacity-40 ${btnClass}`}
           >
-            {busy ? `${confirmLabel.replace(/e$/, '')}ing...` : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>

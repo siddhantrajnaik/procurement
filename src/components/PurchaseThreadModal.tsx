@@ -19,6 +19,8 @@ import { ConfirmModal } from './ConfirmModal';
 import { InvoiceSection } from './InvoiceSection';
 import { avatarClasses } from '../lib/accent';
 import { initialOf, roleLabel, timeAgo } from '../lib/format';
+import { SHEET_SPRING } from '../lib/motion';
+import { ScrollLock } from '../lib/useScrollLock';
 
 export const PurchaseThreadModal: React.FC = () => {
   const {
@@ -108,11 +110,12 @@ export const PurchaseThreadModal: React.FC = () => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
+        <ScrollLock />
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          transition={SHEET_SPRING}
           className="w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
         >
           {/* Header */}

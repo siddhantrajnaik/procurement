@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ReceiptIndianRupee, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { SHEET_SPRING } from '../lib/motion';
+import { ScrollLock } from '../lib/useScrollLock';
 
 interface AddQuotationModalProps {
   purchaseId: string;
@@ -107,14 +109,18 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
         <motion.div
           key="add-quotation"
           className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
+          <ScrollLock />
           <motion.div
             initial={{ y: '100%', opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
+            transition={SHEET_SPRING}
             className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden"
           >
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A2A]">

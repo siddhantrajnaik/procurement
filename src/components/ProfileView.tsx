@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
@@ -15,6 +15,7 @@ import { EquipmentView } from './EquipmentView';
 import { BookingView } from './BookingView';
 import { QuickLinksView } from './QuickLinksView';
 import { NotebookView } from './NotebookView';
+import { ScrollLock } from '../lib/useScrollLock';
 import { Link } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
@@ -67,6 +68,15 @@ export const ProfileView: React.FC = () => {
     })
     .filter((b) => b.daysAway <= 30)
     .sort((a, b) => a.daysAway - b.daysAway);
+
+  useEffect(() => {
+    if (!pendingAdmin) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPendingAdmin(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [pendingAdmin]);
 
   const handleSaveBirthday = async () => {
     if (!birthdayInput || savingBirthday) return;
@@ -505,9 +515,10 @@ export const ProfileView: React.FC = () => {
       </div>
 
       {pendingAdmin && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPendingAdmin(null)} />
-          <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6 flex flex-col items-center">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" role="dialog" aria-modal="true">
+          <ScrollLock />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-overlay" onClick={() => setPendingAdmin(null)} />
+          <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6 flex flex-col items-center animate-sheet">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg mb-3 ${avatarClasses(pendingAdmin.accent)}`}>
               {initialOf(pendingAdmin.name, pendingAdmin.handle)}
             </div>

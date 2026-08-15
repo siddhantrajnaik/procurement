@@ -152,6 +152,7 @@ export const VendorsView: React.FC<Props> = ({ onBack }) => {
         title="Remove vendor?"
         message={`"${deletingVendor?.name}" will be permanently removed from the directory.`}
         confirmLabel="Remove"
+        busyLabel="Removing…"
         onConfirm={async () => {
           if (deletingVendor) await removeVendor(deletingVendor.id);
           setDeletingVendor(null);

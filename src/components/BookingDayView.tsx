@@ -237,6 +237,7 @@ export const BookingDayView: React.FC<Props> = ({ item, onBack }) => {
         title="Cancel Booking"
         message="Are you sure you want to cancel this booking?"
         confirmLabel="Cancel Booking"
+        busyLabel="Cancelling…"
         onConfirm={async () => {
           if (cancelTarget) await cancelBooking(cancelTarget);
           setCancelTarget(null);

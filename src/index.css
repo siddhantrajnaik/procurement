@@ -15,8 +15,16 @@
     color: #F3F4F6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    user-select: none;
   }
+}
+
+/* Chrome stays unselectable for the native-app feel, but content does not —
+   people need to copy vendor emails, quote amounts and notebook text. */
+nav,
+header,
+.material-symbols-outlined {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Custom scrollbar hiding for native mobile feel */
@@ -54,8 +62,14 @@ button, a, div {
   outline-offset: 2px;
 }
 
-/* Prevent body scroll when modal is open */
+/* Prevent body scroll when a modal is open. `overflow: hidden` alone does not
+   hold on iOS Safari, so the body is pinned and the scroll offset restored on
+   close — see useScrollLock. */
 body.modal-open {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
   overflow: hidden;
 }
 
@@ -73,6 +87,37 @@ body.modal-open {
 }
 .animate-fade-in {
   animation: fade-in 0.15s ease-out;
+}
+
+/* Entry animation for the modals built as plain divs rather than motion.div,
+   so every sheet in the app rises the same way instead of half of them
+   snapping into place. Timing matches the framer-motion spring. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-sheet {
+  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.animate-overlay {
+  animation: overlay-in 0.2s ease-out;
+}
+
+/* Respect the OS "reduce motion" setting. Without this the springs, the
+   sheet slides and the 80-star twinkle field all run at full strength. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .thread-line { position: relative; }

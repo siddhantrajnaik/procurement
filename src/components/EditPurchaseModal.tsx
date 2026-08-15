@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UrgencyLevel } from '../types';
+import { ScrollLock } from '../lib/useScrollLock';
 
 const CATEGORIES = [
   'Reagents',
@@ -64,9 +65,10 @@ export const EditPurchaseModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingPurchase(null)} />
-      <div className="relative w-full max-w-md max-h-[90vh] bg-[#1E1E1E] border border-[#2A2A2A] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-y-auto">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true">
+      <ScrollLock />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-overlay" onClick={() => setEditingPurchase(null)} />
+      <div className="relative w-full max-w-md max-h-[90vh] bg-[#1E1E1E] border border-[#2A2A2A] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-y-auto animate-sheet">
         <div className="sticky top-0 bg-[#1E1E1E] border-b border-[#2A2A2A] px-5 py-4 flex items-center justify-between z-10">
           <h2 className="text-lg font-bold text-white">Edit request</h2>
           <button onClick={() => setEditingPurchase(null)} aria-label="Close" className="text-gray-400 hover:text-white transition-colors">

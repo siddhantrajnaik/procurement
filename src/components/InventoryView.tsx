@@ -446,6 +446,7 @@ function ItemCard({
         title="Remove item?"
         message={`"${item.name}" will be removed from inventory. This cannot be undone.`}
         confirmLabel="Remove"
+        busyLabel="Removing…"
         onConfirm={() => removeInventoryItem(item)}
         onCancel={() => setShowDeleteConfirm(false)}
       />

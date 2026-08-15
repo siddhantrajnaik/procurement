@@ -246,6 +246,7 @@ export const BookingView: React.FC<Props> = ({ onBack }) => {
         title="Delete Item"
         message="This will also delete all bookings for this item. Continue?"
         confirmLabel="Delete"
+        busyLabel="Deleting…"
         onConfirm={async () => {
           if (deleteTarget) await removeBookableItem(deleteTarget);
           setDeleteTarget(null);
@@ -258,6 +259,7 @@ export const BookingView: React.FC<Props> = ({ onBack }) => {
         title="Cancel Booking"
         message="Are you sure you want to cancel this booking?"
         confirmLabel="Cancel Booking"
+        busyLabel="Cancelling…"
         onConfirm={async () => {
           if (cancelTarget) await cancelBooking(cancelTarget);
           setCancelTarget(null);

@@ -3,6 +3,7 @@ import { ArrowLeft, Plus, Trash2, X, Columns3 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ListColumn } from '../types';
 import { ConfirmModal } from './ConfirmModal';
+import { ScrollLock } from '../lib/useScrollLock';
 
 interface Props {
   listId: string;
@@ -278,9 +279,10 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
 
       {/* Add Column modal */}
       {showAddColumn && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddColumn(false)} />
-          <div className="relative w-full max-w-sm bg-[#1E1E1E] border border-[#2A2A2A] rounded-t-2xl sm:rounded-2xl shadow-2xl p-5 space-y-4">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true">
+          <ScrollLock />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-overlay" onClick={() => setShowAddColumn(false)} />
+          <div className="relative w-full max-w-sm bg-[#1E1E1E] border border-[#2A2A2A] rounded-t-2xl sm:rounded-2xl shadow-2xl p-5 space-y-4 animate-sheet">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-white text-sm">Manage Columns</h3>
               <button onClick={() => setShowAddColumn(false)} className="p-1 rounded-full text-gray-500 hover:text-white hover:bg-[#2A2A2A]">

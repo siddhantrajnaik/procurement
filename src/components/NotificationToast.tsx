@@ -19,9 +19,11 @@ const ICONS = {
 export const NotificationToast: React.FC = () => {
   const { toast } = useUI();
 
+  // z-100 keeps the toast above the z-70 confirm dialogs — an error raised
+  // while one was still busy used to render behind its backdrop.
   return (
     <div
-      className="fixed top-20 left-0 right-0 z-[60] px-4 pointer-events-none flex justify-center"
+      className="fixed top-20 left-0 right-0 z-[100] px-4 pointer-events-none flex justify-center"
       role="status"
       aria-live="polite"
     >

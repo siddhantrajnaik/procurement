@@ -4,6 +4,7 @@ import { X, FileText, Download, ExternalLink } from 'lucide-react';
 import { Quotation, Purchase } from '../types';
 import { getQuotationFileUrl } from '../lib/api';
 import { formatRupees, formatFileSize, timeAgo } from '../lib/format';
+import { ScrollLock } from '../lib/useScrollLock';
 
 interface PdfViewerModalProps {
   quotation: Quotation | null;
@@ -46,10 +47,13 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         <motion.div
           key="pdf-viewer"
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
+          <ScrollLock />
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MotionConfig } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UIProvider, useUI } from './context/UIContext';
 import { AppProvider, useApp } from './context/AppContext';
@@ -15,6 +16,7 @@ import { EditPurchaseModal } from './components/EditPurchaseModal';
 import { AddInventoryItemModal } from './components/AddInventoryItemModal';
 import { NotificationToast } from './components/NotificationToast';
 import { LoginScreen } from './components/LoginScreen';
+import { ScrollLock } from './lib/useScrollLock';
 
 function LoadingScreen() {
   return (
@@ -94,8 +96,9 @@ function DeliveryInventoryPrompt() {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={clearPendingDelivery} />
-      <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 shadow-2xl text-center space-y-4">
+      <ScrollLock />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-overlay" onClick={clearPendingDelivery} />
+      <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 shadow-2xl text-center space-y-4 animate-sheet">
         <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
           <span className="material-symbols-outlined text-emerald-400 text-[20px]">inventory_2</span>
         </div>
@@ -134,7 +137,7 @@ const TAB_TITLES: Record<string, string> = {
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
-  const { activeTab, setIsCreateModalOpen } = useUI();
+  const { activeTab, tabResetNonce, setIsCreateModalOpen } = useUI();
   const { isLoading, loadError, reload } = useApp();
 
   useEffect(() => {
@@ -164,7 +167,9 @@ function AppContent() {
     <div className="min-h-screen bg-background text-gray-100 flex flex-col font-sans selection:bg-primary selection:text-white pb-12 md:pb-0">
       <Header />
 
-      <main className="flex-1 flex flex-col animate-fade-in" key={activeTab}>
+      {/* The nonce remounts the tab when its own nav button is tapped, so a
+          deep sub-view (Profile → Notebook → a page) returns to the tab root. */}
+      <main className="flex-1 flex flex-col animate-fade-in" key={`${activeTab}-${tabResetNonce}`}>
         {activeTab === 'home' && <HomeFeed />}
         {activeTab === 'inventory' && <InventoryView />}
         {activeTab === 'search' && <SearchView />}
@@ -184,12 +189,15 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <UIProvider>
-        <AppProvider>
-          <AppContent />
-        </AppProvider>
-      </UIProvider>
-    </AuthProvider>
+    // reducedMotion="user" makes every spring and slide respect the OS setting.
+    <MotionConfig reducedMotion="user">
+      <AuthProvider>
+        <UIProvider>
+          <AppProvider>
+            <AppContent />
+          </AppProvider>
+        </UIProvider>
+      </AuthProvider>
+    </MotionConfig>
   );
 }

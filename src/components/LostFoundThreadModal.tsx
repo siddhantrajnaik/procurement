@@ -7,6 +7,8 @@ import { LostFoundItem, LostFoundStatus } from '../types';
 import { avatarClasses } from '../lib/accent';
 import { initialOf, timeAgo } from '../lib/format';
 import { ConfirmModal } from './ConfirmModal';
+import { SHEET_SPRING } from '../lib/motion';
+import { ScrollLock } from '../lib/useScrollLock';
 
 interface Props {
   item: LostFoundItem | null;
@@ -61,11 +63,12 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
+        <ScrollLock />
         <motion.div
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          transition={SHEET_SPRING}
           className="w-full max-w-md h-full bg-background flex flex-col overflow-hidden sm:rounded-xl sm:my-4 sm:h-[94vh] shadow-2xl border border-[#2A2A2A]"
         >
           {/* Header */}

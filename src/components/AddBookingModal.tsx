@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, AlertTriangle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookableItem } from '../types';
+import { SHEET_SPRING } from '../lib/motion';
+import { ScrollLock } from '../lib/useScrollLock';
 
 interface Props {
   isOpen: boolean;
@@ -86,14 +88,18 @@ export const AddBookingModal: React.FC<Props> = ({ isOpen, item, date, onClose }
         <motion.div
           key="add-booking"
           className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
+          <ScrollLock />
           <motion.div
             initial={{ y: '100%', opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
+            transition={SHEET_SPRING}
             className="w-full max-w-sm bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl shadow-2xl border border-[#2A2A2A] overflow-hidden"
           >
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A2A]">

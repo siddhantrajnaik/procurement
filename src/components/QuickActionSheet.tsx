@@ -13,6 +13,8 @@ import {
 import { Purchase, PurchaseStatus } from '../types';
 import { useApp } from '../context/AppContext';
 import { useUI } from '../context/UIContext';
+import { SHEET_SPRING } from '../lib/motion';
+import { ScrollLock } from '../lib/useScrollLock';
 
 interface QuickActionSheetProps {
   purchase: Purchase | null;
@@ -55,15 +57,18 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({
         <motion.div
           key="quick-actions"
           className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4"
+          role="dialog"
+          aria-modal="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
+          <ScrollLock />
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            transition={SHEET_SPRING}
             className="w-full max-w-md bg-[#1E1E1E] rounded-t-3xl sm:rounded-xl p-5 border border-[#2A2A2A] shadow-2xl space-y-4"
           >
           <div className="flex items-center justify-between border-b border-[#2A2A2A] pb-3">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { InventoryItem } from '../types';
+import { ScrollLock } from '../lib/useScrollLock';
 
 interface Props {
   target: { item: InventoryItem; type: 'consume' | 'restock' | 'move' } | null;
@@ -90,9 +91,10 @@ export const InventoryActionModal: React.FC<Props> = ({ target, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-[#1E1E1E] border border-[#2A2A2A] rounded-t-2xl sm:rounded-2xl shadow-2xl">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true">
+      <ScrollLock />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-overlay" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-[#1E1E1E] border border-[#2A2A2A] rounded-t-2xl sm:rounded-2xl shadow-2xl animate-sheet">
         <div className="px-5 py-4 border-b border-[#2A2A2A] flex items-center gap-3">
           <span className={`material-symbols-outlined text-[22px] ${cfg.color}`}>{cfg.icon}</span>
           <div>
