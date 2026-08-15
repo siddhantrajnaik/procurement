@@ -107,6 +107,16 @@ body.modal-open {
   animation: overlay-in 0.2s ease-out;
 }
 
+/* Alerts sit centred rather than rising from the bottom edge, so they scale
+   in — a slide-up reads as a sheet that lost its way. */
+@keyframes pop-in {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-pop {
+  animation: pop-in 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 /* Respect the OS "reduce motion" setting. Without this the springs, the
    sheet slides and the 80-star twinkle field all run at full strength. */
 @media (prefers-reduced-motion: reduce) {
@@ -117,6 +127,13 @@ body.modal-open {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Exempt loading spinners: stopped after one turn they read as frozen,
+     leaving no signal that work is still in flight. */
+  .animate-spin {
+    animation-duration: 1.2s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 

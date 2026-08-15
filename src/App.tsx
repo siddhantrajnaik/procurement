@@ -98,7 +98,7 @@ function DeliveryInventoryPrompt() {
     <div className="fixed inset-0 z-[70] flex items-center justify-center">
       <ScrollLock />
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-overlay" onClick={clearPendingDelivery} />
-      <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 shadow-2xl text-center space-y-4 animate-sheet">
+      <div className="relative w-full max-w-xs bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 shadow-2xl text-center space-y-4 animate-pop">
         <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
           <span className="material-symbols-outlined text-emerald-400 text-[20px]">inventory_2</span>
         </div>
