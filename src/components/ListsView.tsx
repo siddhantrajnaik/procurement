@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { avatarClasses } from '../lib/accent';
@@ -10,11 +10,26 @@ interface Props {
   onBack: () => void;
 }
 
+const stagger = (i: number): React.CSSProperties => ({
+  opacity: 0,
+  animation: 'fade-in 0.2s ease-out both',
+  animationDelay: `${Math.min(i * 50, 400)}ms`,
+});
+
 export const ListsView: React.FC<Props> = ({ onBack }) => {
   const { labLists } = useApp();
   const [search, setSearch] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
+
+  const hasAnimated = useRef(false);
+  useEffect(() => {
+    if (labLists.length > 0 && !hasAnimated.current) {
+      const raf = requestAnimationFrame(() => { hasAnimated.current = true; });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [labLists.length]);
+  const s = (i: number) => hasAnimated.current ? undefined : stagger(i);
 
   const filtered = useMemo(() => {
     if (!search) return labLists;
@@ -69,17 +84,21 @@ export const ListsView: React.FC<Props> = ({ onBack }) => {
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#2A2A2A] rounded-xl bg-[#1E1E1E]">
           <span className="material-symbols-outlined text-gray-600 text-4xl mb-3">
-            format_list_bulleted
+            {search ? 'search_off' : 'format_list_bulleted'}
           </span>
-          <h3 className="text-white font-medium text-sm mb-1">No lists yet</h3>
+          <h3 className="text-white font-medium text-sm mb-1">
+            {search ? 'No matching lists' : 'No lists yet'}
+          </h3>
           <p className="text-gray-400 text-sm max-w-xs">
-            Create your first list to track enzymes, chemicals, vectors, or anything else.
+            {search
+              ? `Nothing matches "${search}".`
+              : 'Create your first list to track enzymes, chemicals, vectors, or anything else.'}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {filtered.map((list) => {
-            const checkedCount = list.items.filter((i) => i.checked).length;
+          {filtered.map((list, i) => {
+            const checkedCount = list.items.filter((it) => it.checked).length;
             const totalCount = list.items.length;
             const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
 
@@ -88,6 +107,7 @@ export const ListsView: React.FC<Props> = ({ onBack }) => {
                 key={list.id}
                 onClick={() => setSelectedListId(list.id)}
                 className="w-full text-left bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4 space-y-3 hover:border-primary/40 transition-colors"
+                style={s(i)}
               >
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-bold text-white text-sm truncate">{list.title}</h3>

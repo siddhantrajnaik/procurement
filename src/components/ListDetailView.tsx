@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Trash2, X, Columns3 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ListColumn } from '../types';
@@ -14,6 +14,12 @@ type ColType = ListColumn['type'];
 
 const COL_TYPE_LABELS: Record<ColType, string> = { text: 'Text', number: 'Number', checkbox: 'Checkbox' };
 
+const stagger = (i: number): React.CSSProperties => ({
+  opacity: 0,
+  animation: 'fade-in 0.2s ease-out both',
+  animationDelay: `${Math.min(i * 40, 400)}ms`,
+});
+
 export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
   const { labLists, addListItem, updateListItem, removeListItem, updateLabList, removeLabList } = useApp();
 
@@ -23,6 +29,7 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
   const [newItemData, setNewItemData] = useState<Record<string, unknown>>({});
   const [adding, setAdding] = useState(false);
   const [showDeleteList, setShowDeleteList] = useState(false);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [newColName, setNewColName] = useState('');
   const [newColType, setNewColType] = useState<ColType>('text');
@@ -30,26 +37,40 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
   const [editName, setEditName] = useState('');
   const [editData, setEditData] = useState<Record<string, unknown>>({});
 
+  const hasAnimated = useRef(false);
+  useEffect(() => {
+    if (list && list.items.length > 0 && !hasAnimated.current) {
+      const raf = requestAnimationFrame(() => { hasAnimated.current = true; });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [list]);
+  const s = (i: number) => hasAnimated.current ? undefined : stagger(i);
+
   useEffect(() => {
     if (!list) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !showDeleteList && !showAddColumn) onBack();
+      if (e.key === 'Escape' && !showDeleteList && !showAddColumn && !deleteItemId) onBack();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [list, onBack, showDeleteList, showAddColumn]);
+  }, [list, onBack, showDeleteList, showAddColumn, deleteItemId]);
 
   if (!list) return null;
 
-  const sortedItems = [...list.items].sort((a, b) => a.sortOrder - b.sortOrder);
+  const sortedItems = [...list.items].sort((a, b) => {
+    if (a.checked !== b.checked) return a.checked ? 1 : -1;
+    return a.sortOrder - b.sortOrder;
+  });
   const checkedCount = list.items.filter((i) => i.checked).length;
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName.trim() || adding) return;
     setAdding(true);
+    const name = newItemName.trim();
+    const data = { ...newItemData };
     try {
-      await addListItem(listId, { name: newItemName.trim(), data: newItemData });
+      await addListItem(listId, { name, data });
       setNewItemName('');
       setNewItemData({});
     } finally {
@@ -83,6 +104,16 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
     await updateListItem(editingItemId, { name: editName.trim(), data: editData });
     setEditingItemId(null);
   };
+
+  const handleDeleteItem = async () => {
+    if (!deleteItemId) return;
+    await removeListItem(deleteItemId);
+    setDeleteItemId(null);
+  };
+
+  const deleteItemName = deleteItemId
+    ? list.items.find((i) => i.id === deleteItemId)?.name ?? 'this item'
+    : '';
 
   const renderColumnInput = (col: ListColumn, value: unknown, onChange: (val: unknown) => void) => {
     if (col.type === 'checkbox') {
@@ -196,7 +227,7 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
         </div>
       ) : (
         <div className="space-y-1.5">
-          {sortedItems.map((item) => {
+          {sortedItems.map((item, i) => {
             const isEditing = editingItemId === item.id;
 
             if (isEditing) {
@@ -232,7 +263,8 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
             return (
               <div
                 key={item.id}
-                className={`bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3 flex items-start gap-3 group transition-colors hover:border-[#333] ${item.checked ? 'opacity-60' : ''}`}
+                className={`bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3 flex items-start gap-3 transition-colors hover:border-[#333] ${item.checked ? 'opacity-60' : ''}`}
+                style={s(i)}
               >
                 <input
                   type="checkbox"
@@ -266,8 +298,8 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
                   )}
                 </div>
                 <button
-                  onClick={() => void removeListItem(item.id)}
-                  className="p-1 rounded text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                  onClick={() => setDeleteItemId(item.id)}
+                  className="p-1 rounded text-gray-600 hover:text-red-400 transition-colors shrink-0"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -353,6 +385,14 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
           onBack();
         }}
         onCancel={() => setShowDeleteList(false)}
+      />
+
+      <ConfirmModal
+        open={!!deleteItemId}
+        title="Delete item?"
+        message={`"${deleteItemName}" will be removed from this list.`}
+        onConfirm={handleDeleteItem}
+        onCancel={() => setDeleteItemId(null)}
       />
     </div>
   );
