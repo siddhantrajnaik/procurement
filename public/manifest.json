@@ -26,5 +26,25 @@
       "sizes": "any",
       "type": "image/svg+xml"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "IITD Webmail",
+      "short_name": "Webmail",
+      "description": "Open IITD webmail",
+      "url": "./go/webmail.html"
+    },
+    {
+      "name": "eAcademics",
+      "short_name": "eAcademics",
+      "description": "Open the eAcademics portal",
+      "url": "./go/eacademics.html"
+    },
+    {
+      "name": "KSBS Hood Booking",
+      "short_name": "Hood Booking",
+      "description": "Open the KSBS hood booking system",
+      "url": "./go/hood.html"
+    }
   ]
 }
