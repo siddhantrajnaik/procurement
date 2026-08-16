@@ -134,41 +134,39 @@ export const BookingView: React.FC<Props> = ({ onBack }) => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {bookableItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedItem(item)}
-                  className="bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-violet-500/30 transition-colors text-left group relative"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: item.color + '20', border: `1px solid ${item.color}40` }}
-                    >
-                      <Calendar className="w-5 h-5" style={{ color: item.color }} />
+                <div key={item.id} className="group relative">
+                  <button
+                    onClick={() => setSelectedItem(item)}
+                    className="w-full h-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] group-hover:border-violet-500/30 transition-colors text-left"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: item.color + '20', border: `1px solid ${item.color}40` }}
+                      >
+                        <Calendar className="w-5 h-5" style={{ color: item.color }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-white text-sm truncate">{item.name}</h3>
+                        {item.description && (
+                          <p className="text-[11px] text-gray-500 truncate mt-0.5">{item.description}</p>
+                        )}
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          {todayBookingCounts[item.id]
+                            ? `${todayBookingCounts[item.id]} booking${todayBookingCounts[item.id] > 1 ? 's' : ''} today`
+                            : 'No bookings today'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-white text-sm truncate">{item.name}</h3>
-                      {item.description && (
-                        <p className="text-[11px] text-gray-500 truncate mt-0.5">{item.description}</p>
-                      )}
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        {todayBookingCounts[item.id]
-                          ? `${todayBookingCounts[item.id]} booking${todayBookingCounts[item.id] > 1 ? 's' : ''} today`
-                          : 'No bookings today'}
-                      </p>
-                    </div>
-                  </div>
+                  </button>
 
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(item.id);
-                    }}
+                    onClick={() => setDeleteTarget(item.id)}
                     className="absolute top-2 right-2 p-1.5 rounded-full text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
-                </button>
+                </div>
               ))}
             </div>
           )}
