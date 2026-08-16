@@ -128,46 +128,80 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
 
   const handleCreateBox = async (input: { name: string; condition: string; location: string }) => {
     if (!currentUser) return;
-    await api.createSampleBox(input, currentUser);
-    showToast(`Box "${input.name}" created.`, 'success');
+    try {
+      await api.createSampleBox(input, currentUser);
+      showToast(`Box "${input.name}" created.`, 'success');
+    } catch {
+      showToast('Could not create box.', 'error');
+      throw new Error();
+    }
   };
 
   const handleEditBox = async (input: { name: string; condition: string; location: string }) => {
     if (!editBox) return;
-    await api.updateSampleBox(editBox.id, input);
-    showToast(`Box "${input.name}" updated.`, 'success');
+    try {
+      await api.updateSampleBox(editBox.id, input);
+      showToast(`Box "${input.name}" updated.`, 'success');
+    } catch {
+      showToast('Could not update box.', 'error');
+      throw new Error();
+    }
   };
 
   const handleDeleteBox = async (box: SampleBox) => {
-    await api.deleteSampleBox(box.id);
-    showToast(`Box "${box.name}" deleted.`, 'warning');
-    setDeleteBoxTarget(null);
+    try {
+      await api.deleteSampleBox(box.id);
+      showToast(`Box "${box.name}" deleted.`, 'warning');
+      setDeleteBoxTarget(null);
+    } catch {
+      showToast('Could not delete box.', 'error');
+    }
   };
 
   const handleCreateSample = async (input: { name: string; boxId: string | null; container: string; volume: string; notes: string }) => {
     if (!currentUser) return;
-    await api.createSample(input, currentUser);
-    showToast(`Sample "${input.name}" added.`, 'success');
+    try {
+      await api.createSample(input, currentUser);
+      showToast(`Sample "${input.name}" added.`, 'success');
+    } catch {
+      showToast('Could not add sample.', 'error');
+      throw new Error();
+    }
   };
 
   const handleUpdateSample = async (input: { name: string; boxId: string | null; container: string; volume: string; notes: string }) => {
     if (!editSample || !currentUser) return;
-    await api.updateSample(editSample.id, input, currentUser);
-    showToast(`Sample "${input.name}" updated.`, 'success');
+    try {
+      await api.updateSample(editSample.id, input, currentUser);
+      showToast(`Sample "${input.name}" updated.`, 'success');
+    } catch {
+      showToast('Could not update sample.', 'error');
+      throw new Error();
+    }
   };
 
   const handleMoveSample = async (toBoxId: string | null) => {
     if (!editSample || !currentUser) return;
-    const fromBox = boxes.find((b) => b.id === editSample.boxId);
-    const toBox = boxes.find((b) => b.id === toBoxId);
-    await api.moveSample(editSample.id, toBoxId, fromBox?.name ?? '', toBox?.name ?? 'loose', currentUser);
-    showToast(`Moved "${editSample.name}".`, 'info');
+    try {
+      const fromBox = boxes.find((b) => b.id === editSample.boxId);
+      const toBox = boxes.find((b) => b.id === toBoxId);
+      await api.moveSample(editSample.id, toBoxId, fromBox?.name ?? '', toBox?.name ?? 'loose', currentUser);
+      showToast(`Moved "${editSample.name}".`, 'info');
+    } catch {
+      showToast('Could not move sample.', 'error');
+      throw new Error();
+    }
   };
 
   const handleDeleteSample = async () => {
     if (!editSample || !currentUser) return;
-    await api.deleteSample(editSample.id, currentUser);
-    showToast(`Sample "${editSample.name}" removed.`, 'warning');
+    try {
+      await api.deleteSample(editSample.id, currentUser);
+      showToast(`Sample "${editSample.name}" removed.`, 'warning');
+    } catch {
+      showToast('Could not delete sample.', 'error');
+      throw new Error();
+    }
   };
 
   const s = (i: number) => hasAnimated.current ? undefined : stagger(i);

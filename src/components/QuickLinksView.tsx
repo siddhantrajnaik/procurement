@@ -22,7 +22,7 @@ export const QuickLinksView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void api.fetchQuickLinks().then(setCustomLinks);
+    void api.fetchQuickLinks().then(setCustomLinks).catch(() => {});
   }, []);
 
   const handleAdd = async () => {
