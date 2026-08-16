@@ -128,6 +128,44 @@ function dedup<T extends { id: string }>(arr: T[]): T[] {
   });
 }
 
+/** Independently refreshable areas of the lab dataset. */
+type LoadScope =
+  | 'purchases'
+  | 'activities'
+  | 'inventory'
+  | 'vendors'
+  | 'lostFound'
+  | 'lists'
+  | 'equipment'
+  | 'bookings';
+
+/**
+ * Which area each realtime table belongs to. A change only refreshes its own
+ * area — editing a list item shouldn't re-download every purchase thread.
+ * Child tables map to their parent's area because the parent fetch embeds
+ * them (quotations/comments/deliveries arrive inside the purchase query).
+ */
+const TABLE_SCOPES: Record<string, LoadScope> = {
+  purchases: 'purchases',
+  quotations: 'purchases',
+  comments: 'purchases',
+  deliveries: 'purchases',
+  activities: 'activities',
+  inventory_items: 'inventory',
+  inventory_log: 'inventory',
+  vendors: 'vendors',
+  lost_found_items: 'lostFound',
+  lost_found_responses: 'lostFound',
+  lists: 'lists',
+  list_items: 'lists',
+  equipment: 'equipment',
+  equipment_issues: 'equipment',
+  issue_responses: 'equipment',
+  maintenance_logs: 'equipment',
+  bookable_items: 'bookings',
+  bookings: 'bookings',
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
   const { showToast } = useUI();
@@ -212,6 +250,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [activities, currentUser]);
 
+  // One loader per area, so a realtime change can refresh just the data it
+  // actually touched instead of re-downloading the whole lab.
+  const loadPurchases = useCallback(async () => {
+    setPurchases(dedup(await api.fetchPurchases()));
+  }, []);
+
+  const loadActivities = useCallback(async () => {
+    setActivities(dedup(await api.fetchActivities()));
+  }, []);
+
+  const loadInventory = useCallback(async () => {
+    const [items, logs] = await Promise.all([
+      api.fetchInventoryItems(),
+      api.fetchInventoryLog(),
+    ]);
+    setInventoryItems(dedup(items));
+    setInventoryLog(dedup(logs));
+  }, []);
+
+  const loadVendors = useCallback(async () => {
+    setVendors(dedup(await api.fetchVendors()));
+  }, []);
+
+  const loadLostFound = useCallback(async () => {
+    setLostFoundItems(dedup(await api.fetchLostFoundItems()));
+  }, []);
+
+  const loadLists = useCallback(async () => {
+    setLabLists(dedup(await api.fetchLists()));
+  }, []);
+
+  const loadEquipment = useCallback(async () => {
+    setEquipment(dedup(await api.fetchEquipment()));
+  }, []);
+
+  const loadBookings = useCallback(async () => {
+    const [bi, bk] = await Promise.all([
+      api.fetchBookableItems(),
+      api.fetchBookings(),
+    ]);
+    setBookableItems(dedup(bi));
+    setBookings(dedup(bk));
+  }, []);
+
+  const scopeLoaders = useMemo<Record<LoadScope, () => Promise<void>>>(() => ({
+    purchases: loadPurchases,
+    activities: loadActivities,
+    inventory: loadInventory,
+    vendors: loadVendors,
+    lostFound: loadLostFound,
+    lists: loadLists,
+    equipment: loadEquipment,
+    bookings: loadBookings,
+  }), [
+    loadPurchases, loadActivities, loadInventory, loadVendors,
+    loadLostFound, loadLists, loadEquipment, loadBookings,
+  ]);
+
+  /**
+   * Background refresh of just the named areas. Failures are swallowed on
+   * purpose: a dropped refresh should leave the last good data on screen
+   * rather than replacing a working view with an error.
+   */
+  const refreshScopes = useCallback(async (scopes: LoadScope[]) => {
+    await Promise.allSettled(scopes.map((s) => scopeLoaders[s]()));
+  }, [scopeLoaders]);
+
   const reload = useCallback(async () => {
     if (!isSupabaseConfigured) {
       setLoadError('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
@@ -219,57 +324,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     try {
-      const [rows, acts] = await Promise.all([
-        api.fetchPurchases(),
-        api.fetchActivities(),
-      ]);
-      setPurchases(dedup(rows));
-      setActivities(dedup(acts));
+      // Purchases and activity are the core feed — failing to load them is a
+      // real error worth showing.
+      await Promise.all([loadPurchases(), loadActivities()]);
       setLoadError(null);
 
-      try {
-        const [items, logs] = await Promise.all([
-          api.fetchInventoryItems(),
-          api.fetchInventoryLog(),
-        ]);
-        setInventoryItems(dedup(items));
-        setInventoryLog(dedup(logs));
-      } catch {}
-
-      try {
-        const v = await api.fetchVendors();
-        setVendors(dedup(v));
-      } catch {}
-
-      try {
-        const lf = await api.fetchLostFoundItems();
-        setLostFoundItems(dedup(lf));
-      } catch {}
-
-      try {
-        const ll = await api.fetchLists();
-        setLabLists(dedup(ll));
-      } catch {}
-
-      try {
-        const eq = await api.fetchEquipment();
-        setEquipment(dedup(eq));
-      } catch {}
-
-      try {
-        const [bi, bk] = await Promise.all([
-          api.fetchBookableItems(),
-          api.fetchBookings(),
-        ]);
-        setBookableItems(dedup(bi));
-        setBookings(dedup(bk));
-      } catch {}
+      // The rest are optional: their tables may not exist yet if a migration
+      // hasn't been run, so a failure here must not blank the app.
+      await Promise.allSettled([
+        loadInventory(),
+        loadVendors(),
+        loadLostFound(),
+        loadLists(),
+        loadEquipment(),
+        loadBookings(),
+      ]);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [
+    loadPurchases, loadActivities, loadInventory, loadVendors,
+    loadLostFound, loadLists, loadEquipment, loadBookings,
+  ]);
 
   useEffect(() => {
     void reload();
@@ -278,39 +356,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
+    // Collect the areas touched during the debounce window, then refresh only
+    // those. Several tables often change together (a comment also writes an
+    // activity row), and batching keeps that to one refresh per area.
+    const queued = new Set<LoadScope>();
     let pending: ReturnType<typeof setTimeout> | null = null;
-    const refetch = () => {
+
+    const queue = (scope: LoadScope) => {
+      queued.add(scope);
       if (pending) clearTimeout(pending);
-      pending = setTimeout(() => { void reload(); }, 250);
+      pending = setTimeout(() => {
+        const scopes = [...queued];
+        queued.clear();
+        pending = null;
+        void refreshScopes(scopes);
+      }, 250);
     };
 
-    const channel = supabase
-      .channel('procurement-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'quotations' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_log' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'lost_found_items' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'lost_found_responses' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_issues' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'issue_responses' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_logs' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookable_items' }, refetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, refetch)
-      .subscribe();
+    let channel = supabase.channel('procurement-changes');
+    for (const [table, scope] of Object.entries(TABLE_SCOPES)) {
+      channel = channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table },
+        () => queue(scope)
+      );
+    }
+    channel.subscribe();
 
     return () => {
       if (pending) clearTimeout(pending);
       void supabase.removeChannel(channel);
     };
-  }, [reload]);
+  }, [refreshScopes]);
 
   const selectedPurchase = useMemo(
     () => purchases.find((p) => p.id === selectedPurchaseId) ?? null,
