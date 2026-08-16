@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import confetti from 'canvas-confetti';
 import * as api from '../lib/api';
+import { showBrowserNotification } from '../lib/notify';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useUI } from './UIContext';
@@ -186,6 +187,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(NOTIF_KEY, now);
     setActivitiesReadAt(now);
   }, [NOTIF_KEY]);
+
+  const lastSeenActivityRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentUser || activities.length === 0) return;
+    const latest = activities[0].createdAt;
+    const prev = lastSeenActivityRef.current;
+    if (!prev) {
+      lastSeenActivityRef.current = latest;
+      return;
+    }
+    const fresh = activities.filter(
+      (a) => a.createdAt > prev && a.actor?.id !== currentUser.id,
+    );
+    if (fresh.length > 0) {
+      lastSeenActivityRef.current = latest;
+      const a = fresh[0];
+      showBrowserNotification(
+        a.actor?.name ?? 'Someone',
+        a.type,
+        a.purchaseTitle,
+        import.meta.env.BASE_URL,
+      );
+    }
+  }, [activities, currentUser]);
 
   const reload = useCallback(async () => {
     if (!isSupabaseConfigured) {

@@ -5,7 +5,7 @@ import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen } from 'lucide-react';
+import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff } from 'lucide-react';
 import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
@@ -17,6 +17,7 @@ import { QuickLinksView } from './QuickLinksView';
 import { NotebookView } from './NotebookView';
 import { SampleInventoryView } from './SampleInventoryView';
 import { ScrollLock } from '../lib/useScrollLock';
+import { isNotificationSupported, isNotificationEnabled, requestNotificationPermission, disableNotifications } from '../lib/notify';
 import { Link } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
@@ -38,6 +39,7 @@ export const ProfileView: React.FC = () => {
   const [editingBirthday, setEditingBirthday] = useState(false);
   const [birthdayInput, setBirthdayInput] = useState('');
   const [savingBirthday, setSavingBirthday] = useState(false);
+  const [notifOn, setNotifOn] = useState(isNotificationEnabled);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'
@@ -211,6 +213,39 @@ export const ProfileView: React.FC = () => {
                 : 'Add your birthday'}
             </span>
             <span className="text-[10px] text-gray-500">{currentUser.birthday ? 'Edit' : 'Set'}</span>
+          </button>
+        )}
+
+        {isNotificationSupported() && (
+          <button
+            onClick={async () => {
+              if (notifOn) {
+                disableNotifications();
+                setNotifOn(false);
+                showToast('Notifications disabled.', 'info');
+              } else {
+                const granted = await requestNotificationPermission();
+                if (granted) {
+                  setNotifOn(true);
+                  showToast('Notifications enabled!', 'success');
+                } else {
+                  showToast('Notification permission was denied by your browser.', 'error');
+                }
+              }
+            }}
+            className="w-full p-3 rounded-lg bg-background border border-[#2A2A2A] text-xs text-gray-300 flex items-center justify-between hover:border-blue-500/30 transition-colors"
+          >
+            <span className="flex items-center gap-1.5 font-medium">
+              {notifOn ? <Bell className="w-3.5 h-3.5 text-blue-400" /> : <BellOff className="w-3.5 h-3.5 text-gray-500" />}
+              Browser notifications
+            </span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              notifOn
+                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                : 'bg-[#2A2A2A] text-gray-500 border border-[#333]'
+            }`}>
+              {notifOn ? 'On' : 'Off'}
+            </span>
           </button>
         )}
       </div>
