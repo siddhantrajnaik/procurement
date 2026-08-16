@@ -26,6 +26,12 @@ const CONDITION_COLORS: Record<string, string> = {
   'LN₂':  'bg-indigo-500/15 text-indigo-300 border-indigo-500/25',
 };
 
+const stagger = (i: number): React.CSSProperties => ({
+  opacity: 0,
+  animation: 'fade-in 0.2s ease-out both',
+  animationDelay: `${Math.min(i * 45, 400)}ms`,
+});
+
 export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const { currentUser } = useAuth();
   const { showToast } = useUI();
@@ -46,6 +52,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
   const [deleteBoxTarget, setDeleteBoxTarget] = useState<SampleBox | null>(null);
 
   const mountedRef = useRef(true);
+  const hasAnimated = useRef(false);
 
   const reload = useCallback(async () => {
     try {
@@ -71,6 +78,13 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
     void reload();
     return () => { mountedRef.current = false; };
   }, [reload]);
+
+  useEffect(() => {
+    if (!loading && !hasAnimated.current) {
+      const raf = requestAnimationFrame(() => { hasAnimated.current = true; });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [loading]);
 
   useEffect(() => {
     const channel = supabase
@@ -156,6 +170,8 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
     showToast(`Sample "${editSample.name}" removed.`, 'warning');
   };
 
+  const s = (i: number) => hasAnimated.current ? undefined : stagger(i);
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center py-20">
@@ -166,7 +182,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
 
   return (
     <div className="flex-1 w-full mx-auto pb-24 md:pb-8 flex flex-col max-w-3xl px-4 md:px-0">
-      <div className="py-4 mt-2 md:mt-6">
+      <div className="py-4 mt-2 md:mt-6" style={s(0)}>
         <button
           onClick={onBack}
           className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors mb-3"
@@ -183,7 +199,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
         <p className="text-sm text-gray-400">Track boxes, tubes & storage</p>
       </div>
 
-      <div className="flex items-center justify-between gap-3 mb-4">
+      <div className="flex items-center justify-between gap-3 mb-4" style={s(1)}>
         <div className="flex gap-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg p-0.5">
           <button
             onClick={() => setSubTab('boxes')}
@@ -215,7 +231,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
 
       {subTab === 'boxes' && (
         <>
-          <div className="relative mb-3">
+          <div className="relative mb-3" style={s(2)}>
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">search</span>
             <input
               className="w-full pl-9 pr-4 py-2 bg-[#1E1E1E] border border-[#2A2A2A] rounded-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm text-white placeholder:text-gray-500"
@@ -226,7 +242,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
           </div>
 
           {filteredBoxes.length === 0 && filteredLoose.length === 0 && !search && (
-            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#2A2A2A] rounded-xl bg-[#1E1E1E]">
+            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#2A2A2A] rounded-xl bg-[#1E1E1E]" style={s(3)}>
               <span className="material-symbols-outlined text-gray-600 text-4xl mb-3">science</span>
               <h3 className="text-white font-medium text-sm mb-1">No boxes yet</h3>
               <p className="text-gray-400 text-sm max-w-xs">
@@ -242,18 +258,21 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
           )}
 
           <div className="flex flex-col gap-3">
-            {filteredBoxes.map((box) => {
+            {filteredBoxes.map((box, idx) => {
               const boxSamples = samplesInBox(box.id);
               const isExpanded = expandedBoxId === box.id;
               const conditionClass = CONDITION_COLORS[box.condition] ?? 'bg-gray-500/15 text-gray-300 border-gray-500/25';
 
               return (
-                <div key={box.id} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden">
+                <div key={box.id} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden" style={s(idx + 3)}>
                   <button
                     onClick={() => setExpandedBoxId(isExpanded ? null : box.id)}
                     className="w-full text-left p-4 flex items-center gap-3 hover:bg-[#242424] transition-colors"
                   >
-                    <span className={`material-symbols-outlined text-[20px] transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                    <span
+                      className="material-symbols-outlined text-[20px]"
+                      style={{ transition: 'transform 0.2s ease-out', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                    >
                       chevron_right
                     </span>
                     <div className="flex-1 min-w-0">
@@ -289,66 +308,74 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                     </div>
                   </button>
 
-                  {isExpanded && (
-                    <div className="border-t border-[#2A2A2A] px-4 pb-3">
-                      {boxSamples.length === 0 ? (
-                        <p className="text-xs text-gray-500 py-3 text-center">No samples in this box</p>
-                      ) : (
-                        <div className="divide-y divide-[#2A2A2A]">
-                          {boxSamples.map((s) => (
-                            <button
-                              key={s.id}
-                              onClick={() => { setEditSample(s); setAddSampleBoxId(null); setShowSampleModal(true); }}
-                              className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-[#242424] transition-colors rounded"
-                            >
-                              <span className="material-symbols-outlined text-[16px] text-gray-500">science</span>
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm font-medium text-white truncate block">{s.name}</span>
-                                <div className="flex items-center gap-2 text-[11px] text-gray-500">
-                                  {s.container && <span>{s.container}</span>}
-                                  {s.volume && <span>{s.volume}</span>}
-                                  <span>{timeAgo(s.createdAt)}</span>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateRows: isExpanded ? '1fr' : '0fr',
+                      transition: 'grid-template-rows 0.25s ease-out',
+                    }}
+                  >
+                    <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                      <div className="border-t border-[#2A2A2A] px-4 pb-3">
+                        {boxSamples.length === 0 ? (
+                          <p className="text-xs text-gray-500 py-3 text-center">No samples in this box</p>
+                        ) : (
+                          <div className="divide-y divide-[#2A2A2A]">
+                            {boxSamples.map((sa) => (
+                              <button
+                                key={sa.id}
+                                onClick={() => { setEditSample(sa); setAddSampleBoxId(null); setShowSampleModal(true); }}
+                                className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-[#242424] transition-colors rounded"
+                              >
+                                <span className="material-symbols-outlined text-[16px] text-gray-500">science</span>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm font-medium text-white truncate block">{sa.name}</span>
+                                  <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                                    {sa.container && <span>{sa.container}</span>}
+                                    {sa.volume && <span>{sa.volume}</span>}
+                                    <span>{timeAgo(sa.createdAt)}</span>
+                                  </div>
                                 </div>
-                              </div>
-                              {s.addedBy && (
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${avatarClasses(s.addedBy.accent)}`}>
-                                  {initialOf(s.addedBy.name, s.addedBy.handle)}
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => { setEditSample(null); setAddSampleBoxId(box.id); setShowSampleModal(true); }}
-                        className="mt-2 w-full py-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">add</span>
-                        Add sample
-                      </button>
+                                {sa.addedBy && (
+                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${avatarClasses(sa.addedBy.accent)}`}>
+                                    {initialOf(sa.addedBy.name, sa.addedBy.handle)}
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          onClick={() => { setEditSample(null); setAddSampleBoxId(box.id); setShowSampleModal(true); }}
+                          className="mt-2 w-full py-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">add</span>
+                          Add sample
+                        </button>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
 
             {filteredLoose.length > 0 && (
-              <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4">
+              <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4" style={s(filteredBoxes.length + 3)}>
                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Loose samples</h3>
                 <div className="divide-y divide-[#2A2A2A]">
-                  {filteredLoose.map((s) => (
+                  {filteredLoose.map((sa) => (
                     <button
-                      key={s.id}
-                      onClick={() => { setEditSample(s); setAddSampleBoxId(null); setShowSampleModal(true); }}
+                      key={sa.id}
+                      onClick={() => { setEditSample(sa); setAddSampleBoxId(null); setShowSampleModal(true); }}
                       className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-[#242424] transition-colors rounded"
                     >
                       <span className="material-symbols-outlined text-[16px] text-gray-500">science</span>
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-white truncate block">{s.name}</span>
+                        <span className="text-sm font-medium text-white truncate block">{sa.name}</span>
                         <div className="flex items-center gap-2 text-[11px] text-gray-500">
-                          {s.container && <span>{s.container}</span>}
-                          {s.volume && <span>{s.volume}</span>}
-                          <span>{timeAgo(s.createdAt)}</span>
+                          {sa.container && <span>{sa.container}</span>}
+                          {sa.volume && <span>{sa.volume}</span>}
+                          <span>{timeAgo(sa.createdAt)}</span>
                         </div>
                       </div>
                     </button>
@@ -362,6 +389,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
             <button
               onClick={() => { setEditSample(null); setAddSampleBoxId(null); setShowSampleModal(true); }}
               className="mt-4 w-full py-2.5 text-sm font-medium text-gray-300 bg-[#1E1E1E] border border-[#2A2A2A] border-dashed rounded-xl hover:border-primary/40 hover:text-white transition-colors flex items-center justify-center gap-1.5"
+              style={s(filteredBoxes.length + (filteredLoose.length > 0 ? 1 : 0) + 3)}
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
               Add sample
@@ -373,7 +401,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
       {subTab === 'log' && (
         <div className="flex flex-col gap-2">
           {sampleLog.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#2A2A2A] rounded-xl bg-[#1E1E1E]">
+            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#2A2A2A] rounded-xl bg-[#1E1E1E] animate-fade-in">
               <span className="material-symbols-outlined text-gray-600 text-4xl mb-3">history</span>
               <h3 className="text-white font-medium text-sm mb-1">No activity yet</h3>
               <p className="text-gray-400 text-sm max-w-xs">
@@ -382,13 +410,17 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
             </div>
           ) : (
             <>
-              <p className="text-xs text-gray-500 mb-1">{sampleLog.length} entr{sampleLog.length !== 1 ? 'ies' : 'y'}</p>
-              {sampleLog.map((entry) => {
+              <p className="text-xs text-gray-500 mb-1 animate-fade-in">{sampleLog.length} entr{sampleLog.length !== 1 ? 'ies' : 'y'}</p>
+              {sampleLog.map((entry, idx) => {
                 const meta = ACTION_ICONS[entry.action] ?? ACTION_ICONS.updated;
-                const sample = entry.sampleId ? samples.find((s) => s.id === entry.sampleId) : null;
+                const sample = entry.sampleId ? samples.find((sa) => sa.id === entry.sampleId) : null;
                 const sampleName = sample?.name ?? (entry.action === 'removed' && entry.details ? entry.details : 'sample');
                 return (
-                  <div key={entry.id} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3 flex gap-3">
+                  <div
+                    key={entry.id}
+                    className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3 flex gap-3"
+                    style={stagger(idx)}
+                  >
                     <div className="flex-shrink-0 mt-0.5">
                       <span className={`material-symbols-outlined text-[20px] ${meta.color}`}>{meta.icon}</span>
                     </div>
