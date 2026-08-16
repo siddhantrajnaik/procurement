@@ -392,6 +392,37 @@ export interface NotebookPage {
   updatedAt: string;
 }
 
+export interface SampleBox {
+  id: string;
+  name: string;
+  condition: string;
+  location: string;
+  createdBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Sample {
+  id: string;
+  name: string;
+  boxId: string | null;
+  container: string;
+  volume: string;
+  notes: string;
+  addedBy: User | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SampleLogEntry {
+  id: string;
+  sampleId: string | null;
+  action: string;
+  details: string;
+  actor: User | null;
+  createdAt: string;
+}
+
 export interface NewPurchaseInput {
   title: string;
   description: string;

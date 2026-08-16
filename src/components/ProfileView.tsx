@@ -15,6 +15,7 @@ import { EquipmentView } from './EquipmentView';
 import { BookingView } from './BookingView';
 import { QuickLinksView } from './QuickLinksView';
 import { NotebookView } from './NotebookView';
+import { SampleInventoryView } from './SampleInventoryView';
 import { ScrollLock } from '../lib/useScrollLock';
 import { Link } from 'lucide-react';
 
@@ -33,6 +34,7 @@ export const ProfileView: React.FC = () => {
   const [showNotebook, setShowNotebook] = useState(false);
   const [showEquipment, setShowEquipment] = useState(false);
   const [showBookings, setShowBookings] = useState(false);
+  const [showSamples, setShowSamples] = useState(false);
   const [editingBirthday, setEditingBirthday] = useState(false);
   const [birthdayInput, setBirthdayInput] = useState('');
   const [savingBirthday, setSavingBirthday] = useState(false);
@@ -125,6 +127,10 @@ export const ProfileView: React.FC = () => {
 
   if (showBookings) {
     return <BookingView onBack={() => setShowBookings(false)} />;
+  }
+
+  if (showSamples) {
+    return <SampleInventoryView onBack={() => setShowSamples(false)} />;
   }
 
   return (
@@ -429,6 +435,23 @@ export const ProfileView: React.FC = () => {
         <div className="flex-1 text-left">
           <h3 className="font-bold text-white text-sm">Lab Notebook</h3>
           <p className="text-[11px] text-gray-400">Your private notes &amp; protocols</p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          chevron_right
+        </span>
+      </button>
+
+      {/* Sample Inventory */}
+      <button
+        onClick={() => setShowSamples(true)}
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center group-hover:bg-teal-500/20 transition-colors">
+          <span className="material-symbols-outlined text-teal-400 text-[20px]">science</span>
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">Sample Inventory</h3>
+          <p className="text-[11px] text-gray-400">Track boxes, tubes & storage</p>
         </div>
         <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
           chevron_right

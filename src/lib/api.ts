@@ -37,6 +37,9 @@ import {
   PurchaseStatus,
   QuickLink,
   Quotation,
+  Sample,
+  SampleBox,
+  SampleLogEntry,
   User,
   Vendor,
 } from '../types';
@@ -1472,4 +1475,184 @@ export async function updateNotebookPage(
 
 export async function deleteNotebookPage(id: string): Promise<void> {
   unwrap(await supabase.from('notebook_pages').delete().eq('id', id).select('id'));
+}
+
+// ------------------------------------------------------------------ sample inventory
+
+const SAMPLE_BOX_SELECT = `
+  id, name, condition, location, created_at, updated_at,
+  creator:profiles!sample_boxes_created_by_fkey(${PROFILE_FIELDS})
+`;
+
+const SAMPLE_SELECT = `
+  id, name, box_id, container, volume, notes, created_at, updated_at,
+  owner:profiles!samples_added_by_fkey(${PROFILE_FIELDS})
+`;
+
+const SAMPLE_LOG_SELECT = `
+  id, sample_id, action, details, created_at,
+  actor:profiles!sample_log_actor_id_fkey(${PROFILE_FIELDS})
+`;
+
+function toSampleBox(row: any): SampleBox {
+  return {
+    id: row.id,
+    name: row.name,
+    condition: row.condition,
+    location: row.location,
+    createdBy: toUser(row.creator),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toSample(row: any): Sample {
+  return {
+    id: row.id,
+    name: row.name,
+    boxId: row.box_id,
+    container: row.container,
+    volume: row.volume,
+    notes: row.notes,
+    addedBy: toUser(row.owner),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toSampleLogEntry(row: any): SampleLogEntry {
+  return {
+    id: row.id,
+    sampleId: row.sample_id,
+    action: row.action,
+    details: row.details,
+    actor: toUser(row.actor),
+    createdAt: row.created_at,
+  };
+}
+
+export async function fetchSampleBoxes(): Promise<SampleBox[]> {
+  const data = unwrap(
+    await supabase.from('sample_boxes').select(SAMPLE_BOX_SELECT).order('name')
+  );
+  return (data as any[]).map(toSampleBox);
+}
+
+export async function fetchSamples(): Promise<Sample[]> {
+  const data = unwrap(
+    await supabase.from('samples').select(SAMPLE_SELECT).order('updated_at', { ascending: false })
+  );
+  return (data as any[]).map(toSample);
+}
+
+export async function fetchSampleLog(): Promise<SampleLogEntry[]> {
+  const data = unwrap(
+    await supabase.from('sample_log').select(SAMPLE_LOG_SELECT).order('created_at', { ascending: false }).limit(200)
+  );
+  return (data as any[]).map(toSampleLogEntry);
+}
+
+export async function createSampleBox(
+  input: { name: string; condition?: string; location?: string },
+  actor: User
+): Promise<SampleBox> {
+  const inserted = unwrap(
+    await supabase.from('sample_boxes').insert({
+      name: input.name,
+      condition: input.condition || '',
+      location: input.location || '',
+      created_by: actor.id,
+    }).select(SAMPLE_BOX_SELECT).single()
+  );
+  return toSampleBox(inserted);
+}
+
+export async function updateSampleBox(
+  boxId: string,
+  updates: { name?: string; condition?: string; location?: string }
+): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (updates.name !== undefined) row.name = updates.name;
+  if (updates.condition !== undefined) row.condition = updates.condition;
+  if (updates.location !== undefined) row.location = updates.location;
+  unwrap(await supabase.from('sample_boxes').update(row).eq('id', boxId).select('id'));
+}
+
+export async function deleteSampleBox(boxId: string): Promise<void> {
+  unwrap(await supabase.from('sample_boxes').delete().eq('id', boxId).select('id'));
+}
+
+export async function createSample(
+  input: { name: string; boxId?: string | null; container?: string; volume?: string; notes?: string },
+  actor: User
+): Promise<Sample> {
+  const inserted = unwrap(
+    await supabase.from('samples').insert({
+      name: input.name,
+      box_id: input.boxId || null,
+      container: input.container || '',
+      volume: input.volume || '',
+      notes: input.notes || '',
+      added_by: actor.id,
+    }).select(SAMPLE_SELECT).single()
+  );
+  const sample = toSample(inserted);
+  await supabase.from('sample_log').insert({
+    sample_id: sample.id,
+    action: 'added',
+    details: input.boxId ? `added to box` : 'added as loose sample',
+    actor_id: actor.id,
+  });
+  return sample;
+}
+
+export async function updateSample(
+  sampleId: string,
+  updates: { name?: string; container?: string; volume?: string; notes?: string },
+  actor: User
+): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (updates.name !== undefined) row.name = updates.name;
+  if (updates.container !== undefined) row.container = updates.container;
+  if (updates.volume !== undefined) row.volume = updates.volume;
+  if (updates.notes !== undefined) row.notes = updates.notes;
+  unwrap(await supabase.from('samples').update(row).eq('id', sampleId).select('id'));
+  await supabase.from('sample_log').insert({
+    sample_id: sampleId,
+    action: 'updated',
+    details: '',
+    actor_id: actor.id,
+  });
+}
+
+export async function moveSample(
+  sampleId: string,
+  toBoxId: string | null,
+  fromBoxName: string,
+  toBoxName: string,
+  actor: User
+): Promise<void> {
+  unwrap(
+    await supabase.from('samples').update({ box_id: toBoxId }).eq('id', sampleId).select('id')
+  );
+  const details = `moved from ${fromBoxName || 'loose'} to ${toBoxName || 'loose'}`;
+  await supabase.from('sample_log').insert({
+    sample_id: sampleId,
+    action: 'moved',
+    details,
+    actor_id: actor.id,
+  });
+}
+
+export async function deleteSample(sampleId: string, actor: User): Promise<void> {
+  const existing = unwrap(
+    await supabase.from('samples').select('name').eq('id', sampleId).single()
+  ) as any;
+  await supabase.from('sample_log').insert({
+    sample_id: sampleId,
+    action: 'removed',
+    details: existing?.name ?? '',
+    actor_id: actor.id,
+  });
+  unwrap(await supabase.from('samples').delete().eq('id', sampleId).select('id'));
 }
