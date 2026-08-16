@@ -153,8 +153,7 @@ export const InvoiceSection: React.FC<Props> = ({ purchase, canManage }) => {
         title="Remove invoice?"
         message={`"${purchase.invoiceName ?? 'The invoice'}" will be permanently deleted.`}
         onConfirm={async () => {
-          await removeInvoice(purchase.id);
-          setShowRemove(false);
+          if (await removeInvoice(purchase.id)) setShowRemove(false);
         }}
         onCancel={() => setShowRemove(false)}
       />

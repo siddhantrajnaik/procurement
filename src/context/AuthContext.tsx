@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as api from '../lib/api';
+import { readStored, removeStored, writeStored } from '../lib/storage';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { User } from '../types';
 
@@ -20,7 +21,7 @@ const SESSION_USER_KEY = 'procure.session.userId';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
-    localStorage.getItem(SESSION_USER_KEY)
+    readStored(SESSION_USER_KEY)
   );
 
   useEffect(() => {
@@ -34,12 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const login = useCallback((userId: string) => {
-    localStorage.setItem(SESSION_USER_KEY, userId);
+    writeStored(SESSION_USER_KEY, userId);
     setCurrentUserId(userId);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(SESSION_USER_KEY);
+    removeStored(SESSION_USER_KEY);
     setCurrentUserId(null);
   }, []);
 

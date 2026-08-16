@@ -60,8 +60,8 @@ export const PurchaseThreadModal: React.FC = () => {
     if (!p || !commentText.trim() || isPostingComment) return;
     setIsPostingComment(true);
     try {
-      await addComment(p.id, commentText.trim());
-      setCommentText('');
+      // Keep the draft if the post failed — a long comment is worth protecting.
+      if (await addComment(p.id, commentText.trim())) setCommentText('');
     } finally {
       setIsPostingComment(false);
     }
@@ -454,8 +454,7 @@ export const PurchaseThreadModal: React.FC = () => {
           title="Delete request?"
           message={`"${p.title}" and all its quotations, comments, and history will be permanently removed.`}
           onConfirm={async () => {
-            await deletePurchase(p.id);
-            setShowDeleteConfirm(false);
+            if (await deletePurchase(p.id)) setShowDeleteConfirm(false);
           }}
           onCancel={() => setShowDeleteConfirm(false)}
         />

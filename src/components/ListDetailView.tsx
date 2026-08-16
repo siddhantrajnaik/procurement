@@ -70,7 +70,8 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
     const name = newItemName.trim();
     const data = { ...newItemData };
     try {
-      await addListItem(listId, { name, data });
+      // Keep the typed row if the save failed.
+      if (!(await addListItem(listId, { name, data }))) return;
       setNewItemName('');
       setNewItemData({});
     } finally {
@@ -83,7 +84,7 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
     if (!newColName.trim()) return;
     const col: ListColumn = { name: newColName.trim(), type: newColType };
     if (list.columns.some((c) => c.name.toLowerCase() === col.name.toLowerCase())) return;
-    await updateLabList(listId, { columns: [...list.columns, col] });
+    if (!(await updateLabList(listId, { columns: [...list.columns, col] }))) return;
     setNewColName('');
     setNewColType('text');
     setShowAddColumn(false);
@@ -101,7 +102,8 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
 
   const saveEdit = async () => {
     if (!editingItemId || !editName.trim()) return;
-    await updateListItem(editingItemId, { name: editName.trim(), data: editData });
+    // Stay in edit mode on failure so the edits aren't silently dropped.
+    if (!(await updateListItem(editingItemId, { name: editName.trim(), data: editData }))) return;
     setEditingItemId(null);
   };
 
@@ -380,7 +382,7 @@ export const ListDetailView: React.FC<Props> = ({ listId, onBack }) => {
         title="Delete list?"
         message={`"${list.title}" and all its items will be permanently removed.`}
         onConfirm={async () => {
-          await removeLabList(listId);
+          if (!(await removeLabList(listId))) return;
           setShowDeleteList(false);
           onBack();
         }}

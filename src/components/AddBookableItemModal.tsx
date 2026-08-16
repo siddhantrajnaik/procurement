@@ -37,7 +37,8 @@ export const AddBookableItemModal: React.FC<Props> = ({ isOpen, onClose }) => {
     if (!name.trim()) return;
     setSubmitting(true);
     try {
-      await addBookableItem({ name: name.trim(), description: description.trim(), color });
+      const ok = await addBookableItem({ name: name.trim(), description: description.trim(), color });
+      if (!ok) return;
       setName('');
       setDescription('');
       setColor(COLORS[0]);

@@ -177,7 +177,9 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
           open={showDeleteConfirm}
           title="Delete request?"
           message={`"${purchase.title}" and all its quotations, comments, and history will be permanently removed.`}
-          onConfirm={() => deletePurchase(purchase.id)}
+          onConfirm={async () => {
+            if (await deletePurchase(purchase.id)) setShowDeleteConfirm(false);
+          }}
           onCancel={() => setShowDeleteConfirm(false)}
         />
       </div>

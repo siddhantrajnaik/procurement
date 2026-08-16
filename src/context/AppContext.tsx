@@ -10,6 +10,7 @@ import React, {
 import confetti from 'canvas-confetti';
 import * as api from '../lib/api';
 import { showBrowserNotification } from '../lib/notify';
+import { readStored, writeStored } from '../lib/storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useUI } from './UIContext';
@@ -63,14 +64,14 @@ interface AppContextType {
   createPurchase: (data: NewPurchaseInput) => Promise<void>;
   editPurchase: (purchaseId: string, updates: Partial<NewPurchaseInput>) => Promise<void>;
   updateStatus: (purchaseId: string, status: PurchaseStatus) => Promise<void>;
-  addComment: (purchaseId: string, body: string) => Promise<void>;
+  addComment: (purchaseId: string, body: string) => Promise<boolean>;
   addQuotation: (purchaseId: string, input: NewQuotationInput) => Promise<void>;
   selectQuotation: (purchaseId: string, quotation: Quotation) => Promise<void>;
   approvePi: (purchaseId: string) => Promise<void>;
-  deletePurchase: (purchaseId: string) => Promise<void>;
+  deletePurchase: (purchaseId: string) => Promise<boolean>;
   recordDelivery: (purchaseId: string, quantityReceived: string, notes: string, isFinal: boolean) => Promise<boolean>;
   uploadInvoice: (purchaseId: string, file: File) => Promise<void>;
-  removeInvoice: (purchaseId: string) => Promise<void>;
+  removeInvoice: (purchaseId: string) => Promise<boolean>;
 
   inventoryItems: InventoryItem[];
   inventoryLog: InventoryLogEntry[];
@@ -94,10 +95,10 @@ interface AppContextType {
 
   labLists: LabList[];
   createLabList: (input: NewListInput) => Promise<boolean>;
-  updateLabList: (listId: string, updates: { title?: string; description?: string; columns?: ListColumn[] }) => Promise<void>;
-  removeLabList: (listId: string) => Promise<void>;
-  addListItem: (listId: string, input: NewListItemInput) => Promise<void>;
-  updateListItem: (itemId: string, updates: { name?: string; checked?: boolean; data?: Record<string, unknown> }) => Promise<void>;
+  updateLabList: (listId: string, updates: { title?: string; description?: string; columns?: ListColumn[] }) => Promise<boolean>;
+  removeLabList: (listId: string) => Promise<boolean>;
+  addListItem: (listId: string, input: NewListItemInput) => Promise<boolean>;
+  updateListItem: (itemId: string, updates: { name?: string; checked?: boolean; data?: Record<string, unknown> }) => Promise<boolean>;
   removeListItem: (itemId: string) => Promise<void>;
 
   equipment: Equipment[];
@@ -111,7 +112,7 @@ interface AppContextType {
 
   bookableItems: BookableItem[];
   bookings: Booking[];
-  addBookableItem: (input: NewBookableItemInput) => Promise<void>;
+  addBookableItem: (input: NewBookableItemInput) => Promise<boolean>;
   removeBookableItem: (itemId: string) => Promise<void>;
   createBooking: (input: NewBookingInput) => Promise<boolean>;
   cancelBooking: (bookingId: string) => Promise<void>;
@@ -198,16 +199,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activitiesReadAt, setActivitiesReadAt] = useState<string>(() => {
     if (!NOTIF_KEY) return new Date().toISOString();
-    return localStorage.getItem(NOTIF_KEY) ?? new Date().toISOString();
+    return readStored(NOTIF_KEY) ?? new Date().toISOString();
   });
 
   useEffect(() => {
     if (!NOTIF_KEY) return;
-    const stored = localStorage.getItem(NOTIF_KEY);
+    const stored = readStored(NOTIF_KEY);
     if (stored) setActivitiesReadAt(stored);
     else {
       const now = new Date().toISOString();
-      localStorage.setItem(NOTIF_KEY, now);
+      writeStored(NOTIF_KEY, now);
       setActivitiesReadAt(now);
     }
   }, [NOTIF_KEY]);
@@ -222,7 +223,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const markActivitiesRead = useCallback(() => {
     if (!NOTIF_KEY) return;
     const now = new Date().toISOString();
-    localStorage.setItem(NOTIF_KEY, now);
+    writeStored(NOTIF_KEY, now);
     setActivitiesReadAt(now);
   }, [NOTIF_KEY]);
 
@@ -501,8 +502,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async (purchaseId: string, body: string) => {
       const actor = requireUser();
       const purchase = findPurchase(purchaseId);
-      if (!actor || !purchase) return;
-      await run(() => api.addComment(purchase, body, actor), 'Could not post the reply.');
+      if (!actor || !purchase) return false;
+      return run(() => api.addComment(purchase, body, actor), 'Could not post the reply.');
     },
     [findPurchase, requireUser, run]
   );
@@ -549,8 +550,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deletePurchase = useCallback(
     async (purchaseId: string) => {
       const purchase = findPurchase(purchaseId);
-      if (!purchase) return;
-      await run(async () => {
+      if (!purchase) return false;
+      return run(async () => {
         await api.deletePurchase(purchaseId);
         if (selectedPurchaseId === purchaseId) setSelectedPurchaseId(null);
         showToastRef.current(`Deleted "${purchase.title}".`, 'warning');
@@ -601,8 +602,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeInvoice = useCallback(
     async (purchaseId: string) => {
       const purchase = findPurchase(purchaseId);
-      if (!purchase) return;
-      await run(async () => {
+      if (!purchase) return false;
+      return run(async () => {
         await api.removeInvoice(purchase);
         showToastRef.current('Invoice removed.', 'warning');
       }, 'Could not remove the invoice.');
@@ -774,7 +775,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateLabList = useCallback(
     async (listId: string, updates: { title?: string; description?: string; columns?: ListColumn[] }) => {
-      await run(async () => {
+      return run(async () => {
         await api.updateList(listId, updates);
       }, 'Could not update the list.');
     },
@@ -784,7 +785,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeLabList = useCallback(
     async (listId: string) => {
       const list = labLists.find((l) => l.id === listId);
-      await run(async () => {
+      return run(async () => {
         await api.deleteList(listId);
         showToastRef.current(`Deleted "${list?.title ?? 'list'}".`, 'warning');
       }, 'Could not delete the list.');
@@ -796,7 +797,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async (listId: string, input: NewListItemInput) => {
       const list = labLists.find((l) => l.id === listId);
       const nextOrder = list ? Math.max(0, ...list.items.map((i) => i.sortOrder)) + 1 : 0;
-      await run(async () => {
+      return run(async () => {
         await api.addListItem(listId, input, nextOrder);
       }, 'Could not add the item.');
     },
@@ -805,7 +806,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateListItemCb = useCallback(
     async (itemId: string, updates: { name?: string; checked?: boolean; data?: Record<string, unknown> }) => {
-      await run(async () => {
+      return run(async () => {
         await api.updateListItem(itemId, updates);
       }, 'Could not update the item.');
     },
@@ -901,8 +902,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addBookableItemCb = useCallback(
     async (input: NewBookableItemInput) => {
       const user = currentUserRef.current;
-      if (!user) return;
-      await run(async () => {
+      if (!user) return false;
+      return run(async () => {
         await api.addBookableItem(input, user.id);
         showToastRef.current(`Added "${input.name}" to bookable items.`, 'success');
       }, 'Could not add bookable item.');
