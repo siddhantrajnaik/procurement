@@ -5,7 +5,7 @@ import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Building, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff } from 'lucide-react';
+import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff } from 'lucide-react';
 import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
@@ -159,17 +159,6 @@ export const ProfileView: React.FC = () => {
           </div>
         </div>
 
-        {currentUser.department && (
-          <div className="p-3 rounded-lg bg-background border border-[#2A2A2A] text-xs text-gray-300 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 font-medium">
-              <Building className="w-3.5 h-3.5 text-gray-500" />
-              {currentUser.department}
-            </span>
-            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">
-              Active
-            </span>
-          </div>
-        )}
 
         {/* Birthday */}
         {editingBirthday ? (
