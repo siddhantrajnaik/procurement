@@ -20,6 +20,21 @@ import { ScrollLock } from '../lib/useScrollLock';
 import { isNotificationSupported, isNotificationEnabled, requestNotificationPermission, disableNotifications } from '../lib/notify';
 import { Link } from 'lucide-react';
 
+/** Full-page views reachable from the profile menu. Each takes only `onBack`. */
+const SUB_VIEWS = {
+  vendors: VendorsView,
+  lostFound: LostFoundView,
+  lists: ListsView,
+  muhurat: MuhuratView,
+  quickLinks: QuickLinksView,
+  notebook: NotebookView,
+  equipment: EquipmentView,
+  bookings: BookingView,
+  samples: SampleInventoryView,
+} satisfies Record<string, React.FC<{ onBack: () => void }>>;
+
+type SubView = keyof typeof SUB_VIEWS;
+
 export const ProfileView: React.FC = () => {
   const { purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, bookableItems, bookings } = useApp();
   const { currentUser, allUsers, login, verifyAdminPin, patchUser } = useAuth();
@@ -27,15 +42,7 @@ export const ProfileView: React.FC = () => {
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);
-  const [showVendors, setShowVendors] = useState(false);
-  const [showLostFound, setShowLostFound] = useState(false);
-  const [showLists, setShowLists] = useState(false);
-  const [showMuhurat, setShowMuhurat] = useState(false);
-  const [showQuickLinks, setShowQuickLinks] = useState(false);
-  const [showNotebook, setShowNotebook] = useState(false);
-  const [showEquipment, setShowEquipment] = useState(false);
-  const [showBookings, setShowBookings] = useState(false);
-  const [showSamples, setShowSamples] = useState(false);
+  const [activeView, setActiveView] = useState<SubView | null>(null);
   const [editingBirthday, setEditingBirthday] = useState(false);
   const [birthdayInput, setBirthdayInput] = useState('');
   const [savingBirthday, setSavingBirthday] = useState(false);
@@ -99,40 +106,9 @@ export const ProfileView: React.FC = () => {
 
   if (!currentUser) return null;
 
-  if (showVendors) {
-    return <VendorsView onBack={() => setShowVendors(false)} />;
-  }
-
-  if (showLostFound) {
-    return <LostFoundView onBack={() => setShowLostFound(false)} />;
-  }
-
-  if (showLists) {
-    return <ListsView onBack={() => setShowLists(false)} />;
-  }
-
-  if (showMuhurat) {
-    return <MuhuratView onBack={() => setShowMuhurat(false)} />;
-  }
-
-  if (showQuickLinks) {
-    return <QuickLinksView onBack={() => setShowQuickLinks(false)} />;
-  }
-
-  if (showNotebook) {
-    return <NotebookView onBack={() => setShowNotebook(false)} />;
-  }
-
-  if (showEquipment) {
-    return <EquipmentView onBack={() => setShowEquipment(false)} />;
-  }
-
-  if (showBookings) {
-    return <BookingView onBack={() => setShowBookings(false)} />;
-  }
-
-  if (showSamples) {
-    return <SampleInventoryView onBack={() => setShowSamples(false)} />;
+  if (activeView) {
+    const SubViewComponent = SUB_VIEWS[activeView];
+    return <SubViewComponent onBack={() => setActiveView(null)} />;
   }
 
   return (
@@ -319,7 +295,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Vendor directory */}
       <button
-        onClick={() => setShowVendors(true)}
+        onClick={() => setActiveView('vendors')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -338,7 +314,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Equipment */}
       <button
-        onClick={() => setShowEquipment(true)}
+        onClick={() => setActiveView('equipment')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
@@ -357,7 +333,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Bookings */}
       <button
-        onClick={() => setShowBookings(true)}
+        onClick={() => setActiveView('bookings')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/20 transition-colors">
@@ -376,7 +352,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Lost & Found */}
       <button
-        onClick={() => setShowLostFound(true)}
+        onClick={() => setActiveView('lostFound')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
@@ -395,7 +371,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Lists */}
       <button
-        onClick={() => setShowLists(true)}
+        onClick={() => setActiveView('lists')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
@@ -414,7 +390,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Shubh Muhurat */}
       <button
-        onClick={() => setShowMuhurat(true)}
+        onClick={() => setActiveView('muhurat')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
@@ -450,7 +426,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Lab Notebook */}
       <button
-        onClick={() => setShowNotebook(true)}
+        onClick={() => setActiveView('notebook')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
@@ -467,7 +443,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Sample Inventory */}
       <button
-        onClick={() => setShowSamples(true)}
+        onClick={() => setActiveView('samples')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center group-hover:bg-teal-500/20 transition-colors">
@@ -484,7 +460,7 @@ export const ProfileView: React.FC = () => {
 
       {/* Quick Links */}
       <button
-        onClick={() => setShowQuickLinks(true)}
+        onClick={() => setActiveView('quickLinks')}
         className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
       >
         <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
