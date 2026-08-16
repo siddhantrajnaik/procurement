@@ -5,7 +5,7 @@ import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff } from 'lucide-react';
+import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff, Volume2, VolumeX } from 'lucide-react';
 import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
@@ -18,6 +18,7 @@ import { NotebookView } from './NotebookView';
 import { SampleInventoryView } from './SampleInventoryView';
 import { ScrollLock } from '../lib/useScrollLock';
 import { isNotificationSupported, isNotificationEnabled, requestNotificationPermission, disableNotifications } from '../lib/notify';
+import { isSoundEnabled, setSoundEnabled, playSound } from '../lib/sound';
 import { Link } from 'lucide-react';
 
 /** Full-page views reachable from the profile menu. Each takes only `onBack`. */
@@ -47,6 +48,7 @@ export const ProfileView: React.FC = () => {
   const [birthdayInput, setBirthdayInput] = useState('');
   const [savingBirthday, setSavingBirthday] = useState(false);
   const [notifOn, setNotifOn] = useState(isNotificationEnabled);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'
@@ -213,6 +215,29 @@ export const ProfileView: React.FC = () => {
             </span>
           </button>
         )}
+
+        <button
+          onClick={() => {
+            const next = !soundOn;
+            setSoundEnabled(next);
+            setSoundOn(next);
+            // Preview the tone so the choice is audible, not just visual.
+            if (next) playSound('success');
+          }}
+          className="w-full p-3 rounded-lg bg-background border border-[#2A2A2A] text-xs text-gray-300 flex items-center justify-between hover:border-amber-500/30 transition-colors"
+        >
+          <span className="flex items-center gap-1.5 font-medium">
+            {soundOn ? <Volume2 className="w-3.5 h-3.5 text-amber-400" /> : <VolumeX className="w-3.5 h-3.5 text-gray-500" />}
+            Sound effects
+          </span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            soundOn
+              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              : 'bg-[#2A2A2A] text-gray-500 border border-[#333]'
+          }`}>
+            {soundOn ? 'On' : 'Off'}
+          </span>
+        </button>
       </div>
 
 

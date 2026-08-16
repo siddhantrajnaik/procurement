@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { initSound, playSound } from '../lib/sound';
 import { TabType } from '../types';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
@@ -55,9 +56,12 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     // which makes AnimatePresence skip the swap.
     toastSeq.current += 1;
     setToast({ id: `${Date.now()}-${toastSeq.current}`, message, type });
+    playSound(type);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 4500);
   }, []);
+
+  useEffect(() => { initSound(); }, []);
 
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
