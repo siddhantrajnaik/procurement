@@ -77,14 +77,13 @@ export const InventoryActionModal: React.FC<Props> = ({ target, onClose }) => {
     if (!isValid || submitting) return;
     setSubmitting(true);
     try {
-      if (type === 'consume') {
-        await consumeItem(item, Number(quantity), notes.trim() || undefined);
-      } else if (type === 'restock') {
-        await restockItem(item, Number(quantity), notes.trim() || undefined);
-      } else {
-        await moveItem(item, location.trim(), notes.trim() || undefined);
-      }
-      onClose();
+      const ok =
+        type === 'consume'
+          ? await consumeItem(item, Number(quantity), notes.trim() || undefined)
+          : type === 'restock'
+          ? await restockItem(item, Number(quantity), notes.trim() || undefined)
+          : await moveItem(item, location.trim(), notes.trim() || undefined);
+      if (ok) onClose();
     } finally {
       setSubmitting(false);
     }

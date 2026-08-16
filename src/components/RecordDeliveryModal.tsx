@@ -39,8 +39,8 @@ export const RecordDeliveryModal: React.FC<RecordDeliveryModalProps> = ({
     if (!purchase || !qty.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await recordDelivery(purchase.id, qty.trim(), notes.trim(), isFinal);
-      onClose();
+      const ok = await recordDelivery(purchase.id, qty.trim(), notes.trim(), isFinal);
+      if (ok) onClose();
     } finally {
       setSubmitting(false);
     }

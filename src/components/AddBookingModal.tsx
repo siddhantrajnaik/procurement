@@ -69,14 +69,16 @@ export const AddBookingModal: React.FC<Props> = ({ isOpen, item, date, onClose }
     if (!item || endHour <= startHour || conflict) return;
     setSubmitting(true);
     try {
-      await createBooking({
+      const ok = await createBooking({
         itemId: item.id,
         date,
         startTime: toTimeStr(startHour),
         endTime: toTimeStr(endHour),
         purpose: purpose.trim(),
       });
-      onClose();
+      // Stay open on failure — the slot may have been taken in the meantime,
+      // and closing would look like the booking succeeded.
+      if (ok) onClose();
     } finally {
       setSubmitting(false);
     }

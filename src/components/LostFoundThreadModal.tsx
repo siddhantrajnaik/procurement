@@ -42,8 +42,8 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
     if (!item || !responseText.trim() || posting) return;
     setPosting(true);
     try {
-      await addLostFoundResponse(item.id, responseText.trim());
-      setResponseText('');
+      // Keep the draft if the post failed.
+      if (await addLostFoundResponse(item.id, responseText.trim())) setResponseText('');
     } finally {
       setPosting(false);
     }
@@ -222,7 +222,9 @@ export const LostFoundThreadModal: React.FC<Props> = ({ item, onClose }) => {
         title="Delete report?"
         message={`"${item.title}" and all its responses will be permanently removed.`}
         onConfirm={async () => {
-          await removeLostFoundItem(item.id);
+          // Keep the confirm open if the delete failed, so the error toast
+          // isn't contradicted by the thread disappearing.
+          if (!(await removeLostFoundItem(item.id))) return;
           setShowDelete(false);
           onClose();
         }}

@@ -100,8 +100,9 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
     if (!isValid || submitting) return;
     setSubmitting(true);
     try {
+      let ok: boolean;
       if (editItem) {
-        await editInventoryItem(editItem, {
+        ok = await editInventoryItem(editItem, {
           name: name.trim(),
           category,
           quantity: Number(quantity),
@@ -122,9 +123,9 @@ export const AddInventoryItemModal: React.FC<Props> = ({ open, onClose, editItem
           expiryDate: expiryDate || null,
           notes: notes.trim() || undefined,
         };
-        await addInventoryItem(input);
+        ok = await addInventoryItem(input);
       }
-      onClose();
+      if (ok) onClose();
     } finally {
       setSubmitting(false);
     }

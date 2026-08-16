@@ -68,17 +68,17 @@ interface AppContextType {
   selectQuotation: (purchaseId: string, quotation: Quotation) => Promise<void>;
   approvePi: (purchaseId: string) => Promise<void>;
   deletePurchase: (purchaseId: string) => Promise<void>;
-  recordDelivery: (purchaseId: string, quantityReceived: string, notes: string, isFinal: boolean) => Promise<void>;
+  recordDelivery: (purchaseId: string, quantityReceived: string, notes: string, isFinal: boolean) => Promise<boolean>;
   uploadInvoice: (purchaseId: string, file: File) => Promise<void>;
   removeInvoice: (purchaseId: string) => Promise<void>;
 
   inventoryItems: InventoryItem[];
   inventoryLog: InventoryLogEntry[];
-  addInventoryItem: (input: NewInventoryItemInput) => Promise<void>;
-  consumeItem: (item: InventoryItem, quantity: number, notes?: string) => Promise<void>;
-  restockItem: (item: InventoryItem, quantity: number, notes?: string) => Promise<void>;
-  moveItem: (item: InventoryItem, newLocation: string, notes?: string) => Promise<void>;
-  editInventoryItem: (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'expiryDate' | 'notes'>>) => Promise<void>;
+  addInventoryItem: (input: NewInventoryItemInput) => Promise<boolean>;
+  consumeItem: (item: InventoryItem, quantity: number, notes?: string) => Promise<boolean>;
+  restockItem: (item: InventoryItem, quantity: number, notes?: string) => Promise<boolean>;
+  moveItem: (item: InventoryItem, newLocation: string, notes?: string) => Promise<boolean>;
+  editInventoryItem: (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'expiryDate' | 'notes'>>) => Promise<boolean>;
   removeInventoryItem: (item: InventoryItem) => Promise<void>;
 
   vendors: Vendor[];
@@ -88,12 +88,12 @@ interface AppContextType {
 
   lostFoundItems: LostFoundItem[];
   reportLostItem: (input: NewLostFoundInput) => Promise<void>;
-  addLostFoundResponse: (itemId: string, body: string) => Promise<void>;
+  addLostFoundResponse: (itemId: string, body: string) => Promise<boolean>;
   updateLostFoundStatus: (itemId: string, status: LostFoundStatus) => Promise<void>;
-  removeLostFoundItem: (itemId: string) => Promise<void>;
+  removeLostFoundItem: (itemId: string) => Promise<boolean>;
 
   labLists: LabList[];
-  createLabList: (input: NewListInput) => Promise<void>;
+  createLabList: (input: NewListInput) => Promise<boolean>;
   updateLabList: (listId: string, updates: { title?: string; description?: string; columns?: ListColumn[] }) => Promise<void>;
   removeLabList: (listId: string) => Promise<void>;
   addListItem: (listId: string, input: NewListItemInput) => Promise<void>;
@@ -102,18 +102,18 @@ interface AppContextType {
 
   equipment: Equipment[];
   addEquipment: (input: NewEquipmentInput) => Promise<void>;
-  editEquipment: (equipmentId: string, updates: Partial<NewEquipmentInput> & { status?: EquipmentStatus }) => Promise<void>;
-  removeEquipment: (equipmentId: string) => Promise<void>;
-  reportIssue: (equipmentId: string, input: NewIssueInput) => Promise<void>;
-  updateIssueStatus: (issueId: string, status: IssueStatus, fixSummary?: string, fixedBy?: string, fixCost?: number) => Promise<void>;
-  addIssueResponse: (issueId: string, body: string) => Promise<void>;
-  addMaintenanceLog: (equipmentId: string, input: NewMaintenanceInput) => Promise<void>;
+  editEquipment: (equipmentId: string, updates: Partial<NewEquipmentInput> & { status?: EquipmentStatus }) => Promise<boolean>;
+  removeEquipment: (equipmentId: string) => Promise<boolean>;
+  reportIssue: (equipmentId: string, input: NewIssueInput) => Promise<boolean>;
+  updateIssueStatus: (issueId: string, status: IssueStatus, fixSummary?: string, fixedBy?: string, fixCost?: number) => Promise<boolean>;
+  addIssueResponse: (issueId: string, body: string) => Promise<boolean>;
+  addMaintenanceLog: (equipmentId: string, input: NewMaintenanceInput) => Promise<boolean>;
 
   bookableItems: BookableItem[];
   bookings: Booking[];
   addBookableItem: (input: NewBookableItemInput) => Promise<void>;
   removeBookableItem: (itemId: string) => Promise<void>;
-  createBooking: (input: NewBookingInput) => Promise<void>;
+  createBooking: (input: NewBookingInput) => Promise<boolean>;
   cancelBooking: (bookingId: string) => Promise<void>;
 }
 
@@ -416,13 +416,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPendingDeliveryPurchaseId(null);
   }, []);
 
+  /**
+   * Runs a mutation, refreshes, and reports whether it succeeded.
+   *
+   * Errors are still caught and surfaced as a toast rather than rethrown, so
+   * existing callers that ignore the result behave exactly as before. Callers
+   * that need to know — a modal deciding whether to close, a form deciding
+   * whether to clear — can check the boolean instead of assuming success.
+   */
   const run = useCallback(
-    async (action: () => Promise<void>, fallbackMessage: string) => {
+    async (action: () => Promise<void>, fallbackMessage: string): Promise<boolean> => {
       try {
         await action();
         await reload();
+        return true;
       } catch (err) {
         showToastRef.current(err instanceof Error ? err.message : fallbackMessage, 'error');
+        return false;
       }
     },
     [reload]
@@ -553,8 +563,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async (purchaseId: string, quantityReceived: string, notes: string, isFinal: boolean) => {
       const actor = requireUser();
       const purchase = findPurchase(purchaseId);
-      if (!actor || !purchase) return;
-      await run(async () => {
+      if (!actor || !purchase) return false;
+      return run(async () => {
         await api.recordDelivery(purchase, quantityReceived, notes, isFinal, actor);
         if (isFinal) {
           confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
@@ -603,8 +613,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addInventoryItem = useCallback(
     async (input: NewInventoryItemInput) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         const created = await api.addInventoryItem(input, actor);
         showToastRef.current(`Added "${created.name}" to inventory.`, 'success');
       }, 'Could not add the item.');
@@ -615,8 +625,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const consumeItem = useCallback(
     async (item: InventoryItem, quantity: number, notes?: string) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         await api.consumeInventoryItem(item, quantity, actor, notes);
         showToastRef.current(`Used ${quantity} ${item.unit} of "${item.name}".`, 'info');
       }, 'Could not record usage.');
@@ -627,8 +637,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const restockItem = useCallback(
     async (item: InventoryItem, quantity: number, notes?: string) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         await api.restockInventoryItem(item, quantity, actor, notes);
         showToastRef.current(`Restocked ${quantity} ${item.unit} of "${item.name}".`, 'success');
       }, 'Could not record restock.');
@@ -639,8 +649,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const moveItem = useCallback(
     async (item: InventoryItem, newLocation: string, notes?: string) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         await api.moveInventoryItem(item, newLocation, actor, notes);
         showToastRef.current(`Moved "${item.name}" to ${newLocation}.`, 'info');
       }, 'Could not move the item.');
@@ -651,8 +661,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const editInventoryItem = useCallback(
     async (item: InventoryItem, updates: Partial<Pick<NewInventoryItemInput, 'name' | 'category' | 'quantity' | 'unit' | 'location' | 'lowStockThreshold' | 'expiryDate' | 'notes'>>) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         await api.updateInventoryItem(item, updates, actor);
         showToastRef.current(`Updated "${updates.name ?? item.name}".`, 'success');
       }, 'Could not update the item.');
@@ -720,8 +730,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addLostFoundResponse = useCallback(
     async (itemId: string, body: string) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(() => api.addLostFoundResponse(itemId, body, actor), 'Could not post the response.');
+      if (!actor) return false;
+      return run(() => api.addLostFoundResponse(itemId, body, actor), 'Could not post the response.');
     },
     [requireUser, run]
   );
@@ -742,7 +752,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeLostFoundItem = useCallback(
     async (itemId: string) => {
       const item = lostFoundItems.find((i) => i.id === itemId);
-      await run(async () => {
+      return run(async () => {
         await api.deleteLostFoundItem(itemId);
         showToastRef.current(`Removed "${item?.title ?? 'item'}".`, 'warning');
       }, 'Could not remove the item.');
@@ -753,8 +763,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createLabList = useCallback(
     async (input: NewListInput) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         const created = await api.createList(input, actor);
         showToastRef.current(`Created list "${created.title}".`, 'success');
       }, 'Could not create the list.');
@@ -825,7 +835,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const editEquipmentCb = useCallback(
     async (equipmentId: string, updates: Partial<NewEquipmentInput> & { status?: EquipmentStatus }) => {
-      await run(async () => {
+      return run(async () => {
         await api.updateEquipment(equipmentId, updates);
       }, 'Could not update equipment.');
     },
@@ -835,7 +845,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeEquipmentCb = useCallback(
     async (equipmentId: string) => {
       const eq = equipment.find((e) => e.id === equipmentId);
-      await run(async () => {
+      return run(async () => {
         await api.deleteEquipment(equipmentId);
         showToastRef.current(`Deleted "${eq?.name ?? 'equipment'}".`, 'warning');
       }, 'Could not delete equipment.');
@@ -846,8 +856,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const reportIssueCb = useCallback(
     async (equipmentId: string, input: NewIssueInput) => {
       const user = currentUserRef.current;
-      if (!user) return;
-      await run(async () => {
+      if (!user) return false;
+      return run(async () => {
         await api.reportIssue(equipmentId, input, user.id);
         showToastRef.current('Issue reported.', 'success');
       }, 'Could not report issue.');
@@ -857,7 +867,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateIssueStatusCb = useCallback(
     async (issueId: string, status: IssueStatus, fixSummary?: string, fixedBy?: string, fixCost?: number) => {
-      await run(async () => {
+      return run(async () => {
         await api.updateIssueStatus(issueId, status, fixSummary, fixedBy, fixCost);
         if (status === 'fixed') showToastRef.current('Issue marked as fixed.', 'success');
       }, 'Could not update issue.');
@@ -868,8 +878,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addIssueResponseCb = useCallback(
     async (issueId: string, body: string) => {
       const user = currentUserRef.current;
-      if (!user) return;
-      await run(async () => {
+      if (!user) return false;
+      return run(async () => {
         await api.addIssueResponse(issueId, body, user.id);
       }, 'Could not add response.');
     },
@@ -879,8 +889,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addMaintenanceLogCb = useCallback(
     async (equipmentId: string, input: NewMaintenanceInput) => {
       const user = currentUserRef.current;
-      if (!user) return;
-      await run(async () => {
+      if (!user) return false;
+      return run(async () => {
         await api.addMaintenanceLog(equipmentId, input, user.id);
         showToastRef.current('Maintenance logged.', 'success');
       }, 'Could not log maintenance.');
@@ -914,8 +924,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createBookingCb = useCallback(
     async (input: NewBookingInput) => {
       const user = currentUserRef.current;
-      if (!user) return;
-      await run(async () => {
+      if (!user) return false;
+      return run(async () => {
         await api.createBooking(input, user.id);
         showToastRef.current('Slot booked.', 'success');
       }, 'Could not create booking.');

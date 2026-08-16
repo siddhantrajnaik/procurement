@@ -32,8 +32,8 @@ export const CreateListModal: React.FC<Props> = ({ open, onClose }) => {
     if (!title.trim() || saving) return;
     setSaving(true);
     try {
-      await createLabList({ title: title.trim(), description: description.trim() });
-      onClose();
+      const ok = await createLabList({ title: title.trim(), description: description.trim() });
+      if (ok) onClose();
     } finally {
       setSaving(false);
     }

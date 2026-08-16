@@ -99,7 +99,8 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
   const handleReportIssue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!issueTitle.trim()) return;
-    await reportIssue(eq.id, { title: issueTitle.trim(), description: issueDesc.trim() });
+    // Keep what was typed if the save failed.
+    if (!(await reportIssue(eq.id, { title: issueTitle.trim(), description: issueDesc.trim() }))) return;
     setIssueTitle('');
     setIssueDesc('');
     setShowReportIssue(false);
@@ -108,13 +109,14 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
   const handleAddMaintenance = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!maintDesc.trim()) return;
-    await addMaintenanceLog(eq.id, {
+    const ok = await addMaintenanceLog(eq.id, {
       description: maintDesc.trim(),
       performedBy: maintBy.trim(),
       cost: maintCost ? parseFloat(maintCost) : undefined,
       serviceDate: maintDate,
       nextDueDate: maintNextDue || undefined,
     });
+    if (!ok) return;
     setMaintDesc('');
     setMaintBy('');
     setMaintCost('');
@@ -126,8 +128,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
     if (!responseText.trim() || postingResponse) return;
     setPostingResponse(true);
     try {
-      await addIssueResponse(issueId, responseText.trim());
-      setResponseText('');
+      if (await addIssueResponse(issueId, responseText.trim())) setResponseText('');
     } finally {
       setPostingResponse(false);
     }
@@ -135,13 +136,14 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
 
   const handleMarkFixed = async () => {
     if (!fixingIssueId) return;
-    await updateIssueStatus(
+    const ok = await updateIssueStatus(
       fixingIssueId,
       'fixed',
       fixSummary.trim(),
       fixedBy.trim(),
       fixCost ? parseFloat(fixCost) : undefined
     );
+    if (!ok) return;
     setFixingIssueId(null);
     setFixSummary('');
     setFixedBy('');
@@ -635,7 +637,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
           title="Delete equipment?"
           message={`"${eq.name}" and all its issues, responses, and maintenance history will be permanently removed.`}
           onConfirm={async () => {
-            await removeEquipment(eq.id);
+            if (!(await removeEquipment(eq.id))) return;
             setShowDeleteConfirm(false);
             onClose();
           }}
