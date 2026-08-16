@@ -1,4 +1,5 @@
 import { INVOICE_BUCKET, QUOTATION_BUCKET, supabase } from './supabase';
+import { todayISO } from './format';
 import {
   Activity,
   BookableItem,
@@ -1243,7 +1244,7 @@ export async function addMaintenanceLog(
       performed_by: input.performedBy ?? '',
       description: input.description,
       cost: input.cost ?? null,
-      service_date: input.serviceDate ?? new Date().toISOString().slice(0, 10),
+      service_date: input.serviceDate ?? todayISO(),
       next_due_date: input.nextDueDate || null,
       logged_by: userId,
     }).select('id')

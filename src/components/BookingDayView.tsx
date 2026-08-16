@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { BookableItem } from '../types';
 import { avatarClasses } from '../lib/accent';
-import { initialOf } from '../lib/format';
+import { addDaysISO, initialOf, todayISO } from '../lib/format';
 import { AddBookingModal } from './AddBookingModal';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -19,16 +19,6 @@ function formatHour(h: number): string {
 
 function parseHour(time: string): number {
   return parseInt(time.split(':')[0], 10);
-}
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 function formatDate(dateStr: string): string {
@@ -48,7 +38,7 @@ interface Props {
 export const BookingDayView: React.FC<Props> = ({ item, onBack }) => {
   const { bookings, cancelBooking } = useApp();
   const { currentUser } = useAuth();
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(todayISO());
   const [isBookOpen, setIsBookOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
 
@@ -60,7 +50,7 @@ export const BookingDayView: React.FC<Props> = ({ item, onBack }) => {
     [bookings, item.id, date]
   );
 
-  const isToday = date === todayStr();
+  const isToday = date === todayISO();
   const currentHour = new Date().getHours();
 
   return (
@@ -92,7 +82,7 @@ export const BookingDayView: React.FC<Props> = ({ item, onBack }) => {
       {/* Date nav */}
       <div className="px-4 py-3 flex items-center justify-between border-b border-[#2A2A2A] shrink-0">
         <button
-          onClick={() => setDate(addDays(date, -1))}
+          onClick={() => setDate(addDaysISO(date, -1))}
           className="p-1.5 rounded-lg hover:bg-[#2A2A2A] text-gray-400 hover:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -104,7 +94,7 @@ export const BookingDayView: React.FC<Props> = ({ item, onBack }) => {
           )}
         </div>
         <button
-          onClick={() => setDate(addDays(date, 1))}
+          onClick={() => setDate(addDaysISO(date, 1))}
           className="p-1.5 rounded-lg hover:bg-[#2A2A2A] text-gray-400 hover:text-white transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
@@ -115,7 +105,7 @@ export const BookingDayView: React.FC<Props> = ({ item, onBack }) => {
       {!isToday && (
         <div className="px-4 pt-2 shrink-0">
           <button
-            onClick={() => setDate(todayStr())}
+            onClick={() => setDate(todayISO())}
             className="text-xs text-violet-400 hover:text-violet-300 font-semibold"
           >
             Jump to today

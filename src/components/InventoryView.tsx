@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { InventoryItem } from '../types';
-import { timeAgo } from '../lib/format';
+import { timeAgo, todayISO } from '../lib/format';
 import { avatarClasses } from '../lib/accent';
 import { initialOf } from '../lib/format';
 import { AddInventoryItemModal } from './AddInventoryItemModal';
@@ -91,7 +91,7 @@ export const InventoryView: React.FC = () => {
   );
 
   const expiryItems = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO();
     return inventoryItems
       .filter((i) => i.expiryDate != null)
       .sort((a, b) => a.expiryDate!.localeCompare(b.expiryDate!))
@@ -443,7 +443,7 @@ function ItemCard({
     item.lowStockThreshold != null && item.quantity <= item.lowStockThreshold;
   const isEmpty = item.quantity === 0;
   const expiryDays = item.expiryDate
-    ? Math.ceil((new Date(item.expiryDate).getTime() - new Date(new Date().toISOString().slice(0, 10)).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((new Date(item.expiryDate).getTime() - new Date(todayISO()).getTime()) / (1000 * 60 * 60 * 24))
     : null;
   const isExpired = expiryDays != null && expiryDays < 0;
   const isExpiringSoon = expiryDays != null && expiryDays >= 0 && expiryDays <= 30;

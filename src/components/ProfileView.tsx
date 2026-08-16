@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
-import { formatRupees, initialOf, roleLabel } from '../lib/format';
+import { formatRupees, initialOf, roleLabel, todayISO } from '../lib/format';
 import { User } from '../types';
 import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff, Volume2, VolumeX } from 'lucide-react';
 import * as api from '../lib/api';
@@ -367,7 +367,7 @@ export const ProfileView: React.FC = () => {
         <div className="flex-1 text-left">
           <h3 className="font-bold text-white text-sm">Bookings</h3>
           <p className="text-[11px] text-gray-400">
-            {bookableItems.length} item{bookableItems.length !== 1 ? 's' : ''} · {bookings.filter((b) => b.date >= new Date().toISOString().slice(0, 10) && b.status === 'confirmed').length} upcoming
+            {bookableItems.length} item{bookableItems.length !== 1 ? 's' : ''} · {bookings.filter((b) => b.date >= todayISO() && b.status === 'confirmed').length} upcoming
           </p>
         </div>
         <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">

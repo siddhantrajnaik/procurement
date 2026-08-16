@@ -6,10 +6,7 @@ import { BookableItem } from '../types';
 import { AddBookableItemModal } from './AddBookableItemModal';
 import { BookingDayView } from './BookingDayView';
 import { ConfirmModal } from './ConfirmModal';
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+import { todayISO } from '../lib/format';
 
 function formatHour(time: string): string {
   const h = parseInt(time.split(':')[0], 10);
@@ -32,7 +29,7 @@ export const BookingView: React.FC<Props> = ({ onBack }) => {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
 
-  const today = todayStr();
+  const today = todayISO();
 
   const myBookings = useMemo(
     () =>

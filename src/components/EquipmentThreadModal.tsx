@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { Equipment, EquipmentIssue, EquipmentStatus, IssueStatus } from '../types';
 import { equipmentIconSvg, equipmentLabel, EquipmentCategory } from '../lib/equipmentIcons';
 import { avatarClasses } from '../lib/accent';
-import { initialOf, timeAgo } from '../lib/format';
+import { initialOf, timeAgo, todayISO } from '../lib/format';
 import { ConfirmModal } from './ConfirmModal';
 import { SHEET_SPRING } from '../lib/motion';
 import { ScrollLock } from '../lib/useScrollLock';
@@ -68,7 +68,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
   const [maintDesc, setMaintDesc] = useState('');
   const [maintBy, setMaintBy] = useState('');
   const [maintCost, setMaintCost] = useState('');
-  const [maintDate, setMaintDate] = useState(new Date().toISOString().slice(0, 10));
+  const [maintDate, setMaintDate] = useState(todayISO());
   const [maintNextDue, setMaintNextDue] = useState('');
 
   // Fix form
