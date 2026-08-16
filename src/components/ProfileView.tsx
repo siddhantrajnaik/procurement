@@ -166,78 +166,78 @@ export const ProfileView: React.FC = () => {
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => {
-              setBirthdayInput(currentUser.birthday ?? '');
-              setEditingBirthday(true);
-            }}
-            className="w-full p-3 rounded-lg bg-background border border-[#2A2A2A] text-xs text-gray-300 flex items-center justify-between hover:border-pink-500/30 transition-colors"
-          >
-            <span className="flex items-center gap-1.5 font-medium">
-              <Cake className="w-3.5 h-3.5 text-pink-400" />
-              {currentUser.birthday
-                ? new Date(currentUser.birthday + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })
-                : 'Add your birthday'}
-            </span>
-            <span className="text-[10px] text-gray-500">{currentUser.birthday ? 'Edit' : 'Set'}</span>
-          </button>
-        )}
+          // Birthday keeps the label; the two toggles collapse to icons, where
+          // the icon swap plus colour already carries the on/off state.
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setBirthdayInput(currentUser.birthday ?? '');
+                setEditingBirthday(true);
+              }}
+              className="flex-1 min-w-0 h-9 px-3 rounded-lg bg-background border border-[#2A2A2A] text-xs text-gray-300 flex items-center gap-1.5 hover:border-pink-500/30 transition-colors"
+            >
+              <Cake className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+              <span className="font-medium truncate">
+                {currentUser.birthday
+                  ? new Date(currentUser.birthday + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })
+                  : 'Add your birthday'}
+              </span>
+              <span className="text-[10px] text-gray-500 ml-auto shrink-0">
+                {currentUser.birthday ? 'Edit' : 'Set'}
+              </span>
+            </button>
 
-        {isNotificationSupported() && (
-          <button
-            onClick={async () => {
-              if (notifOn) {
-                disableNotifications();
-                setNotifOn(false);
-                showToast('Notifications disabled.', 'info');
-              } else {
-                const granted = await requestNotificationPermission();
-                if (granted) {
-                  setNotifOn(true);
-                  showToast('Notifications enabled!', 'success');
-                } else {
-                  showToast('Notification permission was denied by your browser.', 'error');
-                }
-              }
-            }}
-            className="w-full p-3 rounded-lg bg-background border border-[#2A2A2A] text-xs text-gray-300 flex items-center justify-between hover:border-blue-500/30 transition-colors"
-          >
-            <span className="flex items-center gap-1.5 font-medium">
-              {notifOn ? <Bell className="w-3.5 h-3.5 text-blue-400" /> : <BellOff className="w-3.5 h-3.5 text-gray-500" />}
-              Browser notifications
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              notifOn
-                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                : 'bg-[#2A2A2A] text-gray-500 border border-[#333]'
-            }`}>
-              {notifOn ? 'On' : 'Off'}
-            </span>
-          </button>
-        )}
+            {isNotificationSupported() && (
+              <button
+                onClick={async () => {
+                  if (notifOn) {
+                    disableNotifications();
+                    setNotifOn(false);
+                    showToast('Notifications disabled.', 'info');
+                  } else {
+                    const granted = await requestNotificationPermission();
+                    if (granted) {
+                      setNotifOn(true);
+                      showToast('Notifications enabled!', 'success');
+                    } else {
+                      showToast('Notification permission was denied by your browser.', 'error');
+                    }
+                  }
+                }}
+                aria-pressed={notifOn}
+                title={notifOn ? 'Notifications on' : 'Notifications off'}
+                aria-label={notifOn ? 'Turn notifications off' : 'Turn notifications on'}
+                className={`shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+                  notifOn
+                    ? 'bg-blue-500/10 border-blue-500/25 text-blue-400 hover:bg-blue-500/20'
+                    : 'bg-background border-[#2A2A2A] text-gray-500 hover:border-gray-500'
+                }`}
+              >
+                {notifOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+              </button>
+            )}
 
-        <button
-          onClick={() => {
-            const next = !soundOn;
-            setSoundEnabled(next);
-            setSoundOn(next);
-            // Preview the tone so the choice is audible, not just visual.
-            if (next) playSound('success');
-          }}
-          className="w-full p-3 rounded-lg bg-background border border-[#2A2A2A] text-xs text-gray-300 flex items-center justify-between hover:border-amber-500/30 transition-colors"
-        >
-          <span className="flex items-center gap-1.5 font-medium">
-            {soundOn ? <Volume2 className="w-3.5 h-3.5 text-amber-400" /> : <VolumeX className="w-3.5 h-3.5 text-gray-500" />}
-            Sound effects
-          </span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            soundOn
-              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-              : 'bg-[#2A2A2A] text-gray-500 border border-[#333]'
-          }`}>
-            {soundOn ? 'On' : 'Off'}
-          </span>
-        </button>
+            <button
+              onClick={() => {
+                const next = !soundOn;
+                setSoundEnabled(next);
+                setSoundOn(next);
+                // Preview the tone so the choice is audible, not just visual.
+                if (next) playSound('success');
+              }}
+              aria-pressed={soundOn}
+              title={soundOn ? 'Sound on' : 'Sound off'}
+              aria-label={soundOn ? 'Turn sound off' : 'Turn sound on'}
+              className={`shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+                soundOn
+                  ? 'bg-amber-500/10 border-amber-500/25 text-amber-400 hover:bg-amber-500/20'
+                  : 'bg-background border-[#2A2A2A] text-gray-500 hover:border-gray-500'
+              }`}
+            >
+              {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+          </div>
+        )}
       </div>
 
 
