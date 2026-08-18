@@ -66,7 +66,7 @@ const USER_EMOJI: Record<string, string> = {
   sudipto:  '🦅',
   nalini:   '🐬',
   shalini:  '🦜',
-  jha:      '🦉',
+  shaileshanand: '🦉',
   guest:    '👻',
 };
 
@@ -81,7 +81,7 @@ export function initialOf(name: string, handle?: string): string {
 const CUSTOM_TITLES: Record<string, string> = {
   milan: 'Godfather',
   shalini: 'Post Doc',
-  jha: 'Post Doc',
+  shaileshanand: 'Post Doc',
 };
 
 export function roleLabel(role?: string, handle?: string): string {

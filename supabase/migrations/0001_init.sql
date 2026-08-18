@@ -233,5 +233,5 @@ insert into public.profiles (id, handle, name, role, email, department, accent) 
   ('a1000000-0000-4000-8000-000000000009', 'sudipto',  'Sudipto Chaki',     'procurement_incharge',  'blz258030@bioschool.iitd.ac.in', 'Structural Biology Lab', 'red'),
   ('a1000000-0000-4000-8000-000000000010', 'nalini',   'Nalini',            'lab_member',            null,                             'Structural Biology Lab', 'slate'),
   ('a1000000-0000-4000-8000-000000000011', 'shalini',  'Shalini',           'lab_member',            null,                             'Structural Biology Lab', 'emerald'),
-  ('a1000000-0000-4000-8000-000000000012', 'jha',      'Jha Sir',           'procurement_incharge',  null,                             'Structural Biology Lab', 'indigo')
+  ('a1000000-0000-4000-8000-000000000012', 'shaileshanand', 'Shaileshanand', 'procurement_incharge',  null,                             'Structural Biology Lab', 'indigo')
 on conflict (handle) do nothing;
