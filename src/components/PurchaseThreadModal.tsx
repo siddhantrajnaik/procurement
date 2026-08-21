@@ -8,6 +8,7 @@ import {
   Trash2,
   Check,
   Package,
+  Pencil,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -28,6 +29,7 @@ export const PurchaseThreadModal: React.FC = () => {
   const {
     selectedPurchase,
     setSelectedPurchase,
+    setEditingPurchase,
     updateStatus,
     addComment,
     selectQuotation,
@@ -146,13 +148,22 @@ export const PurchaseThreadModal: React.FC = () => {
               Thread
             </span>
             {canManage ? (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="p-1.5 rounded-full text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setEditingPurchase(p)}
+                  className="p-1.5 rounded-full text-gray-500 hover:text-white hover:bg-[#2A2A2A] transition-colors"
+                  title="Edit"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="p-1.5 rounded-full text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             ) : (
               <div className="w-6" />
             )}
