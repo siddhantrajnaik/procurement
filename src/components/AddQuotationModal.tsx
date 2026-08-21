@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ReceiptIndianRupee, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { Quotation } from '../types';
 import { SHEET_SPRING } from '../lib/motion';
 import { ScrollLock } from '../lib/useScrollLock';
 
@@ -9,14 +10,17 @@ interface AddQuotationModalProps {
   purchaseId: string;
   isOpen: boolean;
   onClose: () => void;
+  editingQuotation?: Quotation | null;
 }
 
 export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   purchaseId,
   isOpen,
   onClose,
+  editingQuotation,
 }) => {
-  const { addQuotation, vendors, purchases } = useApp();
+  const { addQuotation, editQuotation, vendors, purchases } = useApp();
+  const isEditing = !!editingQuotation;
 
   const [vendor, setVendor] = useState('');
   const [price, setPrice] = useState('');
@@ -25,6 +29,18 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && editingQuotation) {
+      setVendor(editingQuotation.vendor);
+      setPrice(String(editingQuotation.price));
+      setNotes(editingQuotation.notes ?? '');
+    } else if (!isOpen) {
+      setVendor('');
+      setPrice('');
+      setNotes('');
+    }
+  }, [isOpen, editingQuotation]);
 
   const allVendorNames = useMemo(() => {
     const names = new Set(vendors.map((v) => v.name));
@@ -89,15 +105,24 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
 
     setSubmitting(true);
     try {
-      await addQuotation(purchaseId, {
-        vendor: vendor.trim(),
-        price: numPrice,
-        notes: notes.trim() || undefined,
-      });
-      setVendor('');
-      setPrice('');
-      setNotes('');
-      onClose();
+      if (isEditing && editingQuotation) {
+        const ok = await editQuotation(purchaseId, editingQuotation.id, {
+          vendor: vendor.trim(),
+          price: numPrice,
+          notes: notes.trim() || undefined,
+        });
+        if (ok) onClose();
+      } else {
+        await addQuotation(purchaseId, {
+          vendor: vendor.trim(),
+          price: numPrice,
+          notes: notes.trim() || undefined,
+        });
+        setVendor('');
+        setPrice('');
+        setNotes('');
+        onClose();
+      }
     } finally {
       setSubmitting(false);
     }
@@ -126,7 +151,7 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A2A]">
             <div className="flex items-center gap-2">
               <ReceiptIndianRupee className="w-4 h-4 text-purple-400" />
-              <h3 className="font-bold text-white text-sm">Record Vendor Quotation</h3>
+              <h3 className="font-bold text-white text-sm">{isEditing ? 'Edit Quotation' : 'Record Vendor Quotation'}</h3>
             </div>
             <button
               onClick={onClose}
@@ -236,7 +261,7 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
               className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Check className="w-4 h-4" />
-              {submitting ? 'Saving…' : 'Save Quotation'}
+              {submitting ? 'Saving…' : isEditing ? 'Update Quotation' : 'Save Quotation'}
             </button>
           </form>
           </motion.div>

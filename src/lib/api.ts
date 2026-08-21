@@ -452,6 +452,51 @@ export async function addQuotation(
   );
 }
 
+export async function updateQuotation(
+  purchase: Purchase,
+  quotationId: string,
+  updates: { vendor: string; price: number; notes?: string },
+  actor: User
+): Promise<void> {
+  unwrap(
+    await supabase
+      .from('quotations')
+      .update({
+        vendor: updates.vendor,
+        price: updates.price,
+        notes: updates.notes || null,
+      })
+      .eq('id', quotationId)
+      .select('id')
+  );
+
+  await logActivity(
+    purchase.id,
+    purchase.title,
+    actor.id,
+    'quote_added',
+    `updated quotation from ${updates.vendor} (₹${updates.price.toLocaleString('en-IN')})`
+  );
+}
+
+export async function deleteQuotation(
+  purchase: Purchase,
+  quotation: Quotation,
+  actor: User
+): Promise<void> {
+  unwrap(
+    await supabase.from('quotations').delete().eq('id', quotation.id)
+  );
+
+  await logActivity(
+    purchase.id,
+    purchase.title,
+    actor.id,
+    'quote_added',
+    `removed quotation from ${quotation.vendor}`
+  );
+}
+
 /** Signed URLs expire, so they're minted on demand rather than stored. */
 export async function getQuotationFileUrl(filePath: string): Promise<string> {
   const data = unwrap(

@@ -66,6 +66,8 @@ interface AppContextType {
   updateStatus: (purchaseId: string, status: PurchaseStatus) => Promise<void>;
   addComment: (purchaseId: string, body: string) => Promise<boolean>;
   addQuotation: (purchaseId: string, input: NewQuotationInput) => Promise<void>;
+  editQuotation: (purchaseId: string, quotationId: string, updates: { vendor: string; price: number; notes?: string }) => Promise<boolean>;
+  deleteQuotation: (purchaseId: string, quotation: Quotation) => Promise<boolean>;
   selectQuotation: (purchaseId: string, quotation: Quotation) => Promise<void>;
   approvePi: (purchaseId: string) => Promise<void>;
   deletePurchase: (purchaseId: string) => Promise<boolean>;
@@ -521,6 +523,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [findPurchase, requireUser, run]
   );
 
+  const editQuotation = useCallback(
+    async (purchaseId: string, quotationId: string, updates: { vendor: string; price: number; notes?: string }) => {
+      const actor = requireUser();
+      const purchase = findPurchase(purchaseId);
+      if (!actor || !purchase) return false;
+      return run(async () => {
+        await api.updateQuotation(purchase, quotationId, updates, actor);
+        showToastRef.current('Quotation updated.', 'success');
+      }, 'Could not update the quotation.');
+    },
+    [findPurchase, requireUser, run]
+  );
+
+  const deleteQuotation = useCallback(
+    async (purchaseId: string, quotation: Quotation) => {
+      const actor = requireUser();
+      const purchase = findPurchase(purchaseId);
+      if (!actor || !purchase) return false;
+      return run(async () => {
+        await api.deleteQuotation(purchase, quotation, actor);
+        showToastRef.current(`Quotation from ${quotation.vendor} removed.`, 'success');
+      }, 'Could not remove the quotation.');
+    },
+    [findPurchase, requireUser, run]
+  );
+
   const selectQuotation = useCallback(
     async (purchaseId: string, quotation: Quotation) => {
       const actor = requireUser();
@@ -963,6 +991,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateStatus,
     addComment,
     addQuotation,
+    editQuotation,
+    deleteQuotation,
     selectQuotation,
     approvePi,
     deletePurchase,

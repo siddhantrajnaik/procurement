@@ -33,6 +33,7 @@ export const PurchaseThreadModal: React.FC = () => {
     updateStatus,
     addComment,
     selectQuotation,
+    deleteQuotation,
     deletePurchase,
   } = useApp();
   const { currentUser } = useAuth();
@@ -40,6 +41,8 @@ export const PurchaseThreadModal: React.FC = () => {
   const [commentText, setCommentText] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [isAddQuoteOpen, setIsAddQuoteOpen] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<Quotation | null>(null);
+  const [deleteQuoteConfirm, setDeleteQuoteConfirm] = useState<Quotation | null>(null);
   const [isDeliveryOpen, setIsDeliveryOpen] = useState(false);
   const [previewQuote, setPreviewQuote] = useState<Quotation | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -47,7 +50,7 @@ export const PurchaseThreadModal: React.FC = () => {
   useEffect(() => {
     if (!selectedPurchase) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isAddQuoteOpen && !isDeliveryOpen && !previewQuote && !showDeleteConfirm) {
+      if (e.key === 'Escape' && !isAddQuoteOpen && !editingQuote && !deleteQuoteConfirm && !isDeliveryOpen && !previewQuote && !showDeleteConfirm) {
         setSelectedPurchase(null);
       }
     };
@@ -350,7 +353,14 @@ export const PurchaseThreadModal: React.FC = () => {
                       key={q.id}
                       quotation={q}
                       onPreviewFile={setPreviewQuote}
+                      canManage={canManage}
                       canApprove={canManage}
+                      onEdit={(quotation) => {
+                        setEditingQuote(quotation);
+                      }}
+                      onDelete={(quotation) => {
+                        setDeleteQuoteConfirm(quotation);
+                      }}
                       onSelectApproved={(quotation) => {
                         void selectQuotation(p.id, quotation);
                       }}
@@ -446,6 +456,23 @@ export const PurchaseThreadModal: React.FC = () => {
           purchaseId={p.id}
           isOpen={isAddQuoteOpen}
           onClose={() => setIsAddQuoteOpen(false)}
+        />
+
+        <AddQuotationModal
+          purchaseId={p.id}
+          isOpen={!!editingQuote}
+          editingQuotation={editingQuote}
+          onClose={() => setEditingQuote(null)}
+        />
+
+        <ConfirmModal
+          open={!!deleteQuoteConfirm}
+          title="Delete quotation?"
+          message={`The quotation from "${deleteQuoteConfirm?.vendor ?? ''}" will be permanently removed.`}
+          onConfirm={async () => {
+            if (deleteQuoteConfirm && await deleteQuotation(p.id, deleteQuoteConfirm)) setDeleteQuoteConfirm(null);
+          }}
+          onCancel={() => setDeleteQuoteConfirm(null)}
         />
 
         <RecordDeliveryModal

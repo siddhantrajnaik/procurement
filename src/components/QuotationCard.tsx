@@ -1,11 +1,14 @@
 import { Quotation } from '../types';
 import { formatRupees, formatFileSize, timeAgo } from '../lib/format';
-import { FileText, CheckCircle, ExternalLink, Sparkles } from 'lucide-react';
+import { FileText, CheckCircle, ExternalLink, Sparkles, Pencil, Trash2 } from 'lucide-react';
 
 interface QuotationCardProps {
   quotation: Quotation;
   onPreviewFile: (q: Quotation) => void;
   onSelectApproved?: (q: Quotation) => void;
+  onEdit?: (q: Quotation) => void;
+  onDelete?: (q: Quotation) => void;
+  canManage?: boolean;
   canApprove?: boolean;
 }
 
@@ -13,6 +16,9 @@ export const QuotationCard: React.FC<QuotationCardProps> = ({
   quotation,
   onPreviewFile,
   onSelectApproved,
+  onEdit,
+  onDelete,
+  canManage = false,
   canApprove = false,
 }) => {
   return (
@@ -75,14 +81,38 @@ export const QuotationCard: React.FC<QuotationCardProps> = ({
           )}
         </div>
 
-        {canApprove && !quotation.isApproved && onSelectApproved && (
-          <button
-            onClick={() => onSelectApproved(quotation)}
-            className="shrink-0 py-1.5 px-3 bg-primary hover:bg-orange-600 text-white text-xs font-semibold rounded-lg transition-colors"
-          >
-            Select PO
-          </button>
-        )}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          {canApprove && !quotation.isApproved && onSelectApproved && (
+            <button
+              onClick={() => onSelectApproved(quotation)}
+              className="py-1.5 px-3 bg-primary hover:bg-orange-600 text-white text-xs font-semibold rounded-lg transition-colors"
+            >
+              Select PO
+            </button>
+          )}
+          {canManage && (
+            <div className="flex items-center gap-1">
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(quotation)}
+                  className="p-1 rounded-full text-gray-500 hover:text-white hover:bg-[#2A2A2A] transition-colors"
+                  title="Edit quotation"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => onDelete(quotation)}
+                  className="p-1 rounded-full text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  title="Delete quotation"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
