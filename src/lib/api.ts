@@ -369,8 +369,36 @@ export async function updatePurchaseFields(
 }
 
 export async function deletePurchase(purchaseId: string): Promise<void> {
+  // Read the attachment paths first. Deleting a purchase cascades its quotations
+  // away with it, so once the row is gone nothing is left to say which objects in
+  // storage belonged to it — they would sit in the bucket forever, unreachable.
+  const { data: doomed } = await supabase
+    .from('purchases')
+    .select('invoice_path, quotations(file_path)')
+    .eq('id', purchaseId)
+    .maybeSingle<{ invoice_path: string | null; quotations: { file_path: string | null }[] }>();
+
   const { error } = await supabase.from('purchases').delete().eq('id', purchaseId);
   if (error) throw new Error(error.message);
+
+  // Row first, files second: the purchase is already gone, so a failed cleanup
+  // costs one orphaned object. The other order risks leaving a live purchase
+  // pointing at an invoice that no longer exists, which is the worse failure.
+  if (!doomed) return;
+  const quotationFiles = (doomed.quotations ?? [])
+    .map((q) => q.file_path)
+    .filter((p): p is string => !!p);
+
+  try {
+    if (doomed.invoice_path) {
+      await supabase.storage.from(INVOICE_BUCKET).remove([doomed.invoice_path]);
+    }
+    if (quotationFiles.length > 0) {
+      await supabase.storage.from(QUOTATION_BUCKET).remove(quotationFiles);
+    }
+  } catch {
+    /* The delete itself succeeded — never fail it over a cleanup that didn't. */
+  }
 }
 
 export async function addComment(purchase: Purchase, body: string, actor: User): Promise<void> {
