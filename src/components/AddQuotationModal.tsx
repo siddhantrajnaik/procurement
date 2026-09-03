@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, ReceiptIndianRupee, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Quotation } from '../types';
+import { findPriceMemory } from '../lib/priceMemory';
+import { formatRupees, timeAgo } from '../lib/format';
 import { SHEET_SPRING } from '../lib/motion';
 import { ScrollLock } from '../lib/useScrollLock';
 
@@ -63,6 +65,24 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
     if (sorted.length > 0) return sorted.slice(0, 6).map(([name]) => name);
     return allVendorNames.slice(0, 6);
   }, [purchases, allVendorNames]);
+
+  // What this cost before: the same item if it has been ordered previously,
+  // otherwise this vendor's last order. Recomputed as the vendor is typed.
+  const priceMemory = useMemo(() => {
+    const current = purchases.find((p) => p.id === purchaseId);
+    if (!current) return null;
+    return findPriceMemory(purchases, purchaseId, current.title, vendor);
+  }, [purchases, purchaseId, vendor]);
+
+  // Only compare against a price for the same item — a delta against a
+  // different item from the same vendor would be meaningless.
+  const priceDelta = useMemo(() => {
+    if (priceMemory?.kind !== 'item') return null;
+    const entered = parseFloat(price);
+    if (!isFinite(entered) || entered <= 0 || priceMemory.price <= 0) return null;
+    const pct = Math.round(((entered - priceMemory.price) / priceMemory.price) * 100);
+    return { pct, higher: pct > 0 };
+  }, [price, priceMemory]);
 
   const suggestions = useMemo(() => {
     if (!vendor.trim()) return [];
@@ -240,6 +260,43 @@ export const AddQuotationModal: React.FC<AddQuotationModalProps> = ({
                 className="w-full px-4 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm font-bold focus:ring-1 focus:ring-purple-500 focus:border-purple-500 outline-none placeholder:text-gray-600"
               />
 
+              {priceMemory && (
+                <p className="mt-1.5 text-[11px] text-gray-500 leading-relaxed">
+                  {priceMemory.kind === 'item' ? (
+                    <>
+                      Last paid{' '}
+                      <span className="font-bold text-gray-300">
+                        {formatRupees(priceMemory.price)}
+                      </span>{' '}
+                      to {priceMemory.vendor.split(',')[0].trim()} · {timeAgo(priceMemory.when)}
+                      {priceDelta && (
+                        <span
+                          className={`ml-1.5 font-bold ${
+                            Math.abs(priceDelta.pct) < 1
+                              ? 'text-gray-400'
+                              : priceDelta.higher
+                              ? 'text-amber-400'
+                              : 'text-emerald-400'
+                          }`}
+                        >
+                          {Math.abs(priceDelta.pct) < 1
+                            ? '· same as last time'
+                            : `· ${priceDelta.higher ? '+' : ''}${priceDelta.pct}%`}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {priceMemory.vendor} · {priceMemory.orderCount} previous order
+                      {priceMemory.orderCount === 1 ? '' : 's'}, last{' '}
+                      <span className="font-bold text-gray-300">
+                        {formatRupees(priceMemory.lastPrice)}
+                      </span>{' '}
+                      · {timeAgo(priceMemory.when)}
+                    </>
+                  )}
+                </p>
+              )}
             </div>
 
             <div>
