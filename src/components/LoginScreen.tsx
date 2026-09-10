@@ -11,6 +11,11 @@ export const LoginScreen: React.FC = () => {
   const [selectedAdmin, setSelectedAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);
+  /**
+   * Visitors were having to scroll past every lab member to find "Guest", so the
+   * screen now asks which one you are first and only then shows the name list.
+   */
+  const [mode, setMode] = useState<'choose' | 'members'>('choose');
 
   const admins = allUsers.filter((u) => u.role === 'pi' || u.role === 'procurement_incharge');
   const labMembers = allUsers.filter((u) => u.role === 'lab_member');
@@ -89,6 +94,8 @@ export const LoginScreen: React.FC = () => {
     );
   }
 
+  const guest = guests[0] ?? null;
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 py-12">
       <div className="w-full max-w-md bg-[#1E1E1E] rounded-xl p-8 shadow-sm border border-[#2A2A2A] flex flex-col items-center">
@@ -97,7 +104,9 @@ export const LoginScreen: React.FC = () => {
         </div>
         <h1 className="font-bold text-2xl text-white mb-2 tracking-tight">MB Lab Procurement</h1>
         <p className="text-gray-400 text-sm mb-8 text-center max-w-xs">
-          Sign in to manage and track laboratory purchases.
+          {mode === 'choose'
+            ? 'Molecular Biophysics Lab, IIT Delhi.'
+            : 'Choose your name to sign in.'}
         </p>
 
         {allUsers.length === 0 && (
@@ -106,90 +115,89 @@ export const LoginScreen: React.FC = () => {
           </p>
         )}
 
-        <div className="w-full space-y-8">
-          {admins.length > 0 && (
-            <section>
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1 border-b border-[#2A2A2A] pb-2">
-                Admin access
-              </h2>
-              <div className="space-y-2">
-                {admins.map((admin) => (
+        {mode === 'choose' ? (
+          <div className="w-full space-y-3">
+            <button
+              onClick={() => setMode('members')}
+              disabled={admins.length === 0 && labMembers.length === 0}
+              className="w-full text-left p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/50 hover:bg-[#2A2A2A] transition-colors flex items-center gap-4 group disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <div className="w-11 h-11 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-primary text-[22px]">science</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-white text-sm">I work in this lab</div>
+                <div className="text-xs text-gray-400 mt-0.5">Sign in with your name and PIN</div>
+              </div>
+              <span className="material-symbols-outlined text-gray-600 group-hover:text-gray-300 transition-colors">
+                chevron_right
+              </span>
+            </button>
+
+            {guest && (
+              <button
+                onClick={() => login(guest.id)}
+                className="w-full text-left p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/50 hover:bg-[#2A2A2A] transition-colors flex items-center gap-4 group"
+              >
+                <div className="w-11 h-11 rounded-lg bg-[#2A2A2A] border border-[#333] flex items-center justify-center shrink-0 text-[20px]">
+                  👋
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-white text-sm">I&rsquo;m visiting</div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    Use an instrument or borrow something
+                  </div>
+                </div>
+                <span className="material-symbols-outlined text-gray-600 group-hover:text-gray-300 transition-colors">
+                  chevron_right
+                </span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="w-full">
+            <button
+              onClick={() => setMode('choose')}
+              className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-white mb-4 -mt-2 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              Back
+            </button>
+
+            <div className="space-y-2">
+              {[...admins, ...labMembers].map((u) => {
+                const needsPin = u.role === 'pi' || u.role === 'procurement_incharge';
+                return (
                   <button
-                    key={admin.id}
+                    key={u.id}
                     onClick={() => {
-                      setSelectedAdmin(admin);
-                      setPin('');
+                      if (needsPin) {
+                        setSelectedAdmin(u);
+                        setPin('');
+                      } else {
+                        login(u.id);
+                      }
                     }}
                     className="w-full text-left p-3 rounded-lg border border-[#2A2A2A] hover:border-primary/50 hover:bg-[#2A2A2A] transition-colors flex items-center gap-3"
                   >
                     <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] ${avatarClasses(admin.accent)}`}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] ${avatarClasses(u.accent)}`}
                     >
-                      {initialOf(admin.name, admin.handle)}
+                      {initialOf(u.name, u.handle)}
                     </div>
                     <div>
-                      <div className="font-semibold text-white text-sm">{admin.name}</div>
-                      <div className="text-xs text-gray-400">{roleLabel(admin.role, admin.handle)} · PIN required</div>
+                      <div className="font-semibold text-white text-sm">{u.name}</div>
+                      <div className="text-xs text-gray-400">
+                        {roleLabel(u.role, u.handle)}
+                        {needsPin && ' · PIN required'}
+                      </div>
                     </div>
                   </button>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {labMembers.length > 0 && (
-            <section>
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1 border-b border-[#2A2A2A] pb-2">
-                Lab members
-              </h2>
-              <div className="space-y-2">
-                {labMembers.map((member) => (
-                  <button
-                    key={member.id}
-                    onClick={() => login(member.id)}
-                    className="w-full text-left p-3 rounded-lg border border-[#2A2A2A] hover:border-primary/50 hover:bg-[#2A2A2A] transition-colors flex items-center gap-3"
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] ${avatarClasses(member.accent)}`}
-                    >
-                      {initialOf(member.name, member.handle)}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white text-sm">{member.name}</div>
-                      <div className="text-xs text-gray-400">{roleLabel(member.role, member.handle)}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-          {guests.length > 0 && (
-            <section>
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1 border-b border-[#2A2A2A] pb-2">
-                Guest access
-              </h2>
-              <div className="space-y-2">
-                {guests.map((guest) => (
-                  <button
-                    key={guest.id}
-                    onClick={() => login(guest.id)}
-                    className="w-full text-left p-3 rounded-lg border border-[#2A2A2A] hover:border-primary/50 hover:bg-[#2A2A2A] transition-colors flex items-center gap-3"
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] ${avatarClasses(guest.accent)}`}
-                    >
-                      {initialOf(guest.name, guest.handle)}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white text-sm">{guest.name}</div>
-                      <div className="text-xs text-gray-400">{roleLabel(guest.role, guest.handle)}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
