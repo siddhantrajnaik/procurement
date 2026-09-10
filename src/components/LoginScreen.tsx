@@ -6,7 +6,7 @@ import { initialOf, roleLabel } from '../lib/format';
 import { User } from '../types';
 
 export const LoginScreen: React.FC = () => {
-  const { allUsers, login, verifyAdminPin } = useAuth();
+  const { allUsers, usersLoading, usersError, reloadUsers, login, verifyAdminPin } = useAuth();
   const { showToast } = useUI();
   const [selectedAdmin, setSelectedAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
@@ -109,13 +109,29 @@ export const LoginScreen: React.FC = () => {
             : 'Choose your name to sign in.'}
         </p>
 
-        {allUsers.length === 0 && (
-          <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-6 text-center">
+        {usersLoading ? (
+          <div className="w-full flex flex-col items-center gap-3 py-6">
+            <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-xs text-gray-500">Loading the lab directory…</p>
+          </div>
+        ) : usersError ? (
+          <div className="w-full space-y-3">
+            <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center">
+              Could not reach the lab directory. Check your connection and try again.
+              <span className="block mt-1 text-amber-400/70 break-words">{usersError}</span>
+            </div>
+            <button
+              onClick={() => void reloadUsers()}
+              className="w-full py-2.5 rounded-lg bg-[#2A2A2A] hover:bg-[#333] text-gray-200 text-sm font-semibold transition-colors"
+            >
+              Try again
+            </button>
+          </div>
+        ) : allUsers.length === 0 ? (
+          <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center">
             No lab members found. Run the database migration to seed the profiles table.
           </p>
-        )}
-
-        {mode === 'choose' ? (
+        ) : mode === 'choose' ? (
           <div className="w-full space-y-3">
             <button
               onClick={() => setMode('members')}

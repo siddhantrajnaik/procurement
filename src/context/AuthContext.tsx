@@ -6,6 +6,11 @@ import { User } from '../types';
 
 interface AuthContextType {
   allUsers: User[];
+  /** True until the directory has been fetched once — an empty list means nothing yet. */
+  usersLoading: boolean;
+  /** Set when the fetch failed, which is not the same as the lab having no members. */
+  usersError: string | null;
+  reloadUsers: () => Promise<void>;
   currentUser: User | null;
   isAuthenticated: boolean;
   login: (userId: string) => void;
@@ -20,14 +25,39 @@ const SESSION_USER_KEY = 'procure.session.userId';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(isSupabaseConfigured);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
     readStored(SESSION_USER_KEY)
   );
 
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    void api.fetchUsers().then(setAllUsers).catch(() => {});
+  /**
+   * The login screen renders as soon as there is no session, which is before
+   * this resolves. Without a loading flag it briefly showed "no lab members
+   * found — run the migration", and showed it permanently when the fetch failed,
+   * since an error and an empty table look identical from the outside.
+   */
+  const loadUsers = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      setUsersLoading(false);
+      return;
+    }
+    setUsersLoading(true);
+    setUsersError(null);
+    try {
+      setAllUsers(await api.fetchUsers());
+    } catch (err) {
+      setUsersError(
+        err instanceof Error ? err.message : 'Could not reach the lab directory.'
+      );
+    } finally {
+      setUsersLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadUsers();
+  }, [loadUsers]);
 
   const currentUser = useMemo(
     () => allUsers.find((u) => u.id === currentUserId) ?? null,
@@ -50,13 +80,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value: AuthContextType = useMemo(() => ({
     allUsers,
+    usersLoading,
+    usersError,
+    reloadUsers: loadUsers,
     currentUser,
     isAuthenticated: currentUser !== null,
     login,
     logout,
     verifyAdminPin: api.verifyAdminPin,
     patchUser,
-  }), [allUsers, currentUser, login, logout, patchUser]);
+  }), [allUsers, usersLoading, usersError, loadUsers, currentUser, login, logout, patchUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
