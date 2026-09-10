@@ -297,8 +297,56 @@ export interface Equipment {
   addedBy: User | null;
   issues: EquipmentIssue[];
   maintenanceLogs: MaintenanceLog[];
+  usageLog: EquipmentUsage[];
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * One visit to an instrument. Deliberately a single timestamp rather than a
+ * start/end pair: the maintenance log asks for five fields and has never been
+ * filled in once, so anything a visitor is expected to record has to be one tap.
+ *
+ * `visitorName` is free text because visiting researchers are not system users —
+ * the same shape `MaintenanceLog.performedBy` already uses.
+ */
+export interface EquipmentUsage {
+  id: string;
+  equipmentId: string;
+  visitorName: string;
+  affiliation: string;
+  purpose: string;
+  loggedBy: User | null;
+  createdAt: string;
+}
+
+/** Something a visitor took away. Records only — inventory counts are untouched. */
+export interface ConsumableLoan {
+  id: string;
+  itemId: string | null;
+  itemName: string;
+  quantity: string;
+  visitorName: string;
+  affiliation: string;
+  notes: string;
+  loggedBy: User | null;
+  createdAt: string;
+}
+
+export interface NewUsageInput {
+  equipmentId: string;
+  visitorName: string;
+  affiliation?: string;
+  purpose?: string;
+}
+
+export interface NewLoanInput {
+  itemId?: string | null;
+  itemName: string;
+  quantity?: string;
+  visitorName: string;
+  affiliation?: string;
+  notes?: string;
 }
 
 export interface NewEquipmentInput {

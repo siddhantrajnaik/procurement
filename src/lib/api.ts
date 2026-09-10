@@ -20,6 +20,10 @@ import {
   LostFoundResponse,
   LostFoundStatus,
   MaintenanceLog,
+  EquipmentUsage,
+  ConsumableLoan,
+  NewUsageInput,
+  NewLoanInput,
   NewBookableItemInput,
   NewBookingInput,
   NewEquipmentInput,
@@ -1110,6 +1114,109 @@ export async function deleteListItem(itemId: string): Promise<void> {
 
 // ------------------------------------------------------------------ equipment
 
+// ------------------------------------------------- guest usage & consumable loans
+
+const USAGE_SELECT = `
+  id, equipment_id, visitor_name, affiliation, purpose, created_at,
+  logger:profiles!equipment_usage_log_user_id_fkey(${PROFILE_FIELDS})
+`;
+
+const LOAN_SELECT = `
+  id, item_id, item_name, quantity, visitor_name, affiliation, notes, created_at,
+  logger:profiles!consumable_loans_user_id_fkey(${PROFILE_FIELDS})
+`;
+
+function toEquipmentUsage(row: any): EquipmentUsage {
+  return {
+    id: row.id,
+    equipmentId: row.equipment_id,
+    visitorName: row.visitor_name,
+    affiliation: row.affiliation ?? '',
+    purpose: row.purpose ?? '',
+    loggedBy: toUser(row.logger),
+    createdAt: row.created_at,
+  };
+}
+
+function toConsumableLoan(row: any): ConsumableLoan {
+  return {
+    id: row.id,
+    itemId: row.item_id ?? null,
+    itemName: row.item_name,
+    quantity: row.quantity ?? '',
+    visitorName: row.visitor_name,
+    affiliation: row.affiliation ?? '',
+    notes: row.notes ?? '',
+    loggedBy: toUser(row.logger),
+    createdAt: row.created_at,
+  };
+}
+
+/** One tap from a visitor. `userId` is set only when a lab member logs on their behalf. */
+export async function logEquipmentUsage(
+  input: NewUsageInput,
+  userId?: string | null
+): Promise<void> {
+  unwrap(
+    await supabase
+      .from('equipment_usage_log')
+      .insert({
+        equipment_id: input.equipmentId,
+        visitor_name: input.visitorName.trim(),
+        affiliation: input.affiliation?.trim() || '',
+        purpose: input.purpose?.trim() || '',
+        user_id: userId ?? null,
+      })
+      .select('id')
+  );
+}
+
+export async function fetchEquipmentUsage(limit = 200): Promise<EquipmentUsage[]> {
+  const rows = unwrap(
+    await supabase
+      .from('equipment_usage_log')
+      .select(USAGE_SELECT)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+  );
+  return (rows as any[]).map(toEquipmentUsage);
+}
+
+/**
+ * Records what a visitor took. Deliberately does NOT touch inventory_items.quantity:
+ * a mistyped number from a guest must not be able to corrupt real stock levels.
+ */
+export async function logConsumableLoan(
+  input: NewLoanInput,
+  userId?: string | null
+): Promise<void> {
+  unwrap(
+    await supabase
+      .from('consumable_loans')
+      .insert({
+        item_id: input.itemId ?? null,
+        item_name: input.itemName.trim(),
+        quantity: input.quantity?.trim() || '',
+        visitor_name: input.visitorName.trim(),
+        affiliation: input.affiliation?.trim() || '',
+        notes: input.notes?.trim() || '',
+        user_id: userId ?? null,
+      })
+      .select('id')
+  );
+}
+
+export async function fetchConsumableLoans(limit = 200): Promise<ConsumableLoan[]> {
+  const rows = unwrap(
+    await supabase
+      .from('consumable_loans')
+      .select(LOAN_SELECT)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+  );
+  return (rows as any[]).map(toConsumableLoan);
+}
+
 const EQUIPMENT_SELECT = `
   id, name, model, manufacturer, category, location, status, photo_url,
   purchase_date, warranty_expiry, service_vendor, service_contact_person,
@@ -1130,6 +1237,25 @@ const EQUIPMENT_SELECT = `
     logger:profiles!maintenance_logs_logged_by_fkey(${PROFILE_FIELDS})
   )
 `;
+
+/**
+ * Migration 0023 adds the usage log. Until it has been run the nested relation
+ * does not exist and selecting it would 400 the whole equipment view — so the
+ * first failure latches the flag and later queries drop it, matching how the
+ * invoice and delivery columns are handled above.
+ */
+let usageLogAvailable = true;
+
+const EQUIPMENT_USAGE_FIELDS = `,
+  usage:equipment_usage_log(
+    id, equipment_id, visitor_name, affiliation, purpose, created_at,
+    logger:profiles!equipment_usage_log_user_id_fkey(${PROFILE_FIELDS})
+  )
+`;
+
+function equipmentSelect(): string {
+  return usageLogAvailable ? EQUIPMENT_SELECT + EQUIPMENT_USAGE_FIELDS : EQUIPMENT_SELECT;
+}
 
 function toIssueResponse(row: any): IssueResponse {
   return {
@@ -1191,19 +1317,23 @@ function toEquipment(row: any): Equipment {
     addedBy: toUser(row.added_by),
     issues: (row.issues ?? []).map(toIssue),
     maintenanceLogs: (row.maintenance ?? []).map(toMaintenanceLog),
+    usageLog: (row.usage ?? []).map(toEquipmentUsage),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
 export async function fetchEquipment(): Promise<Equipment[]> {
-  const rows = unwrap(
-    await supabase
-      .from('equipment')
-      .select(EQUIPMENT_SELECT)
-      .order('name')
-  );
-  return rows.map(toEquipment);
+  const query = () =>
+    supabase.from('equipment').select(equipmentSelect()).order('name');
+
+  let result = await query();
+  if (result.error && usageLogAvailable) {
+    usageLogAvailable = false;
+    result = await query();
+  }
+
+  return (unwrap(result) as any[]).map(toEquipment);
 }
 
 export async function addEquipment(

@@ -165,6 +165,8 @@ const TABLE_SCOPES: Record<string, LoadScope> = {
   equipment_issues: 'equipment',
   issue_responses: 'equipment',
   maintenance_logs: 'equipment',
+  equipment_usage_log: 'equipment',
+  consumable_loans: 'inventory',
   bookable_items: 'bookings',
   bookings: 'bookings',
 };
@@ -327,9 +329,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     try {
+      // Guests get a shell with no procurement in it, so there is nothing for
+      // these to feed. Skipping them keeps every purchase and vendor price off
+      // a visitor's device rather than merely hidden from their screen.
+      const isGuest = currentUserRef.current?.role === 'guest';
+
       // Purchases and activity are the core feed — failing to load them is a
       // real error worth showing.
-      await Promise.all([loadPurchases(), loadActivities()]);
+      if (!isGuest) await Promise.all([loadPurchases(), loadActivities()]);
       setLoadError(null);
 
       // The rest are optional: their tables may not exist yet if a migration
@@ -352,9 +359,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadLostFound, loadLists, loadEquipment, loadBookings,
   ]);
 
+  /**
+   * Identity of whoever is asking, as a primitive so the effect below re-runs
+   * when they change without re-firing on every provider render.
+   */
+  const authKey = currentUser ? `${currentUser.id}:${currentUser.role}` : null;
+
   useEffect(() => {
+    // Nothing is worth fetching until we know who is asking. This keeps the
+    // login screen free of network chatter, and — the reason it matters — means
+    // a guest never downloads the purchase and quotation data their shell has
+    // no way to display. Loading before auth resolved was doing exactly that.
+    if (!authKey) {
+      setIsLoading(false);
+      return;
+    }
     void reload();
-  }, [reload]);
+  }, [reload, authKey]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;

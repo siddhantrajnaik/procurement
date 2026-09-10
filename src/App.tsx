@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MotionConfig } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { GuestApp } from './components/guest/GuestApp';
 import { UIProvider, useUI } from './context/UIContext';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
@@ -136,7 +137,7 @@ const TAB_TITLES: Record<string, string> = {
 };
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, currentUser } = useAuth();
   const { activeTab, tabResetNonce, setIsCreateModalOpen } = useUI();
   const { isLoading, loadError, reload } = useApp();
 
@@ -162,6 +163,13 @@ function AppContent() {
   if (isLoading) return <LoadingScreen />;
   if (loadError) return <ErrorScreen message={loadError} onRetry={() => void reload()} />;
   if (!isAuthenticated) return <LoginScreen />;
+
+  // Visiting researchers get their own shell. Nothing below this line — no feed,
+  // no search, no profile, no purchase modals — is ever mounted for them, which
+  // is the point: hiding money from the normal shell would mean patching prices
+  // on cards, a rupee total on the profile page, and amounts embedded in
+  // activity strings, and any component added later would leak again by default.
+  if (currentUser?.role === 'guest') return <GuestApp />;
 
   return (
     <div className="min-h-screen bg-background text-gray-100 flex flex-col font-sans selection:bg-primary selection:text-white pb-12 md:pb-0">

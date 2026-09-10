@@ -12,6 +12,7 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  History,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -386,6 +387,38 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                       {eq.servicePhone}
                     </a>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Usage log — who has been on this instrument, visitors included */}
+            {eq.usageLog.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-gray-600" />
+                  Usage ({eq.usageLog.length})
+                </h3>
+                <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl divide-y divide-[#2A2A2A]">
+                  {[...eq.usageLog]
+                    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                    .slice(0, 10)
+                    .map((u) => (
+                      <div key={u.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-gray-200 truncate">
+                            {u.visitorName}
+                          </p>
+                          {(u.affiliation || u.purpose) && (
+                            <p className="text-[11px] text-gray-500 truncate">
+                              {[u.affiliation, u.purpose].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-gray-600 shrink-0">
+                          {timeAgo(u.createdAt)}
+                        </span>
+                      </div>
+                    ))}
                 </div>
               </div>
             )}

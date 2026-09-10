@@ -5,7 +5,7 @@ import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel, todayISO } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff, Volume2, VolumeX } from 'lucide-react';
+import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff, Volume2, VolumeX, UserRound } from 'lucide-react';
 import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
@@ -16,6 +16,7 @@ import { BookingView } from './BookingView';
 import { QuickLinksView } from './QuickLinksView';
 import { NotebookView } from './NotebookView';
 import { SampleInventoryView } from './SampleInventoryView';
+import { GuestLogView } from './GuestLogView';
 import { ScrollLock } from '../lib/useScrollLock';
 import { isNotificationSupported, isNotificationEnabled, requestNotificationPermission, disableNotifications } from '../lib/notify';
 import { isSoundEnabled, setSoundEnabled, playSound } from '../lib/sound';
@@ -32,6 +33,7 @@ const SUB_VIEWS = {
   equipment: EquipmentView,
   bookings: BookingView,
   samples: SampleInventoryView,
+  guestLog: GuestLogView,
 } satisfies Record<string, React.FC<{ onBack: () => void }>>;
 
 type SubView = keyof typeof SUB_VIEWS;
@@ -355,6 +357,23 @@ export const ProfileView: React.FC = () => {
           chevron_right
         </span>
       </button>
+
+      <button
+        onClick={() => setActiveView('guestLog')}
+        className="w-full bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] hover:border-primary/40 transition-colors flex items-center gap-3 group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+          <UserRound className="w-5 h-5 text-blue-400" />
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="font-bold text-white text-sm">Visitor Log</h3>
+          <p className="text-[11px] text-gray-400">Instrument use and borrowed items</p>
+        </div>
+        <span className="material-symbols-outlined text-gray-500 text-[20px] group-hover:text-gray-300 transition-colors">
+          chevron_right
+        </span>
+      </button>
+
 
       {/* Bookings */}
       <button
