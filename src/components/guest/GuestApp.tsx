@@ -106,7 +106,9 @@ export const GuestApp: React.FC = () => {
       <GuestIdentityGate
         initial={editingIdentity ? identity : null}
         onSave={saveIdentity}
-        onCancel={editingIdentity ? () => setEditingIdentity(false) : undefined}
+        // On first entry this is the only way out: someone who taps "I'm
+        // visiting" by mistake would otherwise be stuck on this screen.
+        onCancel={editingIdentity ? () => setEditingIdentity(false) : logout}
       />
     );
   }

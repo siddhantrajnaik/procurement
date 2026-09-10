@@ -49,7 +49,7 @@ export const GuestIdentityGate: React.FC<Props> = ({ initial, onSave, onCancel }
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Ananya Sharma"
+              placeholder="Your full name"
               className="w-full px-4 py-3 rounded-lg bg-[#1E1E1E] border border-[#2A2A2A] text-white text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-600"
             />
           </div>
@@ -63,7 +63,7 @@ export const GuestIdentityGate: React.FC<Props> = ({ initial, onSave, onCancel }
               id="guest-affiliation"
               value={affiliation}
               onChange={(e) => setAffiliation(e.target.value)}
-              placeholder="e.g. IIT Kanpur"
+              placeholder="Where you are visiting from"
               className="w-full px-4 py-3 rounded-lg bg-[#1E1E1E] border border-[#2A2A2A] text-white text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-600"
             />
           </div>
@@ -75,7 +75,7 @@ export const GuestIdentityGate: React.FC<Props> = ({ initial, onSave, onCancel }
                 onClick={onCancel}
                 className="flex-1 py-3 rounded-lg bg-[#2A2A2A] hover:bg-[#333] text-gray-200 text-sm font-semibold transition-colors"
               >
-                Cancel
+                {initial ? 'Cancel' : 'Back'}
               </button>
             )}
             <button
