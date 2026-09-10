@@ -30,7 +30,7 @@ const TABS: { id: GuestTab; label: string; icon: React.FC<{ className?: string }
  * for guests. Here, a guest can only see what is explicitly mounted below.
  */
 export const GuestApp: React.FC = () => {
-  const { equipment, inventoryItems } = useApp();
+  const { equipment } = useApp();
   const { logout } = useAuth();
   const { showToast } = useUI();
 
@@ -60,13 +60,16 @@ export const GuestApp: React.FC = () => {
     setEditingIdentity(false);
   }, []);
 
-  const logUse = useCallback(async (): Promise<boolean> => {
+  const logUse = useCallback(async (
+    details: { purpose?: string; speed?: string; duration?: string } = {}
+  ): Promise<boolean> => {
     if (!identity || !openEquipment) return false;
     try {
       await api.logEquipmentUsage({
         equipmentId: openEquipment.id,
         visitorName: identity.name,
         affiliation: identity.affiliation,
+        ...details,
       });
       showToast(`Logged use of ${openEquipment.name}.`, 'success');
       return true;
@@ -213,7 +216,6 @@ export const GuestApp: React.FC = () => {
 
       <BorrowModal
         open={borrowOpen}
-        items={inventoryItems}
         onClose={() => {
           setBorrowOpen(false);
           setTab('instruments');

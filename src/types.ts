@@ -316,6 +316,10 @@ export interface EquipmentUsage {
   visitorName: string;
   affiliation: string;
   purpose: string;
+  /** Free text: "12000 rpm", "1500 g". Only asked for on spin/shake instruments. */
+  speed: string;
+  /** Free text: "20 min", "overnight". */
+  duration: string;
   loggedBy: User | null;
   createdAt: string;
 }
@@ -338,6 +342,8 @@ export interface NewUsageInput {
   visitorName: string;
   affiliation?: string;
   purpose?: string;
+  speed?: string;
+  duration?: string;
 }
 
 export interface NewLoanInput {

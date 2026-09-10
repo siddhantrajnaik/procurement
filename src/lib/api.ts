@@ -1117,7 +1117,7 @@ export async function deleteListItem(itemId: string): Promise<void> {
 // ------------------------------------------------- guest usage & consumable loans
 
 const USAGE_SELECT = `
-  id, equipment_id, visitor_name, affiliation, purpose, created_at,
+  id, equipment_id, visitor_name, affiliation, purpose, speed, duration, created_at,
   logger:profiles!equipment_usage_log_user_id_fkey(${PROFILE_FIELDS})
 `;
 
@@ -1126,6 +1126,9 @@ const LOAN_SELECT = `
   logger:profiles!consumable_loans_user_id_fkey(${PROFILE_FIELDS})
 `;
 
+/** Cleared the first time an insert rejects the 0024 columns. */
+let usageDetailsAvailable = true;
+
 function toEquipmentUsage(row: any): EquipmentUsage {
   return {
     id: row.id,
@@ -1133,6 +1136,8 @@ function toEquipmentUsage(row: any): EquipmentUsage {
     visitorName: row.visitor_name,
     affiliation: row.affiliation ?? '',
     purpose: row.purpose ?? '',
+    speed: row.speed ?? '',
+    duration: row.duration ?? '',
     loggedBy: toUser(row.logger),
     createdAt: row.created_at,
   };
@@ -1157,18 +1162,29 @@ export async function logEquipmentUsage(
   input: NewUsageInput,
   userId?: string | null
 ): Promise<void> {
-  unwrap(
-    await supabase
-      .from('equipment_usage_log')
-      .insert({
-        equipment_id: input.equipmentId,
-        visitor_name: input.visitorName.trim(),
-        affiliation: input.affiliation?.trim() || '',
-        purpose: input.purpose?.trim() || '',
-        user_id: userId ?? null,
-      })
-      .select('id')
-  );
+  const base = {
+    equipment_id: input.equipmentId,
+    visitor_name: input.visitorName.trim(),
+    affiliation: input.affiliation?.trim() || '',
+    purpose: input.purpose?.trim() || '',
+    user_id: userId ?? null,
+  };
+  const withDetails = {
+    ...base,
+    speed: input.speed?.trim() || '',
+    duration: input.duration?.trim() || '',
+  };
+
+  // speed/duration arrive in migration 0024. Until it has been run those
+  // columns do not exist and the insert would fail outright -- and unlike a
+  // failed read, that means a visitor taps "I used this" and gets an error.
+  // Fall back to the columns that certainly exist rather than lose the entry.
+  let result = await supabase.from('equipment_usage_log').insert(withDetails).select('id');
+  if (result.error && usageDetailsAvailable) {
+    usageDetailsAvailable = false;
+    result = await supabase.from('equipment_usage_log').insert(base).select('id');
+  }
+  unwrap(result);
 }
 
 export async function fetchEquipmentUsage(limit = 200): Promise<EquipmentUsage[]> {
@@ -1248,7 +1264,7 @@ let usageLogAvailable = true;
 
 const EQUIPMENT_USAGE_FIELDS = `,
   usage:equipment_usage_log(
-    id, equipment_id, visitor_name, affiliation, purpose, created_at,
+    id, equipment_id, visitor_name, affiliation, purpose, speed, duration, created_at,
     logger:profiles!equipment_usage_log_user_id_fkey(${PROFILE_FIELDS})
   )
 `;

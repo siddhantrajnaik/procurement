@@ -408,9 +408,11 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                           <p className="text-xs font-semibold text-gray-200 truncate">
                             {u.visitorName}
                           </p>
-                          {(u.affiliation || u.purpose) && (
+                          {[u.affiliation, u.purpose, u.speed, u.duration].some(Boolean) && (
                             <p className="text-[11px] text-gray-500 truncate">
-                              {[u.affiliation, u.purpose].filter(Boolean).join(' · ')}
+                              {[u.affiliation, u.purpose, u.speed, u.duration]
+                                .filter(Boolean)
+                                .join(' · ')}
                             </p>
                           )}
                         </div>

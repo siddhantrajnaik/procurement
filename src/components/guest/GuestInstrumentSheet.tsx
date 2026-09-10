@@ -16,7 +16,7 @@ interface Props {
   /** Null when nothing is open — the sheet owns its own presence animation. */
   equipment: Equipment | null;
   onClose: () => void;
-  onLogUse: () => Promise<boolean>;
+  onLogUse: (details: { purpose?: string; speed?: string; duration?: string }) => Promise<boolean>;
 }
 
 /**
@@ -29,6 +29,9 @@ interface Props {
 export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, onLogUse }) => {
   const [logging, setLogging] = useState(false);
   const [justLogged, setJustLogged] = useState(false);
+  const [purpose, setPurpose] = useState('');
+  const [speed, setSpeed] = useState('');
+  const [duration, setDuration] = useState('');
 
   // Reset the confirmed state between openings, or the next instrument would
   // open already showing "Logged".
@@ -36,6 +39,9 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
     if (!eq) {
       setJustLogged(false);
       setLogging(false);
+      setPurpose('');
+      setSpeed('');
+      setDuration('');
     }
   }, [eq]);
 
@@ -50,6 +56,8 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
 
   const st = eq ? STATUS_CONFIG[eq.status] ?? STATUS_CONFIG.working : STATUS_CONFIG.working;
   const isDown = eq?.status === 'down' || eq?.status === 'under_service';
+  // Asking a thermal cycler for its speed would be noise.
+  const asksSpeed = ['centrifuge', 'shaker', 'vortex'].includes(eq?.category ?? '');
   const recent = [...(eq?.usageLog ?? [])]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 5);
@@ -58,7 +66,7 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
     if (logging || justLogged) return;
     setLogging(true);
     try {
-      if (await onLogUse()) {
+      if (await onLogUse({ purpose, speed, duration })) {
         // Confirm in place rather than closing: the visitor sees the button
         // change, so there is no doubt the tap registered.
         setJustLogged(true);
@@ -139,6 +147,34 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
             </div>
           )}
 
+
+          {/* Every field optional: the log is worth more filled in, but a
+              visitor who just taps the button must still get a clean entry. */}
+          <div className="space-y-2.5 pt-1">
+            <input
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+              placeholder="What for? (optional)"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-600"
+            />
+            <div className={asksSpeed ? 'grid grid-cols-2 gap-2.5' : ''}>
+              {asksSpeed && (
+                <input
+                  value={speed}
+                  onChange={(e) => setSpeed(e.target.value)}
+                  placeholder="Speed (optional)"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-600"
+                />
+              )}
+              <input
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="How long? (optional)"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-600"
+              />
+            </div>
+          </div>
+
           {recent.length > 0 && (
             <div className="space-y-2 pt-1">
               <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
@@ -150,7 +186,12 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
                   <div key={u.id} className="flex items-center justify-between gap-3 text-xs">
                     <span className="text-gray-300 truncate">
                       {u.visitorName}
-                      {u.affiliation && <span className="text-gray-500"> · {u.affiliation}</span>}
+                      {[u.speed, u.duration].filter(Boolean).length > 0 && (
+                        <span className="text-gray-500">
+                          {' · '}
+                          {[u.speed, u.duration].filter(Boolean).join(', ')}
+                        </span>
+                      )}
                     </span>
                     <span className="text-gray-600 shrink-0">{timeAgo(u.createdAt)}</span>
                   </div>
