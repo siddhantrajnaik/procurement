@@ -11,9 +11,10 @@ const STATUS_CONFIG: Record<EquipmentStatus, { label: string; color: string; bg:
 interface EquipmentCardProps {
   equipment: Equipment;
   onClick: () => void;
+  isGuest?: boolean;
 }
 
-export const EquipmentCard: React.FC<EquipmentCardProps> = ({ equipment: eq, onClick }) => {
+export const EquipmentCard: React.FC<EquipmentCardProps> = ({ equipment: eq, onClick, isGuest }) => {
   const st = STATUS_CONFIG[eq.status] ?? STATUS_CONFIG.working;
   const openIssues = eq.issues.filter((i) => i.status !== 'fixed').length;
   const nextMaintenance = eq.maintenanceLogs
@@ -54,19 +55,19 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({ equipment: eq, onC
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        {openIssues > 0 && (
+        {!isGuest && openIssues > 0 && (
           <span className="inline-flex items-center gap-1 text-red-300 text-[11px] font-semibold bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
             <span className="material-symbols-outlined text-[14px]">warning</span>
             {openIssues} open issue{openIssues > 1 ? 's' : ''}
           </span>
         )}
-        {overdue && (
+        {!isGuest && overdue && (
           <span className="inline-flex items-center gap-1 text-amber-300 text-[11px] font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
             <span className="material-symbols-outlined text-[14px]">schedule</span>
             Maintenance overdue
           </span>
         )}
-        {eq.servicePhone && (
+        {!isGuest && eq.servicePhone && (
           <span className="inline-flex items-center gap-1 text-gray-400 text-[11px]">
             <span className="material-symbols-outlined text-[14px]">call</span>
             {eq.serviceContactPerson || eq.serviceVendor}

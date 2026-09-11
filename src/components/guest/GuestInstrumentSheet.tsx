@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { X, MapPin, Check, History } from 'lucide-react';
+import { X, Check, MapPin } from 'lucide-react';
 import { Equipment, EquipmentStatus } from '../../types';
 import { equipmentIconSvg, EquipmentCategory } from '../../lib/equipmentIcons';
-import { timeAgo } from '../../lib/format';
 import { ScrollLock } from '../../lib/useScrollLock';
 
 const STATUS_CONFIG: Record<EquipmentStatus, { label: string; color: string; bg: string; border: string }> = {
@@ -56,11 +55,7 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
 
   const st = eq ? STATUS_CONFIG[eq.status] ?? STATUS_CONFIG.working : STATUS_CONFIG.working;
   const isDown = eq?.status === 'down' || eq?.status === 'under_service';
-  // Asking a thermal cycler for its speed would be noise.
   const asksSpeed = ['centrifuge', 'shaker', 'vortex'].includes(eq?.category ?? '');
-  const recent = [...(eq?.usageLog ?? [])]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 5);
 
   const handleLog = async () => {
     if (logging || justLogged) return;
@@ -134,19 +129,12 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
             </div>
           )}
 
-          {eq.notes && (
-            <p className="text-xs text-gray-400 leading-relaxed bg-background p-3 rounded-lg border border-[#2A2A2A]">
-              {eq.notes}
-            </p>
-          )}
-
           {isDown && (
             <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
               This instrument is marked <strong>{st.label.toLowerCase()}</strong>. Please check with
               a lab member before using it.
             </div>
           )}
-
 
           {/* Every field optional: the log is worth more filled in, but a
               visitor who just taps the button must still get a clean entry. */}
@@ -175,45 +163,20 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
             </div>
           </div>
 
-          {recent.length > 0 && (
-            <div className="space-y-2 pt-1">
-              <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5 text-gray-600" />
-                Recently used
-              </h3>
-              <div className="space-y-1.5">
-                {recent.map((u) => (
-                  <div key={u.id} className="flex items-center justify-between gap-3 text-xs">
-                    <span className="text-gray-300 truncate">
-                      {u.visitorName}
-                      {[u.speed, u.duration].filter(Boolean).length > 0 && (
-                        <span className="text-gray-500">
-                          {' · '}
-                          {[u.speed, u.duration].filter(Boolean).join(', ')}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-gray-600 shrink-0">{timeAgo(u.createdAt)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="p-5 border-t border-[#2A2A2A] bg-[#1E1E1E]">
-          <button
-            onClick={() => void handleLog()}
-            disabled={logging || justLogged}
-            className={`w-full py-3.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
-              justLogged
-                ? 'bg-emerald-600 text-white'
-                : 'bg-primary hover:bg-orange-600 text-white disabled:opacity-60'
-            }`}
-          >
-            <Check className="w-4 h-4" />
-            {justLogged ? 'Logged' : logging ? 'Logging…' : 'I used this'}
-          </button>
+          <div className="p-5 border-t border-[#2A2A2A] bg-[#1E1E1E]">
+            <button
+              onClick={() => void handleLog()}
+              disabled={logging || justLogged}
+              className={`w-full py-3.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+                justLogged
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-primary hover:bg-orange-600 text-white disabled:opacity-60'
+              }`}
+            >
+              <Check className="w-4 h-4" />
+              {justLogged ? 'Logged' : logging ? 'Logging…' : 'I used this'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

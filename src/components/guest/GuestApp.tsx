@@ -176,7 +176,7 @@ export const GuestApp: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {visible.map((eq) => (
-                  <EquipmentCard key={eq.id} equipment={eq} onClick={() => setOpenId(eq.id)} />
+                  <EquipmentCard key={eq.id} equipment={eq} onClick={() => setOpenId(eq.id)} isGuest />
                 ))}
               </div>
             )}
