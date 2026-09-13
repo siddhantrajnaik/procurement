@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../lib/api';
 import { readStored, removeStored, writeStored } from '../lib/storage';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -22,6 +22,27 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SESSION_USER_KEY = 'procure.session.userId';
+
+/**
+ * The PI's private way in.
+ *
+ * GitHub Pages serves a single file with no server, so a hash is the only route
+ * that survives a reload — and it keeps her off the main login screen entirely,
+ * which is the point: she gets a link, not a name in the lab's list.
+ *
+ * This is a convenience, not a boundary. Every RLS policy is `using (true)` open
+ * to `anon`, so the link controls which screen opens, not what is reachable.
+ */
+const PI_HASH_KEY = '#/lab-view-capsid';
+
+/** Reads the hash without touching `window` during a render. */
+function piLinkPresent(): boolean {
+  try {
+    return window.location.hash.trim().toLowerCase() === PI_HASH_KEY;
+  } catch {
+    return false;
+  }
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -68,6 +89,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     writeStored(SESSION_USER_KEY, userId);
     setCurrentUserId(userId);
   }, []);
+
+  /**
+   * Sign the PI in from her link, then strip it from the address bar.
+   *
+   * She will open this in front of students and on shared screens, so a secret
+   * left sitting in the URL is not one. The session is already in localStorage by
+   * then, so clearing the hash costs nothing and a reload still keeps her in.
+   *
+   * The link deliberately overrides an existing session — if she borrows a
+   * student's phone, opening it should switch to her rather than silently do
+   * nothing. It waits for `allUsers` because the role lives on the profile row.
+   */
+  const piLinkHandled = useRef(false);
+  useEffect(() => {
+    if (allUsers.length === 0) return;
+
+    const claim = () => {
+      if (piLinkHandled.current || !piLinkPresent()) return;
+
+      const pi = allUsers.find((u) => u.role === 'pi');
+      if (!pi) return; // migration 0025 has not been run yet
+
+      piLinkHandled.current = true;
+      login(pi.id);
+      try {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch {
+        /* a blocked history API is not worth failing the sign-in over */
+      }
+    };
+
+    claim();
+    // Changing only the hash does not reload a single-page app, so without this
+    // the link silently does nothing when she opens it in a tab that is already
+    // on the site — she would just be looking at the login screen wondering why.
+    window.addEventListener('hashchange', claim);
+    return () => window.removeEventListener('hashchange', claim);
+  }, [allUsers, login]);
 
   const logout = useCallback(() => {
     removeStored(SESSION_USER_KEY);

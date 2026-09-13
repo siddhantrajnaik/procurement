@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
+import * as api from '../lib/api';
 import { Equipment, EquipmentIssue, EquipmentStatus, IssueStatus } from '../types';
 import { equipmentIconSvg, equipmentLabel, EquipmentCategory } from '../lib/equipmentIcons';
 import { avatarClasses } from '../lib/accent';
@@ -53,6 +55,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
     addMaintenanceLog,
   } = useApp();
   const { currentUser } = useAuth();
+  const { showToast } = useUI();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReportIssue, setShowReportIssue] = useState(false);
@@ -60,6 +63,7 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
   const [expandedIssue, setExpandedIssue] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
   const [postingResponse, setPostingResponse] = useState(false);
+  const [loggingUse, setLoggingUse] = useState(false);
 
   // Report issue form
   const [issueTitle, setIssueTitle] = useState('');
@@ -123,6 +127,20 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
     setMaintCost('');
     setMaintNextDue('');
     setShowAddMaintenance(false);
+  };
+
+  // One tap, no form: a member logging their own run. Realtime brings the row back.
+  const handleLogMyUse = async () => {
+    if (!currentUser || loggingUse) return;
+    setLoggingUse(true);
+    try {
+      await api.logEquipmentUsage({ equipmentId: eq.id, visitorName: currentUser.name }, currentUser.id);
+      showToast(`Logged your use of ${eq.name}.`, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not save that.', 'error');
+    } finally {
+      setLoggingUse(false);
+    }
   };
 
   const handlePostResponse = async (issueId: string) => {
@@ -392,12 +410,23 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
             )}
 
             {/* Usage log — who has been on this instrument, visitors included */}
-            {eq.usageLog.length > 0 && (
-              <div className="space-y-3">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                   <History className="w-3.5 h-3.5 text-gray-600" />
                   Usage ({eq.usageLog.length})
                 </h3>
+                <button
+                  onClick={() => void handleLogMyUse()}
+                  disabled={loggingUse || !currentUser}
+                  className="flex items-center gap-1 text-xs font-semibold text-gray-300 bg-[#2A2A2A] hover:bg-[#333] px-2.5 py-1 rounded-full transition-colors disabled:opacity-50"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Log my use
+                </button>
+              </div>
+
+              {eq.usageLog.length > 0 && (
                 <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl divide-y divide-[#2A2A2A]">
                   {[...eq.usageLog]
                     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -408,13 +437,19 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                           <p className="text-xs font-semibold text-gray-200 truncate">
                             {u.visitorName}
                           </p>
-                          {[u.affiliation, u.purpose, u.speed, u.duration].some(Boolean) && (
-                            <p className="text-[11px] text-gray-500 truncate">
-                              {[u.affiliation, u.purpose, u.speed, u.duration]
-                                .filter(Boolean)
-                                .join(' · ')}
-                            </p>
-                          )}
+                          {/* `loggedBy` is set only when a lab member logged their own
+                              run — visitors type a name and leave it null — so it is
+                              what separates "one of us" from "someone from Kanpur". */}
+                          <p className="text-[11px] text-gray-500 truncate">
+                            {[
+                              u.loggedBy ? 'Lab' : u.affiliation,
+                              u.purpose,
+                              u.speed,
+                              u.duration,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
                         </div>
                         <span className="text-[11px] text-gray-600 shrink-0">
                           {timeAgo(u.createdAt)}
@@ -422,8 +457,8 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                       </div>
                     ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Issues section */}
             <div className="space-y-3">

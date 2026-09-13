@@ -317,9 +317,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
    * Background refresh of just the named areas. Failures are swallowed on
    * purpose: a dropped refresh should leave the last good data on screen
    * rather than replacing a working view with an error.
+   *
+   * Scopes the caller cannot see are dropped here rather than in the
+   * subscription, because this is the one place every refresh passes through.
+   * Without it the initial-load gate leaks on the second beat: a guest who never
+   * downloaded a purchase would fetch every one of them the moment anybody in the
+   * lab touched a quotation, since realtime fires for all tables regardless of
+   * who is watching.
    */
   const refreshScopes = useCallback(async (scopes: LoadScope[]) => {
-    await Promise.allSettled(scopes.map((s) => scopeLoaders[s]()));
+    const role = currentUserRef.current?.role;
+    const allowed = scopes.filter((s) => {
+      if (s === 'purchases') return role !== 'guest';
+      if (s === 'activities') return role !== 'guest' && role !== 'pi';
+      return true;
+    });
+    await Promise.allSettled(allowed.map((s) => scopeLoaders[s]()));
   }, [scopeLoaders]);
 
   const reload = useCallback(async () => {
@@ -332,11 +345,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Guests get a shell with no procurement in it, so there is nothing for
       // these to feed. Skipping them keeps every purchase and vendor price off
       // a visitor's device rather than merely hidden from their screen.
-      const isGuest = currentUserRef.current?.role === 'guest';
+      const role = currentUserRef.current?.role;
+      const isGuest = role === 'guest';
+
+      // The PI does need purchases — her screen totals up the approved quote on
+      // each one — but not the activity feed: every quote event bakes a rupee
+      // figure into `activities.details`, and she has no screen for 120 rows of
+      // procurement chatter.
+      const isPi = role === 'pi';
 
       // Purchases and activity are the core feed — failing to load them is a
       // real error worth showing.
-      if (!isGuest) await Promise.all([loadPurchases(), loadActivities()]);
+      await Promise.all([
+        isGuest ? Promise.resolve() : loadPurchases(),
+        isGuest || isPi ? Promise.resolve() : loadActivities(),
+      ]);
       setLoadError(null);
 
       // The rest are optional: their tables may not exist yet if a migration

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MotionConfig } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GuestApp } from './components/guest/GuestApp';
+import { PIApp } from './components/pi/PIApp';
 import { UIProvider, useUI } from './context/UIContext';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
@@ -141,10 +142,18 @@ function AppContent() {
   const { activeTab, tabResetNonce, setIsCreateModalOpen } = useUI();
   const { isLoading, loadError, reload } = useApp();
 
+  // The tab list belongs to the lab member's shell. Guests and the PI never see
+  // it, so naming their tab after a tab they do not have just leaves whichever
+  // title happened to be set last sitting in the title bar.
+  const role = currentUser?.role;
   useEffect(() => {
-    document.title = `${TAB_TITLES[activeTab] ?? 'MB Lab'} - MB Lab Procurement`;
+    const label =
+      role === 'guest' ? 'Visiting'
+      : role === 'pi' ? 'Lab overview'
+      : TAB_TITLES[activeTab] ?? 'MB Lab';
+    document.title = `${label} - MB Lab Procurement`;
     window.scrollTo(0, 0);
-  }, [activeTab]);
+  }, [activeTab, role]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -170,6 +179,11 @@ function AppContent() {
   // on cards, a rupee total on the profile page, and amounts embedded in
   // activity strings, and any component added later would leak again by default.
   if (currentUser?.role === 'guest') return <GuestApp />;
+
+  // The PI sees spend as totals and how the lab is being used — nothing else. A
+  // separate shell for the same reason as the guest one: the procurement surface
+  // itemises money in a dozen places, and she is to see totals only.
+  if (currentUser?.role === 'pi') return <PIApp />;
 
   return (
     <div className="min-h-screen bg-background text-gray-100 flex flex-col font-sans selection:bg-primary selection:text-white pb-12 md:pb-0">

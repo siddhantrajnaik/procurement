@@ -17,7 +17,9 @@ export const LoginScreen: React.FC = () => {
    */
   const [mode, setMode] = useState<'choose' | 'members'>('choose');
 
-  const admins = allUsers.filter((u) => u.role === 'pi' || u.role === 'procurement_incharge');
+  // The PI is deliberately absent: she reaches her own screen by her own link,
+  // and listing her here would put her behind the PIN the whole lab knows.
+  const admins = allUsers.filter((u) => u.role === 'procurement_incharge');
   const labMembers = allUsers.filter((u) => u.role === 'lab_member');
   const guests = allUsers.filter((u) => u.role === 'guest');
 

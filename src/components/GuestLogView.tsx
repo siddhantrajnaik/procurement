@@ -1,76 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { ArrowLeft, FlaskConical, Beaker } from 'lucide-react';
-import * as api from '../lib/api';
-import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
-import { ConsumableLoan, EquipmentUsage } from '../types';
 import { timeAgo } from '../lib/format';
+import { useLabActivity } from '../lib/useLabActivity';
 
 interface Props {
   onBack: () => void;
 }
 
-type Entry =
-  | { kind: 'usage'; at: string; row: EquipmentUsage }
-  | { kind: 'loan'; at: string; row: ConsumableLoan };
-
 /**
  * What visitors did — instrument use and anything they took — in one feed.
  *
- * Fetched locally rather than through AppContext: this is a rarely-opened
- * reference screen, and there is no reason for every session to carry it.
+ * The fetch, the subscription and the merge live in useLabActivity, shared with
+ * the PI's dashboard so both screens read the same rows.
  */
 export const GuestLogView: React.FC<Props> = ({ onBack }) => {
   const { equipment } = useApp();
-  const [usage, setUsage] = useState<EquipmentUsage[]>([]);
-  const [loans, setLoans] = useState<ConsumableLoan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const mounted = useRef(true);
-
-  const reload = useCallback(async () => {
-    try {
-      const [u, l] = await Promise.all([api.fetchEquipmentUsage(), api.fetchConsumableLoans()]);
-      if (!mounted.current) return;
-      setUsage(u);
-      setLoans(l);
-    } catch {
-      // Silently fail — the tables may not exist until migration 0023 is run.
-    } finally {
-      if (mounted.current) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    mounted.current = true;
-    void reload();
-    return () => {
-      mounted.current = false;
-    };
-  }, [reload]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('guest-log')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_usage_log' }, () => void reload())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'consumable_loans' }, () => void reload())
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [reload]);
+  const { usage, loans, entries, loading } = useLabActivity();
 
   const equipmentNames = useMemo(
     () => new Map(equipment.map((e) => [e.id, e.name])),
     [equipment]
   );
-
-  const entries = useMemo<Entry[]>(() => {
-    const merged: Entry[] = [
-      ...usage.map((row) => ({ kind: 'usage' as const, at: row.createdAt, row })),
-      ...loans.map((row) => ({ kind: 'loan' as const, at: row.createdAt, row })),
-    ];
-    return merged.sort((a, b) => b.at.localeCompare(a.at));
-  }, [usage, loans]);
 
   return (
     <div className="flex-1 flex flex-col pb-28 pt-4 max-w-3xl mx-auto w-full px-4 space-y-4">
