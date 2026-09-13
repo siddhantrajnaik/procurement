@@ -162,21 +162,21 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
               />
             </div>
           </div>
+        </div>
 
-          <div className="p-5 border-t border-[#2A2A2A] bg-[#1E1E1E]">
-            <button
-              onClick={() => void handleLog()}
-              disabled={logging || justLogged}
-              className={`w-full py-3.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
-                justLogged
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-primary hover:bg-orange-600 text-white disabled:opacity-60'
-              }`}
-            >
-              <Check className="w-4 h-4" />
-              {justLogged ? 'Logged' : logging ? 'Logging…' : 'I used this'}
-            </button>
-          </div>
+        <div className="p-5 border-t border-[#2A2A2A] bg-[#1E1E1E]">
+          <button
+            onClick={() => void handleLog()}
+            disabled={logging || justLogged}
+            className={`w-full py-3.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+              justLogged
+                ? 'bg-emerald-600 text-white'
+                : 'bg-primary hover:bg-orange-600 text-white disabled:opacity-60'
+            }`}
+          >
+            <Check className="w-4 h-4" />
+            {justLogged ? 'Logged' : logging ? 'Logging…' : 'I used this'}
+          </button>
         </div>
       </div>
     </div>
