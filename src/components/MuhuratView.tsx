@@ -11,6 +11,7 @@ import {
   type MuhuratResult,
   type ChoghadiyaNature,
 } from '../lib/panchang';
+import { writeStored } from '../lib/storage';
 
 interface MuhuratProfile {
   name: string;
@@ -160,7 +161,10 @@ export const MuhuratView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    // The matching read below is already guarded; this was not. A throw here
+    // happens during the commit phase and, with no error boundary anywhere,
+    // blanks the app the moment someone edits their Muhurat profile.
+    writeStored(STORAGE_KEY, JSON.stringify(profile));
   }, [profile]);
 
   const { current, nextGood, rahuKaal, isRahuKaal, periods, sunrise, sunset } =

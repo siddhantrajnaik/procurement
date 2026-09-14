@@ -1,4 +1,5 @@
 import { ActivityType } from '../types';
+import { readStored, removeStored, writeStored } from './storage';
 
 const NOTIF_PREF_KEY = 'procure.notif.enabled';
 
@@ -6,28 +7,36 @@ export function isNotificationSupported(): boolean {
   return 'Notification' in window;
 }
 
+/**
+ * Read through the storage helpers, not `localStorage` directly.
+ *
+ * ProfileView calls this from a `useState` initialiser, so a raw read throws
+ * during render when site data is blocked by policy. There is no error boundary
+ * in this app: that throw takes the whole page to blank, from opening the
+ * Profile tab, with no way back. `isSoundEnabled` next door already does this.
+ */
 export function isNotificationEnabled(): boolean {
   if (!isNotificationSupported()) return false;
-  return Notification.permission === 'granted' && localStorage.getItem(NOTIF_PREF_KEY) === '1';
+  return Notification.permission === 'granted' && readStored(NOTIF_PREF_KEY) === '1';
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!isNotificationSupported()) return false;
   if (Notification.permission === 'denied') return false;
   if (Notification.permission === 'granted') {
-    localStorage.setItem(NOTIF_PREF_KEY, '1');
+    writeStored(NOTIF_PREF_KEY, '1');
     return true;
   }
   const result = await Notification.requestPermission();
   if (result === 'granted') {
-    localStorage.setItem(NOTIF_PREF_KEY, '1');
+    writeStored(NOTIF_PREF_KEY, '1');
     return true;
   }
   return false;
 }
 
 export function disableNotifications(): void {
-  localStorage.removeItem(NOTIF_PREF_KEY);
+  removeStored(NOTIF_PREF_KEY);
 }
 
 const ACTIVITY_BODY: Record<ActivityType, string> = {
