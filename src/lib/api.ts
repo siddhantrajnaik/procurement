@@ -1129,6 +1129,21 @@ const LOAN_SELECT = `
 /** Cleared the first time an insert rejects the 0024 columns. */
 let usageDetailsAvailable = true;
 
+/**
+ * Whether an error means "that column does not exist" rather than "the request
+ * did not arrive".
+ *
+ * PostgREST names a missing column: `42703` from Postgres itself, or `PGRST204`
+ * when its schema cache rejects the payload first. A failed fetch — offline, DNS,
+ * a sleeping tab — arrives here as a plain `{ message: 'TypeError: Failed to
+ * fetch' }` with no code at all. Both used to look identical to the latches
+ * below, so one bad moment on lab wifi would permanently convince the app that a
+ * migration had never been run.
+ */
+function isMissingColumnError(error: { code?: string } | null): boolean {
+  return error?.code === '42703' || error?.code === 'PGRST204';
+}
+
 function toEquipmentUsage(row: any): EquipmentUsage {
   return {
     id: row.id,
@@ -1179,8 +1194,18 @@ export async function logEquipmentUsage(
   // columns do not exist and the insert would fail outright -- and unlike a
   // failed read, that means a visitor taps "I used this" and gets an error.
   // Fall back to the columns that certainly exist rather than lose the entry.
-  let result = await supabase.from('equipment_usage_log').insert(withDetails).select('id');
-  if (result.error && usageDetailsAvailable) {
+  //
+  // The latch has to be read *here*, when choosing what to send. Retrying on it
+  // alone meant the fallback worked exactly once: every later insert still led
+  // with the missing columns, and with the latch already spent there was no
+  // second attempt, so the raw "column speed does not exist" landed in a
+  // visitor's error toast -- the precise outcome this is meant to avoid.
+  let result = await supabase
+    .from('equipment_usage_log')
+    .insert(usageDetailsAvailable ? withDetails : base)
+    .select('id');
+
+  if (usageDetailsAvailable && isMissingColumnError(result.error)) {
     usageDetailsAvailable = false;
     result = await supabase.from('equipment_usage_log').insert(base).select('id');
   }
