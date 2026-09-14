@@ -171,6 +171,23 @@ const TABLE_SCOPES: Record<string, LoadScope> = {
   bookings: 'bookings',
 };
 
+/**
+ * Whether whoever is asking may hold the two money-bearing areas on their device.
+ *
+ * Stated as a single allow-list because the obvious shape — `role !== 'guest'` —
+ * is wrong in the case nobody thinks about: `undefined`. On the login screen
+ * there is no user, every `!==` comparison passes, and the gate silently permits
+ * everything. That is the opposite of the safe default, so an absent role is
+ * answered "no" here and callers do not get to decide.
+ */
+function mayLoad(scope: 'purchases' | 'activities', role: string | undefined): boolean {
+  if (!role || role === 'guest') return false;
+  // The PI totals up the approved quote on each purchase, so she needs those —
+  // but not the activity feed, which bakes a rupee figure into every quote event.
+  if (scope === 'activities' && role === 'pi') return false;
+  return true;
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
   const { showToast } = useUI();
@@ -327,11 +344,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
    */
   const refreshScopes = useCallback(async (scopes: LoadScope[]) => {
     const role = currentUserRef.current?.role;
-    const allowed = scopes.filter((s) => {
-      if (s === 'purchases') return role !== 'guest';
-      if (s === 'activities') return role !== 'guest' && role !== 'pi';
-      return true;
-    });
+    const allowed = scopes.filter((s) =>
+      s === 'purchases' || s === 'activities' ? mayLoad(s, role) : true
+    );
     await Promise.allSettled(allowed.map((s) => scopeLoaders[s]()));
   }, [scopeLoaders]);
 
@@ -342,23 +357,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     try {
-      // Guests get a shell with no procurement in it, so there is nothing for
-      // these to feed. Skipping them keeps every purchase and vendor price off
-      // a visitor's device rather than merely hidden from their screen.
+      // Skipping these keeps every purchase and vendor price off a visitor's
+      // device rather than merely hidden from their screen. `mayLoad` also
+      // answers "no" when there is no user at all, which matters because this
+      // function is reachable from the error screen's retry button before
+      // anybody has signed in.
       const role = currentUserRef.current?.role;
-      const isGuest = role === 'guest';
-
-      // The PI does need purchases — her screen totals up the approved quote on
-      // each one — but not the activity feed: every quote event bakes a rupee
-      // figure into `activities.details`, and she has no screen for 120 rows of
-      // procurement chatter.
-      const isPi = role === 'pi';
 
       // Purchases and activity are the core feed — failing to load them is a
       // real error worth showing.
       await Promise.all([
-        isGuest ? Promise.resolve() : loadPurchases(),
-        isGuest || isPi ? Promise.resolve() : loadActivities(),
+        mayLoad('purchases', role) ? loadPurchases() : Promise.resolve(),
+        mayLoad('activities', role) ? loadActivities() : Promise.resolve(),
       ]);
       setLoadError(null);
 
@@ -395,6 +405,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // no way to display. Loading before auth resolved was doing exactly that.
     if (!authKey) {
       setIsLoading(false);
+      // A failure belongs to the session it happened in. Left standing, it keeps
+      // the error screen up after logout — and App checks `loadError` before
+      // `isAuthenticated`, so the signed-out user gets a retry button instead of
+      // the login screen, with no way to reach either.
+      setLoadError(null);
       return;
     }
     void reload();
