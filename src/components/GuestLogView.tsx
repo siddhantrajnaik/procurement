@@ -1,11 +1,21 @@
-import { useMemo } from 'react';
-import { ArrowLeft, FlaskConical, Beaker } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowLeft, FlaskConical, Beaker, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useUI } from '../context/UIContext';
+import * as api from '../lib/api';
 import { timeAgo } from '../lib/format';
-import { useLabActivity } from '../lib/useLabActivity';
+import { LabActivityEntry, useLabActivity } from '../lib/useLabActivity';
+import { ConfirmModal } from './ConfirmModal';
 
 interface Props {
   onBack: () => void;
+}
+
+/** Describes an entry in the confirm prompt, so nobody deletes the wrong line. */
+function describe(entry: LabActivityEntry, instrument: string): string {
+  return entry.kind === 'usage'
+    ? `${entry.row.visitorName} used ${instrument}`
+    : `${entry.row.visitorName} took ${entry.row.itemName}`;
 }
 
 /**
@@ -13,15 +23,40 @@ interface Props {
  *
  * The fetch, the subscription and the merge live in useLabActivity, shared with
  * the PI's dashboard so both screens read the same rows.
+ *
+ * This is the only screen that can delete an entry. Visitors write here and the
+ * PI reads it, so a test row or a mistyped name has to be removable by someone,
+ * and the lab is the only party with the standing to decide it was wrong.
  */
 export const GuestLogView: React.FC<Props> = ({ onBack }) => {
   const { equipment } = useApp();
-  const { usage, loans, entries, loading } = useLabActivity();
+  const { showToast } = useUI();
+  const { usage, loans, entries, loading, reload } = useLabActivity();
+  const [pendingDelete, setPendingDelete] = useState<LabActivityEntry | null>(null);
 
   const equipmentNames = useMemo(
     () => new Map(equipment.map((e) => [e.id, e.name])),
     [equipment]
   );
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    const { kind, row } = pendingDelete;
+    try {
+      if (kind === 'usage') await api.deleteEquipmentUsage(row.id);
+      else await api.deleteConsumableLoan(row.id);
+      // Realtime would get here eventually, but the row should leave the screen
+      // the moment it leaves the table — a deleted line still sitting there
+      // reads as a failure.
+      await reload();
+      showToast('Entry removed.', 'success');
+      setPendingDelete(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not remove that.', 'error');
+      // ConfirmModal does not close itself, so leaving it open on failure keeps
+      // the prompt and the toast on screen together.
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col pb-28 pt-4 max-w-3xl mx-auto w-full px-4 space-y-4">
@@ -82,9 +117,17 @@ export const GuestLogView: React.FC<Props> = ({ onBack }) => {
                         <span className="text-gray-500"> ({entry.row.quantity})</span>
                       )}
                     </p>
-                    <span className="text-[11px] text-gray-600 shrink-0">
-                      {timeAgo(entry.at)}
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[11px] text-gray-600">{timeAgo(entry.at)}</span>
+                      <button
+                        onClick={() => setPendingDelete(entry)}
+                        aria-label={`Remove: ${describe(entry, isUsage ? equipmentNames.get(entry.row.equipmentId) ?? 'an instrument' : '')}`}
+                        title="Remove this entry"
+                        className="p-1 rounded-full text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   {entry.row.affiliation && (
@@ -103,6 +146,25 @@ export const GuestLogView: React.FC<Props> = ({ onBack }) => {
           })}
         </div>
       )}
+
+      <ConfirmModal
+        open={pendingDelete !== null}
+        title="Remove this entry?"
+        message={
+          pendingDelete
+            ? `"${describe(
+                pendingDelete,
+                pendingDelete.kind === 'usage'
+                  ? equipmentNames.get(pendingDelete.row.equipmentId) ?? 'an instrument'
+                  : ''
+              )}" will be deleted for good. It also disappears from the PI's overview.`
+            : ''
+        }
+        confirmLabel="Remove"
+        busyLabel="Removing…"
+        onConfirm={handleDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 };

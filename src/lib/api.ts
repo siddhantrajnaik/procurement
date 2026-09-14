@@ -1233,6 +1233,25 @@ export async function fetchConsumableLoans(limit = 200): Promise<ConsumableLoan[
   return (rows as any[]).map(toConsumableLoan);
 }
 
+/**
+ * Removing a log entry — a test row, a mistyped name.
+ *
+ * Both of these read the deleted id back and raise if nothing came out. Until
+ * migration 0026 these tables carried no delete policy, and RLS answers a
+ * blocked delete with success and zero rows rather than an error: the toast
+ * would say "removed", the row would stay, and it would reappear on the next
+ * refresh. Checking the result turns that silence into something you can see.
+ */
+async function deleteLogRow(table: 'equipment_usage_log' | 'consumable_loans', id: string) {
+  const rows = unwrap(await supabase.from(table).delete().eq('id', id).select('id'));
+  if (!rows || (rows as any[]).length === 0) {
+    throw new Error('Could not remove that entry. Migration 0026 may not have been run.');
+  }
+}
+
+export const deleteEquipmentUsage = (id: string) => deleteLogRow('equipment_usage_log', id);
+export const deleteConsumableLoan = (id: string) => deleteLogRow('consumable_loans', id);
+
 const EQUIPMENT_SELECT = `
   id, name, model, manufacturer, category, location, status, photo_url,
   purchase_date, warranty_expiry, service_vendor, service_contact_person,

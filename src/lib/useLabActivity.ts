@@ -13,6 +13,8 @@ export interface LabActivity {
   /** Both logs merged, newest first. */
   entries: LabActivityEntry[];
   loading: boolean;
+  /** Refetch both logs. Realtime covers the usual case; this is for acting locally. */
+  reload: () => Promise<void>;
 }
 
 /**
@@ -71,5 +73,5 @@ export function useLabActivity(): LabActivity {
     return merged.sort((a, b) => b.at.localeCompare(a.at));
   }, [usage, loans]);
 
-  return { usage, loans, entries, loading };
+  return { usage, loans, entries, loading, reload };
 }
