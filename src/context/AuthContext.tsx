@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as api from '../lib/api';
 import { readStored, removeStored, writeStored } from '../lib/storage';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -101,17 +101,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * student's phone, opening it should switch to her rather than silently do
    * nothing. It waits for `allUsers` because the role lives on the profile row.
    */
-  const piLinkHandled = useRef(false);
   useEffect(() => {
     if (allUsers.length === 0) return;
 
+    // The hash's own presence is the guard: a successful claim strips it, so
+    // there is nothing left to re-claim. A separate "already handled" ref looked
+    // equivalent and was not — it outlived the session it was set for, so after
+    // she signed out her link was dead in that tab, on a login screen she is
+    // deliberately not listed on. Worse, it returned *before* the strip below,
+    // leaving the secret sitting in the address bar of whatever she was sharing.
     const claim = () => {
-      if (piLinkHandled.current || !piLinkPresent()) return;
+      if (!piLinkPresent()) return;
 
       const pi = allUsers.find((u) => u.role === 'pi');
       if (!pi) return; // migration 0025 has not been run yet
 
-      piLinkHandled.current = true;
       login(pi.id);
       try {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);

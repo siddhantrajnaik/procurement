@@ -356,6 +356,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsLoading(false);
       return;
     }
+    // Re-armed on every load, not just the first. Without this the flag was
+    // cleared once on the login screen and never set again, so a shell mounted
+    // straight into empty arrays with no spinner. A feed rendering "nothing yet"
+    // for a moment is survivable; the PI's screen renders a total, and showed
+    // "₹0 committed across 0 purchases" as a settled figure until the fetch
+    // landed. Both callers -- the auth effect and the error screen's retry --
+    // are moments where a spinner is the honest answer.
+    setIsLoading(true);
     try {
       // Skipping these keeps every purchase and vendor price off a visitor's
       // device rather than merely hidden from their screen. `mayLoad` also
