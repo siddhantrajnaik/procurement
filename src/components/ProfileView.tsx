@@ -529,7 +529,12 @@ export const ProfileView: React.FC = () => {
         </div>
 
         <div className="space-y-1.5">
-          {allUsers.map((u) => {
+          {/* The PI is not a persona to switch into. She reaches her own shell by
+              her own link, and that shell has no navigation — anyone who tapped
+              her here would land on a read-only dashboard whose only control is
+              sign out. The login screen already excludes her for the same
+              reason; this list was the half I missed. */}
+          {allUsers.filter((u) => u.role !== 'pi').map((u) => {
             const isAdmin = u.role === 'pi' || u.role === 'procurement_incharge';
             const handleClick = () => {
               if (u.id === currentUser.id) return;
