@@ -53,7 +53,10 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
-        if (response.ok && (url.pathname.match(/\.(js|css|png|jpg|svg|woff2?)$/) || url.hostname.includes('fonts.googleapis') || url.hostname.includes('fonts.gstatic'))) {
+        // mp4 is here for the launch film: 7 MB over campus wifi is exactly the
+        // thing that stalls mid-ceremony, and once it has played on the laptop
+        // this serves it from disk. Drop it again when the launch folder goes.
+        if (response.ok && (url.pathname.match(/\.(js|css|png|jpg|svg|woff2?|mp4)$/) || url.hostname.includes('fonts.googleapis') || url.hostname.includes('fonts.gstatic'))) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
