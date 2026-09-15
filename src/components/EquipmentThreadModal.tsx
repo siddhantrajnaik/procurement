@@ -21,7 +21,7 @@ import * as api from '../lib/api';
 import { Equipment, EquipmentIssue, EquipmentStatus, IssueStatus } from '../types';
 import { equipmentIconSvg, equipmentLabel, EquipmentCategory } from '../lib/equipmentIcons';
 import { avatarClasses } from '../lib/accent';
-import { initialOf, timeAgo, todayISO } from '../lib/format';
+import { formatMinutes, formatWhen, initialOf, timeAgo, todayISO } from '../lib/format';
 import { ConfirmModal } from './ConfirmModal';
 import { SHEET_SPRING } from '../lib/motion';
 import { ScrollLock } from '../lib/useScrollLock';
@@ -445,7 +445,10 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                               u.loggedBy ? 'Lab' : u.affiliation,
                               u.purpose,
                               u.speed,
-                              u.duration,
+                              // 0027 stores minutes; `duration` is the free text
+                              // written before it. Prefer the number, fall back.
+                              formatMinutes(u.durationMinutes) || u.duration,
+                              u.startedAt ? `from ${formatWhen(u.startedAt)}` : '',
                             ]
                               .filter(Boolean)
                               .join(' · ')}

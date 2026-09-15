@@ -318,9 +318,14 @@ export interface EquipmentUsage {
   purpose: string;
   /** Free text: "12000 rpm", "1500 g". Only asked for on spin/shake instruments. */
   speed: string;
-  /** Free text: "20 min", "overnight". */
+  /** Free text, kept for rows written before 0027 and anything typed by hand. */
   duration: string;
+  /** When the run began. Null on a one-tap entry, which stays valid. */
+  startedAt: string | null;
+  /** How long it ran, in minutes — the addable version of `duration`. */
+  durationMinutes: number | null;
   loggedBy: User | null;
+  /** When the row was written, which is not when the instrument was used. */
   createdAt: string;
 }
 
@@ -344,6 +349,9 @@ export interface NewUsageInput {
   purpose?: string;
   speed?: string;
   duration?: string;
+  /** ISO timestamp. Omit for a one-tap entry. */
+  startedAt?: string | null;
+  durationMinutes?: number | null;
 }
 
 export interface NewLoanInput {

@@ -3,6 +3,23 @@ import { X, Check, MapPin } from 'lucide-react';
 import { Equipment, EquipmentStatus } from '../../types';
 import { equipmentIconSvg, EquipmentCategory } from '../../lib/equipmentIcons';
 import { ScrollLock } from '../../lib/useScrollLock';
+import { formatWhen, toLocalInputValue } from '../../lib/format';
+
+/** What the sheet collects about a run. Every field optional — one tap still works. */
+export interface UsageDetails {
+  purpose?: string;
+  speed?: string;
+  startedAt?: string | null;
+  durationMinutes?: number | null;
+}
+
+type DurationUnit = 'minutes' | 'hours' | 'days';
+
+const UNIT_MINUTES: Record<DurationUnit, number> = {
+  minutes: 1,
+  hours: 60,
+  days: 1440,
+};
 
 const STATUS_CONFIG: Record<EquipmentStatus, { label: string; color: string; bg: string; border: string }> = {
   working:         { label: 'Working',         color: 'text-emerald-300', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
@@ -15,7 +32,7 @@ interface Props {
   /** Null when nothing is open — the sheet owns its own presence animation. */
   equipment: Equipment | null;
   onClose: () => void;
-  onLogUse: (details: { purpose?: string; speed?: string; duration?: string }) => Promise<boolean>;
+  onLogUse: (details: UsageDetails) => Promise<boolean>;
 }
 
 /**
@@ -30,18 +47,28 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
   const [justLogged, setJustLogged] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [speed, setSpeed] = useState('');
-  const [duration, setDuration] = useState('');
+  const [startedAt, setStartedAt] = useState('');
+  const [durationValue, setDurationValue] = useState('');
+  const [durationUnit, setDurationUnit] = useState<DurationUnit>('minutes');
 
-  // Reset the confirmed state between openings, or the next instrument would
-  // open already showing "Logged".
+  // Reset between openings, or the next instrument would open already showing
+  // "Logged" with the last visitor's numbers in it.
   useEffect(() => {
     if (!eq) {
       setJustLogged(false);
       setLogging(false);
       setPurpose('');
       setSpeed('');
-      setDuration('');
+      setStartedAt('');
+      setDurationValue('');
+      setDurationUnit('minutes');
+      return;
     }
+    // Prefilled to now because this is logged after the fact and most runs here
+    // are short — a centrifuge spin is over before you put the tube down. An
+    // incubator run started yesterday is a two-tap correction, which is the
+    // right way round.
+    setStartedAt(toLocalInputValue(new Date()));
   }, [eq]);
 
   useEffect(() => {
@@ -57,11 +84,40 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
   const isDown = eq?.status === 'down' || eq?.status === 'under_service';
   const asksSpeed = ['centrifuge', 'shaker', 'vortex'].includes(eq?.category ?? '');
 
+  // Minutes is what the column stores, so the unit is only ever a multiplier on
+  // the way in. Anything non-positive counts as "not filled in".
+  const minutes = (() => {
+    const n = Number(durationValue);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.round(n * UNIT_MINUTES[durationUnit]);
+  })();
+
+  const startDate = startedAt ? new Date(startedAt) : null;
+  const startValid = startDate !== null && !Number.isNaN(startDate.getTime());
+  const endDate =
+    startValid && minutes !== null ? new Date(startDate.getTime() + minutes * 60_000) : null;
+
+  // Shown back rather than validated away: a run that ends in the future is
+  // usually a typo, but an incubator legitimately left running is not, and this
+  // screen is not the place to argue with a visitor.
+  const endsAt = endDate ? formatWhen(endDate.toISOString()) : '';
+  const endsInFuture = endDate !== null && endDate.getTime() > Date.now();
+
   const handleLog = async () => {
     if (logging || justLogged) return;
     setLogging(true);
     try {
-      if (await onLogUse({ purpose, speed, duration })) {
+      if (
+        await onLogUse({
+          purpose,
+          speed,
+          // Only send a start when something was actually recorded about the
+          // run. A bare tap should not claim the machine ran for zero minutes
+          // from the moment the sheet happened to be opened.
+          startedAt: startValid && minutes !== null ? startDate!.toISOString() : null,
+          durationMinutes: minutes,
+        })
+      ) {
         // Confirm in place rather than closing: the visitor sees the button
         // change, so there is no doubt the tap registered.
         setJustLogged(true);
@@ -155,12 +211,46 @@ export const GuestInstrumentSheet: React.FC<Props> = ({ equipment: eq, onClose, 
                 />
               )}
               <input
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="How long? (optional)"
-                className="w-full px-3.5 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-600"
+                type="datetime-local"
+                value={startedAt}
+                onChange={(e) => setStartedAt(e.target.value)}
+                aria-label="Started at"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none [color-scheme:dark]"
               />
             </div>
+
+            {/* A number and a unit rather than free text, so the lab can add
+                these up. "20 min" reads fine on a card and answers nothing when
+                someone asks how many hours the incubator was busy. */}
+            <div className="grid grid-cols-[1fr_auto] gap-2.5">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={durationValue}
+                onChange={(e) => setDurationValue(e.target.value)}
+                placeholder="Ran for (optional)"
+                aria-label="Ran for"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-600"
+              />
+              <select
+                value={durationUnit}
+                onChange={(e) => setDurationUnit(e.target.value as DurationUnit)}
+                aria-label="Unit"
+                className="px-3 py-2.5 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+              >
+                <option value="minutes">min</option>
+                <option value="hours">hours</option>
+                <option value="days">days</option>
+              </select>
+            </div>
+
+            {endsAt && (
+              <p className="text-[11px] text-gray-500 px-0.5">
+                Finished {endsAt}
+                {endsInFuture && ' — that is in the future'}
+              </p>
+            )}
           </div>
         </div>
 

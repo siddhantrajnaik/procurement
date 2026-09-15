@@ -20,6 +20,47 @@ export function formatRupees(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+/** "45m", "3h 20m", "2d 4h" — a run length, from minutes. */
+export function formatMinutes(minutes: number | null): string {
+  if (minutes == null || !Number.isFinite(minutes) || minutes <= 0) return '';
+
+  const d = Math.floor(minutes / 1440);
+  const h = Math.floor((minutes % 1440) / 60);
+  const m = Math.round(minutes % 60);
+
+  // Two units is as much as anyone reads off a card: an incubator run of two
+  // days and four hours does not need the minutes.
+  if (d > 0) return h > 0 ? `${d}d ${h}h` : `${d}d`;
+  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  return `${m}m`;
+}
+
+/** "14 Sep, 2:30 pm" — when a run started, in the viewer's own timezone. */
+export function formatWhen(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/**
+ * `YYYY-MM-DDTHH:mm` in local time, for a `datetime-local` input.
+ *
+ * Same trap as `toDateStr` below: `toISOString()` would convert to UTC first and
+ * hand IST a value five and a half hours in the past, so the field would open
+ * showing the wrong time.
+ */
+export function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /**
  * `YYYY-MM-DD` for a date, read in the viewer's own timezone.
  *

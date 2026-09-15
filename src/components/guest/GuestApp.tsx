@@ -8,7 +8,7 @@ import { NewLoanInput } from '../../types';
 import { EquipmentCard } from '../EquipmentCard';
 import { MuhuratView } from '../MuhuratView';
 import { GuestIdentityGate } from './GuestIdentityGate';
-import { GuestInstrumentSheet } from './GuestInstrumentSheet';
+import { GuestInstrumentSheet, UsageDetails } from './GuestInstrumentSheet';
 import { BorrowModal } from './BorrowModal';
 import { GuestIdentity, loadGuestIdentity, saveGuestIdentity } from './guestIdentity';
 
@@ -60,9 +60,7 @@ export const GuestApp: React.FC = () => {
     setEditingIdentity(false);
   }, []);
 
-  const logUse = useCallback(async (
-    details: { purpose?: string; speed?: string; duration?: string } = {}
-  ): Promise<boolean> => {
+  const logUse = useCallback(async (details: UsageDetails = {}): Promise<boolean> => {
     if (!identity || !openEquipment) return false;
     try {
       await api.logEquipmentUsage({

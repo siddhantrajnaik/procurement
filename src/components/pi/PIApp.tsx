@@ -3,7 +3,7 @@ import { FlaskConical, Beaker, LogOut, IndianRupee, Microscope, History } from '
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { EquipmentStatus, Purchase } from '../../types';
-import { formatRupees, timeAgo } from '../../lib/format';
+import { formatMinutes, formatRupees, formatWhen, timeAgo } from '../../lib/format';
 import { useLabActivity } from '../../lib/useLabActivity';
 
 type Period = 'month' | 'quarter' | 'all';
@@ -317,7 +317,14 @@ export const PIApp: React.FC = () => {
                 // type their own name and leave it null.
                 const isMember = entry.row.loggedBy !== null;
                 const detail = isUsage
-                  ? [entry.row.purpose, entry.row.speed, entry.row.duration].filter(Boolean).join(' · ')
+                  ? [
+                      entry.row.purpose,
+                      entry.row.speed,
+                      formatMinutes(entry.row.durationMinutes) || entry.row.duration,
+                      entry.row.startedAt ? `from ${formatWhen(entry.row.startedAt)}` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
                   : entry.row.notes;
 
                 return (

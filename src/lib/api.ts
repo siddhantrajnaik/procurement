@@ -1137,10 +1137,29 @@ export async function deleteListItem(itemId: string): Promise<void> {
 
 // ------------------------------------------------- guest usage & consumable loans
 
-const USAGE_SELECT = `
+/**
+ * Cleared the first time `started_at` / `duration_minutes` are rejected, i.e.
+ * migration 0027 has not been run yet.
+ *
+ * Separate from `usageLogAvailable` below on purpose. That one drops the usage
+ * log entirely; this drops only the two columns 0027 adds. Without the split, a
+ * database sitting between 0023 and 0027 loses every usage row rather than just
+ * the run window — which is exactly what happened here: the columns were named
+ * in the select before the migration was applied, and the PI's dashboard showed
+ * zero sessions with four perfectly good rows in the table.
+ */
+let usageWindowAvailable = true;
+
+const USAGE_CORE_SELECT = `
   id, equipment_id, visitor_name, affiliation, purpose, speed, duration, created_at,
   logger:profiles!equipment_usage_log_user_id_fkey(${PROFILE_FIELDS})
 `;
+
+const USAGE_WINDOW_FIELDS = 'started_at, duration_minutes,';
+
+function usageSelect(): string {
+  return usageWindowAvailable ? USAGE_WINDOW_FIELDS + USAGE_CORE_SELECT : USAGE_CORE_SELECT;
+}
 
 const LOAN_SELECT = `
   id, item_id, item_name, quantity, visitor_name, affiliation, notes, created_at,
@@ -1160,6 +1179,8 @@ function toEquipmentUsage(row: any): EquipmentUsage {
     purpose: row.purpose ?? '',
     speed: row.speed ?? '',
     duration: row.duration ?? '',
+    startedAt: row.started_at ?? null,
+    durationMinutes: row.duration_minutes ?? null,
     loggedBy: toUser(row.logger),
     createdAt: row.created_at,
   };
@@ -1195,12 +1216,16 @@ export async function logEquipmentUsage(
     ...base,
     speed: input.speed?.trim() || '',
     duration: input.duration?.trim() || '',
+    started_at: input.startedAt ?? null,
+    duration_minutes: input.durationMinutes ?? null,
   };
 
-  // speed/duration arrive in migration 0024. Until it has been run those
-  // columns do not exist and the insert would fail outright -- and unlike a
-  // failed read, that means a visitor taps "I used this" and gets an error.
-  // Fall back to the columns that certainly exist rather than lose the entry.
+  // speed/duration arrive in migration 0024, started_at/duration_minutes in
+  // 0027. Until each has been run those columns do not exist and the insert
+  // would fail outright -- and unlike a failed read, that means a visitor taps
+  // "I used this" and gets an error. Fall back to the columns that certainly
+  // exist rather than lose the entry: a row saying somebody used the machine is
+  // worth more than no row at all.
   //
   // The latch has to be read *here*, when choosing what to send. Retrying on it
   // alone meant the fallback worked exactly once: every later insert still led
@@ -1220,14 +1245,23 @@ export async function logEquipmentUsage(
 }
 
 export async function fetchEquipmentUsage(limit = 200): Promise<EquipmentUsage[]> {
-  const rows = unwrap(
-    await supabase
+  const query = () =>
+    supabase
       .from('equipment_usage_log')
-      .select(USAGE_SELECT)
+      .select(usageSelect())
       .order('created_at', { ascending: false })
-      .limit(limit)
-  );
-  return (rows as any[]).map(toEquipmentUsage);
+      .limit(limit);
+
+  // This read had no fallback at all, and its only caller swallows errors — so
+  // naming a column that did not exist yet turned the whole visitor log into a
+  // convincing empty state rather than a failure anybody could see.
+  let result = await query();
+  if (usageWindowAvailable && isMissingSchemaError(result.error)) {
+    usageWindowAvailable = false;
+    result = await query();
+  }
+
+  return (unwrap(result) as any[]).map(toEquipmentUsage);
 }
 
 /**
@@ -1313,15 +1347,11 @@ const EQUIPMENT_SELECT = `
  */
 let usageLogAvailable = true;
 
-const EQUIPMENT_USAGE_FIELDS = `,
-  usage:equipment_usage_log(
-    id, equipment_id, visitor_name, affiliation, purpose, speed, duration, created_at,
-    logger:profiles!equipment_usage_log_user_id_fkey(${PROFILE_FIELDS})
-  )
-`;
-
 function equipmentSelect(): string {
-  return usageLogAvailable ? EQUIPMENT_SELECT + EQUIPMENT_USAGE_FIELDS : EQUIPMENT_SELECT;
+  if (!usageLogAvailable) return EQUIPMENT_SELECT;
+  // Shares usageSelect(), so the nested copy and the standalone read can never
+  // drift into asking for different columns.
+  return `${EQUIPMENT_SELECT},\n  usage:equipment_usage_log(${usageSelect()})`;
 }
 
 function toIssueResponse(row: any): IssueResponse {
@@ -1394,7 +1424,14 @@ export async function fetchEquipment(): Promise<Equipment[]> {
   const query = () =>
     supabase.from('equipment').select(equipmentSelect()).order('name');
 
+  // Narrowest fallback first: drop the two columns 0027 adds, and only if it
+  // still fails give up the usage log altogether. The other order would throw
+  // away every usage row over a missing column.
   let result = await query();
+  if (usageWindowAvailable && isMissingSchemaError(result.error)) {
+    usageWindowAvailable = false;
+    result = await query();
+  }
   if (usageLogAvailable && isMissingSchemaError(result.error)) {
     usageLogAvailable = false;
     result = await query();
