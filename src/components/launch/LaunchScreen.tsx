@@ -157,7 +157,7 @@ export const LaunchScreen: React.FC = () => {
             Structural Virology Lab · IIT Delhi
           </p>
           <h1 className="mt-4 text-5xl sm:text-7xl font-extrabold tracking-tight">
-            MB Lab Procurement
+            MB Lab
           </h1>
         </motion.div>
 

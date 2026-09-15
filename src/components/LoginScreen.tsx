@@ -104,7 +104,7 @@ export const LoginScreen: React.FC = () => {
         <div className="w-12 h-12 rounded bg-primary flex items-center justify-center mb-5">
           <span className="material-symbols-outlined text-white text-[28px]">biotech</span>
         </div>
-        <h1 className="font-bold text-2xl text-white mb-2 tracking-tight">MB Lab Procurement</h1>
+        <h1 className="font-bold text-2xl text-white mb-2 tracking-tight">MB Lab</h1>
         <p className="text-gray-400 text-sm mb-8 text-center max-w-xs">
           {mode === 'choose'
             ? 'Structural Virology Lab, IIT Delhi.'

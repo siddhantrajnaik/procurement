@@ -161,7 +161,7 @@ function AppContent() {
       role === 'guest' ? 'Visiting'
       : role === 'pi' ? 'Lab overview'
       : TAB_TITLES[activeTab] ?? 'MB Lab';
-    document.title = `${label} - MB Lab Procurement`;
+    document.title = `${label} - MB Lab`;
     window.scrollTo(0, 0);
   }, [activeTab, role, showLaunch]);
 
