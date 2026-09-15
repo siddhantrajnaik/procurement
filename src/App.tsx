@@ -3,6 +3,7 @@ import { MotionConfig } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GuestApp } from './components/guest/GuestApp';
 import { PIApp } from './components/pi/PIApp';
+import { LaunchScreen, useLaunchLink } from './components/launch/LaunchScreen';
 import { UIProvider, useUI } from './context/UIContext';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
@@ -142,18 +143,27 @@ function AppContent() {
   const { activeTab, tabResetNonce, setIsCreateModalOpen } = useUI();
   const { isLoading, loadError, reload } = useApp();
 
+  const showLaunch = useLaunchLink();
+
   // The tab list belongs to the lab member's shell. Guests and the PI never see
   // it, so naming their tab after a tab they do not have just leaves whichever
   // title happened to be set last sitting in the title bar.
   const role = currentUser?.role;
   useEffect(() => {
+    // The ceremony is named here rather than inside the launch screen: this
+    // effect belongs to the parent, so it runs after the child's and would
+    // otherwise put "Feed" in the tab on the projector.
+    if (showLaunch) {
+      document.title = 'MB Lab';
+      return;
+    }
     const label =
       role === 'guest' ? 'Visiting'
       : role === 'pi' ? 'Lab overview'
       : TAB_TITLES[activeTab] ?? 'MB Lab';
     document.title = `${label} - MB Lab Procurement`;
     window.scrollTo(0, 0);
-  }, [activeTab, role]);
+  }, [activeTab, role, showLaunch]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -168,6 +178,13 @@ function AppContent() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [isAuthenticated, activeTab, setIsCreateModalOpen]);
+
+  // Above every gate below, on purpose. The opening ceremony runs once, live, on
+  // a projector — if Supabase is slow or unreachable in that room, the checks
+  // that follow would put a spinner or an error screen on the wall instead. It
+  // reads no data, so there is nothing for it to wait on. Delete this and the
+  // launch/ folder once the event is over.
+  if (showLaunch) return <LaunchScreen />;
 
   if (isLoading) return <LoadingScreen />;
   if (loadError) return <ErrorScreen message={loadError} onRetry={() => void reload()} />;
