@@ -350,20 +350,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await Promise.allSettled(allowed.map((s) => scopeLoaders[s]()));
   }, [scopeLoaders]);
 
-  const reload = useCallback(async () => {
+  /**
+   * `silent` refreshes the data without taking the screen.
+   *
+   * Every mutation ends in a reload, and those must not blank the app: someone
+   * who just saved a quotation should see their list update under them, not a
+   * full-screen spinner. Only the two entry points that have nothing to show yet
+   * — first load after sign-in, and the error screen's retry — take the screen.
+   */
+  const reload = useCallback(async (opts?: { silent?: boolean }) => {
     if (!isSupabaseConfigured) {
       setLoadError('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
       setIsLoading(false);
       return;
     }
-    // Re-armed on every load, not just the first. Without this the flag was
-    // cleared once on the login screen and never set again, so a shell mounted
-    // straight into empty arrays with no spinner. A feed rendering "nothing yet"
-    // for a moment is survivable; the PI's screen renders a total, and showed
-    // "₹0 committed across 0 purchases" as a settled figure until the fetch
-    // landed. Both callers -- the auth effect and the error screen's retry --
-    // are moments where a spinner is the honest answer.
-    setIsLoading(true);
+    // Re-armed on every non-silent load, not just the first. Without this the
+    // flag was cleared once on the login screen and never set again, so a shell
+    // mounted straight into empty arrays with no spinner. A feed rendering
+    // "nothing yet" for a moment is survivable; the PI's screen renders a total,
+    // and showed "₹0 committed across 0 purchases" as a settled figure until the
+    // fetch landed.
+    if (!opts?.silent) setIsLoading(true);
     try {
       // Skipping these keeps every purchase and vendor price off a visitor's
       // device rather than merely hidden from their screen. `mayLoad` also
@@ -393,7 +400,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load lab data.');
     } finally {
-      setIsLoading(false);
+      // A silent refresh never raised the flag, so it must not lower one that a
+      // real load is still holding up.
+      if (!opts?.silent) setIsLoading(false);
     }
   }, [
     loadPurchases, loadActivities, loadInventory, loadVendors,
@@ -498,7 +507,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async (action: () => Promise<void>, fallbackMessage: string): Promise<boolean> => {
       try {
         await action();
-        await reload();
+        await reload({ silent: true });
         return true;
       } catch (err) {
         showToastRef.current(err instanceof Error ? err.message : fallbackMessage, 'error');
