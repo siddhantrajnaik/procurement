@@ -83,6 +83,27 @@ const PURCHASE_INVOICE_FIELDS = `
 `;
 
 /**
+ * Whether an error means "the schema does not have that" rather than "the
+ * request never arrived".
+ *
+ * Each of the latches below drops a field permanently for the rest of the page
+ * session, so what trips them matters. PostgREST names the shape it could not
+ * find: `42703` for a column Postgres does not have, `PGRST200` for an embedded
+ * relationship it cannot resolve, `PGRST204` when its schema cache rejects a
+ * write payload first. A failed fetch — offline, DNS, a sleeping tab — arrives
+ * as a bare `{ message: 'TypeError: Failed to fetch' }` with no code at all.
+ *
+ * The latches used to test `result.error` alone, which cannot tell those apart,
+ * so one bad moment on lab wifi permanently convinced the app that a migration
+ * had never been run. The failure mode of being too strict here is that a latch
+ * never fires — which is the correct behaviour on any database where the
+ * migrations have in fact been applied.
+ */
+function isMissingSchemaError(error: { code?: string } | null): boolean {
+  return error?.code === '42703' || error?.code === 'PGRST200' || error?.code === 'PGRST204';
+}
+
+/**
  * Migration 0006 adds the invoice columns, 0020 adds the deliveries table.
  * Until each has been run its fields don't exist and selecting them would 400
  * the whole feed — so the first failure latches the flag and every later query
@@ -243,12 +264,12 @@ export async function fetchPurchases(): Promise<Purchase[]> {
 
   let result = await query();
 
-  if (result.error && invoiceColumnsAvailable) {
+  if (invoiceColumnsAvailable && isMissingSchemaError(result.error)) {
     invoiceColumnsAvailable = false;
     result = await query();
   }
 
-  if (result.error && deliveriesAvailable) {
+  if (deliveriesAvailable && isMissingSchemaError(result.error)) {
     deliveriesAvailable = false;
     result = await query();
   }
@@ -1129,20 +1150,6 @@ const LOAN_SELECT = `
 /** Cleared the first time an insert rejects the 0024 columns. */
 let usageDetailsAvailable = true;
 
-/**
- * Whether an error means "that column does not exist" rather than "the request
- * did not arrive".
- *
- * PostgREST names a missing column: `42703` from Postgres itself, or `PGRST204`
- * when its schema cache rejects the payload first. A failed fetch — offline, DNS,
- * a sleeping tab — arrives here as a plain `{ message: 'TypeError: Failed to
- * fetch' }` with no code at all. Both used to look identical to the latches
- * below, so one bad moment on lab wifi would permanently convince the app that a
- * migration had never been run.
- */
-function isMissingColumnError(error: { code?: string } | null): boolean {
-  return error?.code === '42703' || error?.code === 'PGRST204';
-}
 
 function toEquipmentUsage(row: any): EquipmentUsage {
   return {
@@ -1205,7 +1212,7 @@ export async function logEquipmentUsage(
     .insert(usageDetailsAvailable ? withDetails : base)
     .select('id');
 
-  if (usageDetailsAvailable && isMissingColumnError(result.error)) {
+  if (usageDetailsAvailable && isMissingSchemaError(result.error)) {
     usageDetailsAvailable = false;
     result = await supabase.from('equipment_usage_log').insert(base).select('id');
   }
@@ -1388,7 +1395,7 @@ export async function fetchEquipment(): Promise<Equipment[]> {
     supabase.from('equipment').select(equipmentSelect()).order('name');
 
   let result = await query();
-  if (result.error && usageLogAvailable) {
+  if (usageLogAvailable && isMissingSchemaError(result.error)) {
     usageLogAvailable = false;
     result = await query();
   }
