@@ -73,13 +73,15 @@ export const FEATURES: Feature[] = [
     group: 'Everywhere',
     icon: Search,
     name: 'Search',
-    blurb: 'One box across requests, stock, vendors and equipment.',
+    blurb:
+      'One box across every request, quotation and comment — and everything in stock — by name, vendor, category or person.',
   },
   {
     group: 'Everywhere',
     icon: History,
     name: 'Activity',
-    blurb: 'Everything anyone did, newest first, so nothing happens quietly.',
+    blurb:
+      'Who did what, newest first: every request raised, quote added, status changed and delivery recorded.',
   },
   {
     group: 'Everywhere',
