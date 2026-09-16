@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Phone, Mail, Trash2, Pencil } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useReadOnly } from '../lib/useReadOnly';
 import { Vendor, VendorType } from '../types';
 import { AddVendorModal } from './AddVendorModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -18,6 +19,7 @@ interface Props {
 
 export const VendorsView: React.FC<Props> = ({ onBack }) => {
   const { vendors, removeVendor } = useApp();
+  const readOnly = useReadOnly();
   const [filter, setFilter] = useState<'all' | VendorType>('all');
   const [search, setSearch] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -58,16 +60,18 @@ export const VendorsView: React.FC<Props> = ({ onBack }) => {
             {vendors.length} vendor{vendors.length !== 1 ? 's' : ''} registered
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingVendor(null);
-            setIsAddOpen(true);
-          }}
-          className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Vendor
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => {
+              setEditingVendor(null);
+              setIsAddOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Vendor
+          </button>
+        )}
       </div>
 
       <div className="relative">
@@ -128,6 +132,7 @@ export const VendorsView: React.FC<Props> = ({ onBack }) => {
               key={vendor.id}
               vendor={vendor}
               typeLabel={typeLabel}
+              readOnly={readOnly}
               onEdit={() => {
                 setEditingVendor(vendor);
                 setIsAddOpen(true);
@@ -166,11 +171,13 @@ export const VendorsView: React.FC<Props> = ({ onBack }) => {
 function VendorCard({
   vendor,
   typeLabel,
+  readOnly,
   onEdit,
   onDelete,
 }: {
   vendor: Vendor;
   typeLabel: (t: VendorType) => string;
+  readOnly: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -241,22 +248,24 @@ function VendorCard({
 
       <div className="flex items-center justify-between pt-1">
         <span className="text-[10px] text-gray-600">{timeAgo(vendor.createdAt)}</span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onEdit}
-            className="p-1.5 rounded-md text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
-            title="Edit"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onEdit}
+              className="p-1.5 rounded-md text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+              title="Edit"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={onDelete}
+              className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

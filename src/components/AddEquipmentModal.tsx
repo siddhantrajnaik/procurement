@@ -17,6 +17,7 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [name, setName] = useState('');
   const [model, setModel] = useState('');
   const [manufacturer, setManufacturer] = useState('');
+  const [serialNumber, setSerialNumber] = useState('');
   const [category, setCategory] = useState<EquipmentCategory>('other');
   const [location, setLocation] = useState('');
   const [serviceVendor, setServiceVendor] = useState('');
@@ -43,6 +44,7 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
         name: name.trim(),
         model: model.trim(),
         manufacturer: manufacturer.trim(),
+        serialNumber: serialNumber.trim(),
         category,
         location: location.trim(),
         serviceVendor: serviceVendor.trim(),
@@ -53,6 +55,7 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setName('');
       setModel('');
       setManufacturer('');
+      setSerialNumber('');
       setCategory('other');
       setLocation('');
       setServiceVendor('');
@@ -127,6 +130,20 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   className="w-full px-3 py-2 rounded-lg bg-background border border-[#2A2A2A] text-white text-xs focus:ring-1 focus:ring-primary outline-none placeholder:text-gray-600"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">
+                Serial number
+                <span className="text-gray-500 font-normal ml-1">(optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="The number stamped on the back"
+                value={serialNumber}
+                onChange={(e) => setSerialNumber(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-[#2A2A2A] text-white text-xs font-mono focus:ring-1 focus:ring-primary outline-none placeholder:text-gray-600 placeholder:font-sans"
+              />
             </div>
 
             <div>

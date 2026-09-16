@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'react';
-import { FlaskConical, Beaker, LogOut, IndianRupee, Microscope, History } from 'lucide-react';
+import {
+  FlaskConical, Beaker, LogOut, IndianRupee, Microscope, History,
+  LayoutGrid, Wrench, Store, TestTube2, Sparkles,
+} from 'lucide-react';
+import { EquipmentView } from '../EquipmentView';
+import { VendorsView } from '../VendorsView';
+import { SampleInventoryView } from '../SampleInventoryView';
+import { MuhuratView } from '../MuhuratView';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { EquipmentStatus, Purchase } from '../../types';
@@ -52,6 +59,29 @@ function spendOf(p: Purchase): { amount: number; at: string } | null {
 const MONTH_LABEL = new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' });
 
 /**
+ * The lab's own screens, reachable from her dashboard.
+ *
+ * These are the member components verbatim — same data, same layout, same code.
+ * The only difference is that `useReadOnly` hides their Add and Delete controls
+ * for her role, so there is no second copy to keep in step with the first.
+ */
+const SHORTCUTS = [
+  { id: 'equipment', label: 'Lab Equipment', blurb: 'Status, service, serials', icon: Wrench },
+  { id: 'samples', label: 'Sample Inventory', blurb: 'Boxes and what is in them', icon: TestTube2 },
+  { id: 'vendors', label: 'Vendor Directory', blurb: 'Who to call', icon: Store },
+  { id: 'muhurat', label: 'Shubh Muhurat', blurb: "Today's auspicious hours", icon: Sparkles },
+] as const;
+
+type ShortcutId = (typeof SHORTCUTS)[number]['id'];
+
+const VIEWS: Record<ShortcutId, React.FC<{ onBack: () => void }>> = {
+  equipment: EquipmentView,
+  samples: SampleInventoryView,
+  vendors: VendorsView,
+  muhurat: MuhuratView,
+};
+
+/**
  * The PI's whole view of the lab: what it spent, and how it is being used.
  *
  * A separate shell rather than the normal app with things hidden, for the same
@@ -67,6 +97,7 @@ export const PIApp: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const { usage, loans, entries, loading } = useLabActivity();
   const [period, setPeriod] = useState<Period>('quarter');
+  const [view, setView] = useState<ShortcutId | null>(null);
 
   const since = useMemo(() => periodStart(period), [period]);
   const inPeriod = (iso: string) => !since || new Date(iso) >= since;
@@ -130,6 +161,18 @@ export const PIApp: React.FC = () => {
 
   const maxCategory = spend.categories[0]?.[1] ?? 0;
   const maxMonth = spend.months.reduce((m, x) => Math.max(m, x.total), 0);
+
+  // A chosen screen takes the whole shell, like a member's Profile sub-view, so
+  // the back arrow those views already draw is the only way out and there is no
+  // second navigation to reason about.
+  if (view) {
+    const View = VIEWS[view];
+    return (
+      <div className="min-h-dvh flex flex-col bg-background">
+        <View onBack={() => setView(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
@@ -284,6 +327,30 @@ export const PIApp: React.FC = () => {
               ))}
             </div>
           )}
+        </section>
+
+        {/* The lab's own screens, exactly as a member sees them — minus the
+            write controls, which useReadOnly strips for her role. */}
+        <section className="space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+            <LayoutGrid className="w-3.5 h-3.5 text-gray-600" />
+            The lab
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {SHORTCUTS.map(({ id, label, blurb, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setView(id)}
+                className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4 text-left hover:border-primary/40 hover:bg-[#242424] transition-colors"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center mb-3">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <p className="text-sm font-bold text-white">{label}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">{blurb}</p>
+              </button>
+            ))}
+          </div>
         </section>
 
         {/* The feed: who was on what, and what left the room */}

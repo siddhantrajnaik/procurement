@@ -284,6 +284,8 @@ export interface Equipment {
   name: string;
   model: string;
   manufacturer: string;
+  /** Free text off the back of the machine. Not unique across makers. */
+  serialNumber: string;
   category: string;
   location: string;
   status: EquipmentStatus;
@@ -367,6 +369,7 @@ export interface NewEquipmentInput {
   name: string;
   model?: string;
   manufacturer?: string;
+  serialNumber?: string;
   category?: string;
   location?: string;
   serviceVendor?: string;

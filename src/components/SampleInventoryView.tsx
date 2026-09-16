@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useReadOnly } from '../lib/useReadOnly';
 import { useUI } from '../context/UIContext';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
@@ -34,6 +35,7 @@ const stagger = (i: number): React.CSSProperties => ({
 
 export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const { currentUser } = useAuth();
+  const readOnly = useReadOnly();
   const { showToast } = useUI();
 
   const [boxes, setBoxes] = useState<SampleBox[]>([]);
@@ -252,7 +254,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
             Log
           </button>
         </div>
-        {subTab === 'boxes' && (
+        {subTab === 'boxes' && !readOnly && (
           <button
             onClick={() => { setEditBox(null); setShowBoxModal(true); }}
             className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
@@ -326,7 +328,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className={`flex gap-1 ${readOnly ? 'hidden' : ''}`}>
                       <span
                         onClick={(e) => { e.stopPropagation(); setEditBox(box); setShowBoxModal(true); }}
                         className="p-1.5 rounded-md text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors cursor-pointer"
@@ -358,7 +360,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                             {boxSamples.map((sa) => (
                               <button
                                 key={sa.id}
-                                onClick={() => { setEditSample(sa); setAddSampleBoxId(null); setShowSampleModal(true); }}
+                                onClick={() => { if (readOnly) return; setEditSample(sa); setAddSampleBoxId(null); setShowSampleModal(true); }}
                                 className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-[#242424] transition-colors rounded"
                               >
                                 <span className="material-symbols-outlined text-[16px] text-gray-500">science</span>
@@ -379,13 +381,15 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                             ))}
                           </div>
                         )}
-                        <button
-                          onClick={() => { setEditSample(null); setAddSampleBoxId(box.id); setShowSampleModal(true); }}
-                          className="mt-2 w-full py-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">add</span>
-                          Add sample
-                        </button>
+                        {!readOnly && (
+                          <button
+                            onClick={() => { setEditSample(null); setAddSampleBoxId(box.id); setShowSampleModal(true); }}
+                            className="mt-2 w-full py-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">add</span>
+                            Add sample
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -400,7 +404,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                   {filteredLoose.map((sa) => (
                     <button
                       key={sa.id}
-                      onClick={() => { setEditSample(sa); setAddSampleBoxId(null); setShowSampleModal(true); }}
+                      onClick={() => { if (readOnly) return; setEditSample(sa); setAddSampleBoxId(null); setShowSampleModal(true); }}
                       className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-[#242424] transition-colors rounded"
                     >
                       <span className="material-symbols-outlined text-[16px] text-gray-500">science</span>

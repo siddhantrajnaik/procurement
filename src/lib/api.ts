@@ -1347,11 +1347,25 @@ const EQUIPMENT_SELECT = `
  */
 let usageLogAvailable = true;
 
+/**
+ * Cleared the first time `serial_number` is rejected, i.e. migration 0028 has
+ * not been run.
+ *
+ * Same reasoning as every latch above, and it earns its keep here more than
+ * most: a column added the night before a launch is exactly the one that might
+ * not have been applied yet, and the instrument list going blank over a missing
+ * serial would be a far worse outcome than the serial simply not showing.
+ */
+let serialAvailable = true;
+
+const SERIAL_FIELD = 'serial_number,';
+
 function equipmentSelect(): string {
-  if (!usageLogAvailable) return EQUIPMENT_SELECT;
+  const base = serialAvailable ? SERIAL_FIELD + EQUIPMENT_SELECT : EQUIPMENT_SELECT;
+  if (!usageLogAvailable) return base;
   // Shares usageSelect(), so the nested copy and the standalone read can never
   // drift into asking for different columns.
-  return `${EQUIPMENT_SELECT},\n  usage:equipment_usage_log(${usageSelect()})`;
+  return `${base},\n  usage:equipment_usage_log(${usageSelect()})`;
 }
 
 function toIssueResponse(row: any): IssueResponse {
@@ -1401,6 +1415,7 @@ function toEquipment(row: any): Equipment {
     name: row.name,
     model: row.model,
     manufacturer: row.manufacturer,
+    serialNumber: row.serial_number ?? '',
     category: row.category,
     location: row.location,
     status: row.status,
@@ -1424,10 +1439,14 @@ export async function fetchEquipment(): Promise<Equipment[]> {
   const query = () =>
     supabase.from('equipment').select(equipmentSelect()).order('name');
 
-  // Narrowest fallback first: drop the two columns 0027 adds, and only if it
-  // still fails give up the usage log altogether. The other order would throw
-  // away every usage row over a missing column.
+  // Narrowest fallback first, widening only as each one still fails: the serial
+  // (0028), then the run window (0027), and only last the usage log entirely.
+  // The other order would throw away every usage row over one missing column.
   let result = await query();
+  if (serialAvailable && isMissingSchemaError(result.error)) {
+    serialAvailable = false;
+    result = await query();
+  }
   if (usageWindowAvailable && isMissingSchemaError(result.error)) {
     usageWindowAvailable = false;
     result = await query();
@@ -1451,6 +1470,7 @@ export async function addEquipment(
         name: input.name,
         model: input.model ?? '',
         manufacturer: input.manufacturer ?? '',
+        ...(serialAvailable ? { serial_number: input.serialNumber ?? '' } : {}),
         category: input.category ?? 'other',
         location: input.location ?? '',
         service_vendor: input.serviceVendor ?? '',
@@ -1475,6 +1495,7 @@ export async function updateEquipment(
   if (updates.name !== undefined) row.name = updates.name;
   if (updates.model !== undefined) row.model = updates.model;
   if (updates.manufacturer !== undefined) row.manufacturer = updates.manufacturer;
+  if (updates.serialNumber !== undefined && serialAvailable) row.serial_number = updates.serialNumber;
   if (updates.category !== undefined) row.category = updates.category;
   if (updates.location !== undefined) row.location = updates.location;
   if (updates.serviceVendor !== undefined) row.service_vendor = updates.serviceVendor;

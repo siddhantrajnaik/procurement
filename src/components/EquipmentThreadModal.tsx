@@ -17,6 +17,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
+import { useReadOnly } from '../lib/useReadOnly';
 import * as api from '../lib/api';
 import { Equipment, EquipmentIssue, EquipmentStatus, IssueStatus } from '../types';
 import { equipmentIconSvg, equipmentLabel, EquipmentCategory } from '../lib/equipmentIcons';
@@ -92,7 +93,12 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose, showDeleteConfirm, showReportIssue, showAddMaintenance, fixingIssueId]);
 
-  const isAdmin = currentUser?.role === 'procurement_incharge' || currentUser?.role === 'pi';
+  const readOnly = useReadOnly();
+  // The PI reaches this from her own dashboard to look, not to curate. She still
+  // counts as an admin everywhere else, so gate on readOnly rather than rewriting
+  // what 'admin' means for the twelve people who do run the lab.
+  const isAdmin =
+    !readOnly && (currentUser?.role === 'procurement_incharge' || currentUser?.role === 'pi');
   const openIssues = eq.issues.filter((i) => i.status !== 'fixed');
   const fixedIssues = eq.issues.filter((i) => i.status === 'fixed');
   const warrantyActive = eq.warrantyExpiry && new Date(eq.warrantyExpiry) > new Date();
@@ -340,6 +346,14 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                     </p>
                   )}
                   <p className="text-[11px] text-gray-500 mt-0.5">{equipmentLabel(eq.category as EquipmentCategory)}</p>
+                  {eq.serialNumber && (
+                    // Monospaced and selectable: this gets read down a phone to
+                    // a service engineer, and a mistyped character wastes a call.
+                    <p className="text-[11px] text-gray-400 mt-1 font-mono select-text">
+                      <span className="text-gray-600">S/N </span>
+                      {eq.serialNumber}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -348,7 +362,8 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                 {STATUS_OPTIONS.map((s) => (
                   <button
                     key={s.value}
-                    onClick={() => void handleStatusChange(s.value)}
+                    onClick={() => { if (!readOnly) void handleStatusChange(s.value); }}
+                    disabled={readOnly}
                     className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
                       eq.status === s.value
                         ? `${s.color} bg-white/5 border-current`
@@ -416,14 +431,16 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                   <History className="w-3.5 h-3.5 text-gray-600" />
                   Usage ({eq.usageLog.length})
                 </h3>
-                <button
-                  onClick={() => void handleLogMyUse()}
-                  disabled={loggingUse || !currentUser}
-                  className="flex items-center gap-1 text-xs font-semibold text-gray-300 bg-[#2A2A2A] hover:bg-[#333] px-2.5 py-1 rounded-full transition-colors disabled:opacity-50"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Log my use
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => void handleLogMyUse()}
+                    disabled={loggingUse || !currentUser}
+                    className="flex items-center gap-1 text-xs font-semibold text-gray-300 bg-[#2A2A2A] hover:bg-[#333] px-2.5 py-1 rounded-full transition-colors disabled:opacity-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Log my use
+                  </button>
+                )}
               </div>
 
               {eq.usageLog.length > 0 && (
@@ -470,13 +487,15 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                   <AlertTriangle className="w-3.5 h-3.5 text-gray-600" />
                   Issues ({eq.issues.length})
                 </h3>
-                <button
-                  onClick={() => setShowReportIssue(true)}
-                  className="flex items-center gap-1 text-xs font-semibold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1 rounded-full transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Report Issue
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => setShowReportIssue(true)}
+                    className="flex items-center gap-1 text-xs font-semibold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1 rounded-full transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Report Issue
+                  </button>
+                )}
               </div>
 
               {openIssues.length > 0 && (
@@ -511,13 +530,15 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                   <Wrench className="w-3.5 h-3.5 text-gray-600" />
                   Maintenance ({eq.maintenanceLogs.length})
                 </h3>
-                <button
-                  onClick={() => setShowAddMaintenance(true)}
-                  className="flex items-center gap-1 text-xs font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2.5 py-1 rounded-full transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Log Service
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => setShowAddMaintenance(true)}
+                    className="flex items-center gap-1 text-xs font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2.5 py-1 rounded-full transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Log Service
+                  </button>
+                )}
               </div>
 
               {eq.maintenanceLogs.length > 0 ? (

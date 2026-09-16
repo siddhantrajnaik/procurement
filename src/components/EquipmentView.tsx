@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useReadOnly } from '../lib/useReadOnly';
 import { EquipmentCard } from './EquipmentCard';
 import { EquipmentThreadModal } from './EquipmentThreadModal';
 import { AddEquipmentModal } from './AddEquipmentModal';
@@ -20,6 +21,7 @@ interface Props {
 
 export const EquipmentView: React.FC<Props> = ({ onBack }) => {
   const { equipment } = useApp();
+  const readOnly = useReadOnly();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,13 +73,15 @@ export const EquipmentView: React.FC<Props> = ({ onBack }) => {
             <ArrowLeft className="w-4 h-4" />
             Equipment
           </button>
-          <button
-            onClick={() => setIsAddOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add Equipment
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => setIsAddOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add Equipment
+            </button>
+          )}
         </div>
 
         {/* Stats bar */}
