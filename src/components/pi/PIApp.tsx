@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import {
   FlaskConical, Beaker, LogOut, IndianRupee, Microscope, History,
-  LayoutGrid, Wrench, Store, TestTube2, Sparkles,
+  LayoutGrid, Wrench, Store, TestTube2,
 } from 'lucide-react';
+import { KalashIcon } from '../icons/KalashIcon';
 import { EquipmentView } from '../EquipmentView';
 import { VendorsView } from '../VendorsView';
 import { SampleInventoryView } from '../SampleInventoryView';
@@ -69,7 +70,7 @@ const SHORTCUTS = [
   { id: 'equipment', label: 'Lab Equipment', blurb: 'Status, service, serials', icon: Wrench },
   { id: 'samples', label: 'Sample Inventory', blurb: 'Boxes and what is in them', icon: TestTube2 },
   { id: 'vendors', label: 'Vendor Directory', blurb: 'Who to call', icon: Store },
-  { id: 'muhurat', label: 'Shubh Muhurat', blurb: "Today's auspicious hours", icon: Sparkles },
+  { id: 'muhurat', label: 'Shubh Muhurat', blurb: "Today's auspicious hours", icon: KalashIcon },
 ] as const;
 
 type ShortcutId = (typeof SHORTCUTS)[number]['id'];
