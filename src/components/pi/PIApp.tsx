@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import {
-  FlaskConical, Beaker, LogOut, IndianRupee, Microscope, History,
-  LayoutGrid, Wrench, Store, TestTube2,
+  FlaskConical, Beaker, IndianRupee, Microscope, History,
+  LayoutGrid, Wrench, Store, TestTube2, NotebookPen,
 } from 'lucide-react';
 import { KalashIcon } from '../icons/KalashIcon';
 import { EquipmentView } from '../EquipmentView';
 import { VendorsView } from '../VendorsView';
 import { SampleInventoryView } from '../SampleInventoryView';
 import { MuhuratView } from '../MuhuratView';
+import { NotebookView } from '../NotebookView';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { EquipmentStatus, Purchase } from '../../types';
@@ -75,11 +76,12 @@ const SHORTCUTS = [
 
 type ShortcutId = (typeof SHORTCUTS)[number]['id'];
 
-const VIEWS: Record<ShortcutId, React.FC<{ onBack: () => void }>> = {
+const VIEWS: Record<ShortcutId | 'notes', React.FC<{ onBack: () => void }>> = {
   equipment: EquipmentView,
   samples: SampleInventoryView,
   vendors: VendorsView,
   muhurat: MuhuratView,
+  notes: NotebookView,
 };
 
 /**
@@ -95,10 +97,10 @@ const VIEWS: Record<ShortcutId, React.FC<{ onBack: () => void }>> = {
  */
 export const PIApp: React.FC = () => {
   const { purchases, equipment } = useApp();
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
   const { usage, loans, entries, loading } = useLabActivity();
   const [period, setPeriod] = useState<Period>('quarter');
-  const [view, setView] = useState<ShortcutId | null>(null);
+  const [view, setView] = useState<ShortcutId | 'notes' | null>(null);
 
   const since = useMemo(() => periodStart(period), [period]);
   const inPeriod = (iso: string) => !since || new Date(iso) >= since;
@@ -177,21 +179,14 @@ export const PIApp: React.FC = () => {
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
-      <header className="safe-top-modal px-4 pb-3 border-b border-[#2A2A2A] bg-[#1E1E1E] sticky top-0 z-30 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-white truncate leading-tight">
-            {currentUser?.name ?? 'Principal Investigator'}
-          </p>
-          <p className="text-[11px] text-gray-500 truncate">Structural Virology Lab, IIT Delhi</p>
-        </div>
-        <button
-          onClick={logout}
-          aria-label="Sign out"
-          title="Sign out"
-          className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-[#2A2A2A] transition-colors shrink-0"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
+      {/* No sign-out. She reaches this by a link she is not meant to have to
+          keep, and signing out would strand her on a login screen she is
+          deliberately not listed on. The session simply stays. */}
+      <header className="safe-top-modal px-4 pb-3 border-b border-[#2A2A2A] bg-[#1E1E1E] sticky top-0 z-30">
+        <p className="text-sm font-bold text-white truncate leading-tight">
+          {currentUser?.name ?? 'Principal Investigator'}
+        </p>
+        <p className="text-[11px] text-gray-500 truncate">Structural Virology Lab, IIT Delhi</p>
       </header>
 
       <main className="flex-1 w-full mx-auto max-w-3xl px-4 pb-16 pt-4 space-y-6">
@@ -352,6 +347,22 @@ export const PIApp: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Hers, not the lab's — so it sits apart from the grid above and
+              stays writable. The notebook scopes pages to their author, which
+              is what makes this private rather than another shared list. */}
+          <button
+            onClick={() => setView('notes')}
+            className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4 text-left hover:border-primary/40 hover:bg-[#242424] transition-colors flex items-center gap-4"
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <NotebookPen className="w-5 h-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-white">My Notes</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Private to you — nobody else sees these</p>
+            </div>
+          </button>
         </section>
 
         {/* The feed: who was on what, and what left the room */}
