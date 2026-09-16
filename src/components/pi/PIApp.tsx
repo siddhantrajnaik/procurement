@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   FlaskConical, Beaker, IndianRupee, Microscope, History,
-  LayoutGrid, Wrench, Store, TestTube2, NotebookPen,
+  LayoutGrid, Wrench, Store, TestTube2, NotebookPen, Download, X,
 } from 'lucide-react';
 import { KalashIcon } from '../icons/KalashIcon';
 import { EquipmentView } from '../EquipmentView';
@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { EquipmentStatus, Purchase } from '../../types';
 import { formatMinutes, formatRupees, formatWhen, timeAgo } from '../../lib/format';
 import { useLabActivity } from '../../lib/useLabActivity';
+import { useInstallPrompt } from '../../lib/useInstallPrompt';
 
 type Period = 'month' | 'quarter' | 'all';
 
@@ -101,6 +102,7 @@ export const PIApp: React.FC = () => {
   const { usage, loans, entries, loading } = useLabActivity();
   const [period, setPeriod] = useState<Period>('quarter');
   const [view, setView] = useState<ShortcutId | 'notes' | null>(null);
+  const { canInstall, install, dismiss } = useInstallPrompt();
 
   const since = useMemo(() => periodStart(period), [period]);
   const inPeriod = (iso: string) => !since || new Date(iso) >= since;
@@ -190,6 +192,31 @@ export const PIApp: React.FC = () => {
       </header>
 
       <main className="flex-1 w-full mx-auto max-w-3xl px-4 pb-16 pt-4 space-y-6">
+        {/* Chrome will not offer this by itself any more, and the menu item that
+            does is three taps deep behind an icon nobody looks for. */}
+        {canInstall && (
+          <div className="bg-primary/10 border border-primary/25 rounded-xl p-4 flex items-center gap-3">
+            <Download className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white">Keep this on your home screen</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Opens like an app, no address bar</p>
+            </div>
+            <button
+              onClick={() => void install()}
+              className="px-4 py-2 rounded-lg bg-primary hover:bg-orange-600 text-white text-xs font-bold transition-colors shrink-0"
+            >
+              Add
+            </button>
+            <button
+              onClick={dismiss}
+              aria-label="Not now"
+              className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Period — drives every figure below it */}
         <div className="flex gap-1.5" role="group" aria-label="Time period">
           {PERIODS.map((p) => (
