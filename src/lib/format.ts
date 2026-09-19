@@ -88,6 +88,23 @@ export function addDaysISO(dateStr: string, days: number): string {
   return toDateStr(d);
 }
 
+/**
+ * Shift a `YYYY-MM-DD` string by whole months, staying in local time.
+ *
+ * `setMonth` clamps overflow days into the next month (Jan 31 + 1 month
+ * would silently become Mar 3), which is wrong for a recurring reminder —
+ * it should land on the last day of the short month instead, not skip
+ * forward. Rolling back a day whenever the month didn't land where asked
+ * catches exactly that case.
+ */
+export function addMonthsISO(dateStr: string, months: number): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  const targetMonth = d.getMonth() + months;
+  d.setMonth(targetMonth);
+  if (d.getMonth() !== ((targetMonth % 12) + 12) % 12) d.setDate(0);
+  return toDateStr(d);
+}
+
 export function formatFileSize(bytes: number | null): string {
   if (!bytes) return '';
   if (bytes < 1024) return `${bytes} B`;

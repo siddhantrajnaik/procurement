@@ -1,5 +1,5 @@
 import { INVOICE_BUCKET, QUOTATION_BUCKET, supabase } from './supabase';
-import { todayISO } from './format';
+import { addDaysISO, addMonthsISO, todayISO } from './format';
 import {
   Activity,
   BookableItem,
@@ -38,10 +38,13 @@ import {
   NewVendorInput,
   NotebookPage,
   DriveLink,
+  NewPIReminderInput,
+  PIReminder,
   Purchase,
   PurchaseStatus,
   QuickLink,
   Quotation,
+  ReminderRecurrence,
   Sample,
   SampleBox,
   SampleLogEntry,
@@ -1990,4 +1993,145 @@ export async function deleteSample(sampleId: string, actor: User): Promise<void>
     actor_id: actor.id,
   });
   unwrap(await supabase.from('samples').delete().eq('id', sampleId).select('id'));
+}
+
+// ------------------------------------------------------------------ PI reminders
+
+const REMINDER_SELECT = `
+  id, member_id, title, note, due_date, recurrence, completed, completed_at,
+  created_at, updated_at,
+  member:profiles!pi_reminders_member_id_fkey(${PROFILE_FIELDS})
+`;
+
+function toPIReminder(row: any): PIReminder {
+  return {
+    id: row.id as string,
+    memberId: row.member_id as string,
+    member: toUser(row.member),
+    title: row.title as string,
+    note: (row.note as string) ?? '',
+    dueDate: (row.due_date as string) ?? null,
+    recurrence: (row.recurrence as ReminderRecurrence) ?? 'once',
+    completed: Boolean(row.completed),
+    completedAt: (row.completed_at as string) ?? null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+/**
+ * When a recurring reminder is next due.
+ *
+ * Counted from the date it was *due*, not the day it was ticked off, so a
+ * yearly safety check done three weeks late still comes back on its own
+ * anniversary rather than drifting later every year. If it has fallen so far
+ * behind that the next slot is already past, keep stepping until it lands in
+ * the future — otherwise ticking off a year-old monthly check would just mark
+ * it overdue again the moment the screen refreshed.
+ */
+function nextDueDate(from: string | null, recurrence: ReminderRecurrence): string | null {
+  if (recurrence === 'once') return from;
+  const today = todayISO();
+  let next = from ?? today;
+  const step = (d: string) =>
+    recurrence === 'weekly'
+      ? addDaysISO(d, 7)
+      : addMonthsISO(d, recurrence === 'monthly' ? 1 : recurrence === 'quarterly' ? 3 : 12);
+
+  next = step(next);
+  // Bounded: a decade of weekly slots is 522 steps, so this can never spin.
+  for (let i = 0; i < 600 && next <= today; i += 1) next = step(next);
+  return next;
+}
+
+export async function fetchPIReminders(): Promise<PIReminder[]> {
+  const rows = unwrap(
+    await supabase
+      .from('pi_reminders')
+      .select(REMINDER_SELECT)
+      .order('due_date', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: false })
+  );
+  return ((rows as any[]) ?? []).map(toPIReminder);
+}
+
+export async function createPIReminder(input: NewPIReminderInput): Promise<PIReminder> {
+  const inserted = unwrap(
+    await supabase
+      .from('pi_reminders')
+      .insert({
+        member_id: input.memberId,
+        title: input.title,
+        note: input.note ?? '',
+        due_date: input.dueDate || null,
+        recurrence: input.recurrence ?? 'once',
+      })
+      .select(REMINDER_SELECT)
+      .single()
+  );
+  return toPIReminder(inserted);
+}
+
+export async function updatePIReminder(
+  id: string,
+  updates: {
+    memberId?: string;
+    title?: string;
+    note?: string;
+    dueDate?: string | null;
+    recurrence?: ReminderRecurrence;
+  }
+): Promise<PIReminder> {
+  const row: Record<string, unknown> = {};
+  if (updates.memberId !== undefined) row.member_id = updates.memberId;
+  if (updates.title !== undefined) row.title = updates.title;
+  if (updates.note !== undefined) row.note = updates.note;
+  if (updates.dueDate !== undefined) row.due_date = updates.dueDate || null;
+  if (updates.recurrence !== undefined) row.recurrence = updates.recurrence;
+
+  const updated = unwrap(
+    await supabase.from('pi_reminders').update(row).eq('id', id).select(REMINDER_SELECT).single()
+  );
+  return toPIReminder(updated);
+}
+
+/**
+ * Tick a reminder off.
+ *
+ * A one-off is finished and stays finished. A recurring one is never finished —
+ * it just rolls forward to its next slot, which is the whole reason the two
+ * kinds are one table rather than two screens.
+ */
+export async function completePIReminder(reminder: PIReminder): Promise<PIReminder> {
+  const recurring = reminder.recurrence !== 'once';
+  const updated = unwrap(
+    await supabase
+      .from('pi_reminders')
+      .update({
+        completed: !recurring,
+        completed_at: new Date().toISOString(),
+        due_date: recurring ? nextDueDate(reminder.dueDate, reminder.recurrence) : reminder.dueDate,
+      })
+      .eq('id', reminder.id)
+      .select(REMINDER_SELECT)
+      .single()
+  );
+  return toPIReminder(updated);
+}
+
+/** Undo a tick on a one-off — the recurring ones are never in this state. */
+export async function reopenPIReminder(id: string): Promise<PIReminder> {
+  const updated = unwrap(
+    await supabase
+      .from('pi_reminders')
+      .update({ completed: false, completed_at: null })
+      .eq('id', id)
+      .select(REMINDER_SELECT)
+      .single()
+  );
+  return toPIReminder(updated);
+}
+
+export async function deletePIReminder(id: string): Promise<void> {
+  unwrap(await supabase.from('pi_reminders').delete().eq('id', id).select('id'));
 }

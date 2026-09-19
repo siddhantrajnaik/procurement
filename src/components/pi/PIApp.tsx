@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   FlaskConical, Beaker, IndianRupee, Microscope, History,
-  LayoutGrid, Wrench, Store, TestTube2, NotebookPen, Download, X,
+  LayoutGrid, Wrench, Store, TestTube2, NotebookPen, Download, X, BellRing,
 } from 'lucide-react';
 import { KalashIcon } from '../icons/KalashIcon';
 import { EquipmentView } from '../EquipmentView';
@@ -9,12 +9,14 @@ import { VendorsView } from '../VendorsView';
 import { SampleInventoryView } from '../SampleInventoryView';
 import { MuhuratView } from '../MuhuratView';
 import { NotebookView } from '../NotebookView';
+import { RemindersView } from './RemindersView';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { EquipmentStatus, Purchase } from '../../types';
-import { formatMinutes, formatRupees, formatWhen, timeAgo } from '../../lib/format';
+import { formatMinutes, formatRupees, formatWhen, timeAgo, todayISO } from '../../lib/format';
 import { useLabActivity } from '../../lib/useLabActivity';
 import { useInstallPrompt } from '../../lib/useInstallPrompt';
+import { usePIReminders } from '../../lib/usePIReminders';
 
 type Period = 'month' | 'quarter' | 'all';
 
@@ -101,8 +103,11 @@ export const PIApp: React.FC = () => {
   const { currentUser } = useAuth();
   const { usage, loans, entries, loading } = useLabActivity();
   const [period, setPeriod] = useState<Period>('quarter');
-  const [view, setView] = useState<ShortcutId | 'notes' | null>(null);
+  const [view, setView] = useState<ShortcutId | 'notes' | 'reminders' | null>(null);
   const { canInstall, install, dismiss } = useInstallPrompt();
+  // Held here rather than inside the screen so the button below can carry the
+  // count without opening it — the point of a reminder is to be seen unasked.
+  const reminders = usePIReminders();
 
   const since = useMemo(() => periodStart(period), [period]);
   const inPeriod = (iso: string) => !since || new Date(iso) >= since;
@@ -170,6 +175,14 @@ export const PIApp: React.FC = () => {
   // A chosen screen takes the whole shell, like a member's Profile sub-view, so
   // the back arrow those views already draw is the only way out and there is no
   // second navigation to reason about.
+  if (view === 'reminders') {
+    return (
+      <div className="min-h-dvh flex flex-col bg-background">
+        <RemindersView onBack={() => setView(null)} reminders={reminders} />
+      </div>
+    );
+  }
+
   if (view) {
     const View = VIEWS[view];
     return (
@@ -215,6 +228,29 @@ export const PIApp: React.FC = () => {
               <X className="w-4 h-4" />
             </button>
           </div>
+        )}
+
+        {/* Anything due sits above the figures, because a reminder she has to
+            go looking for is one she will not see. Silent when nothing is due. */}
+        {reminders.dueCount > 0 && (
+          <button
+            onClick={() => setView('reminders')}
+            className="w-full bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 flex items-center gap-3 text-left hover:bg-amber-500/15 transition-colors"
+          >
+            <BellRing className="w-5 h-5 text-amber-300 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white">
+                {reminders.dueCount} follow-up{reminders.dueCount === 1 ? '' : 's'} due
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                {reminders.open
+                  .filter((r) => r.dueDate !== null && r.dueDate <= todayISO())
+                  .slice(0, 2)
+                  .map((r) => `${r.member?.name?.split(' ')[0] ?? 'Someone'} — ${r.title}`)
+                  .join(' · ')}
+              </p>
+            </div>
+          </button>
         )}
 
         {/* Period — drives every figure below it */}
@@ -375,9 +411,35 @@ export const PIApp: React.FC = () => {
             ))}
           </div>
 
-          {/* Hers, not the lab's — so it sits apart from the grid above and
-              stays writable. The notebook scopes pages to their author, which
-              is what makes this private rather than another shared list. */}
+          {/* Hers, not the lab's — so these sit apart from the grid above and
+              stay writable. The notebook scopes pages to their author, which
+              is what makes them private rather than another shared list. */}
+          <button
+            onClick={() => setView('reminders')}
+            className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4 text-left hover:border-primary/40 hover:bg-[#242424] transition-colors flex items-center gap-4"
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <BellRing className="w-5 h-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-white">Reminders</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                Follow-ups and checks on your students
+              </p>
+            </div>
+            {reminders.open.length > 0 && (
+              <span
+                className={`text-[11px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                  reminders.dueCount > 0
+                    ? 'text-amber-300 bg-amber-500/10 border-amber-500/25'
+                    : 'text-gray-400 bg-[#2A2A2A] border-[#333]'
+                }`}
+              >
+                {reminders.dueCount > 0 ? `${reminders.dueCount} due` : reminders.open.length}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setView('notes')}
             className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4 text-left hover:border-primary/40 hover:bg-[#242424] transition-colors flex items-center gap-4"

@@ -505,3 +505,35 @@ export interface NewQuotationInput {
   price: number;
   notes?: string;
 }
+
+export type ReminderRecurrence = 'once' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+/**
+ * A follow-up or standing check the PI keeps on one lab member — "ask Ravi
+ * about his progress report" or "renew safety training every year". Hers
+ * alone: nothing here is surfaced to the member it's about.
+ */
+export interface PIReminder {
+  id: string;
+  memberId: string;
+  member: User | null;
+  title: string;
+  note: string;
+  /** `YYYY-MM-DD`, or null for a reminder with no deadline. */
+  dueDate: string | null;
+  recurrence: ReminderRecurrence;
+  /** For 'once', done for good. For a recurring one, done until `dueDate` rolls around again. */
+  completed: boolean;
+  /** When it was last marked done — the recurring ones' only history. */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NewPIReminderInput {
+  memberId: string;
+  title: string;
+  note?: string;
+  dueDate?: string | null;
+  recurrence?: ReminderRecurrence;
+}
