@@ -41,18 +41,23 @@ export const GuestApp: React.FC = () => {
   const [openId, setOpenId] = useState<string | null>(null);
   const [borrowOpen, setBorrowOpen] = useState(false);
 
+  // Instruments marked hidden never enter the visitor's list -- not in the grid,
+  // not through search, and not resolvable by id, so nothing downstream can
+  // surface one. Same rule the borrow sheet follows for inventory.
+  const offered = useMemo(() => equipment.filter((e) => !e.hideFromGuests), [equipment]);
+
   const openEquipment = useMemo(
-    () => equipment.find((e) => e.id === openId) ?? null,
-    [equipment, openId]
+    () => offered.find((e) => e.id === openId) ?? null,
+    [offered, openId]
   );
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return equipment;
-    return equipment.filter((e) =>
+    if (!q) return offered;
+    return offered.filter((e) =>
       [e.name, e.manufacturer, e.model, e.location].some((f) => f?.toLowerCase().includes(q))
     );
-  }, [equipment, search]);
+  }, [offered, search]);
 
   const saveIdentity = useCallback((next: GuestIdentity) => {
     saveGuestIdentity(next);

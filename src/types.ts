@@ -286,6 +286,8 @@ export interface Equipment {
   manufacturer: string;
   /** Free text off the back of the machine. Not unique across makers. */
   serialNumber: string;
+  /** Kept off the visitor list. Members and the PI still see it. */
+  hideFromGuests: boolean;
   category: string;
   location: string;
   status: EquipmentStatus;
@@ -370,6 +372,7 @@ export interface NewEquipmentInput {
   model?: string;
   manufacturer?: string;
   serialNumber?: string;
+  hideFromGuests?: boolean;
   category?: string;
   location?: string;
   serviceVendor?: string;

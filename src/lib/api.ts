@@ -1358,10 +1358,12 @@ let usageLogAvailable = true;
  */
 let serialAvailable = true;
 
-const SERIAL_FIELD = 'serial_number,';
+// 0028 and 0029 share one flag: both are recent equipment columns, and a
+// database missing either is a database missing both in practice.
+const EQUIPMENT_EXTRA_FIELDS = 'serial_number, hide_from_guests,';
 
 function equipmentSelect(): string {
-  const base = serialAvailable ? SERIAL_FIELD + EQUIPMENT_SELECT : EQUIPMENT_SELECT;
+  const base = serialAvailable ? EQUIPMENT_EXTRA_FIELDS + EQUIPMENT_SELECT : EQUIPMENT_SELECT;
   if (!usageLogAvailable) return base;
   // Shares usageSelect(), so the nested copy and the standalone read can never
   // drift into asking for different columns.
@@ -1416,6 +1418,7 @@ function toEquipment(row: any): Equipment {
     model: row.model,
     manufacturer: row.manufacturer,
     serialNumber: row.serial_number ?? '',
+    hideFromGuests: row.hide_from_guests ?? false,
     category: row.category,
     location: row.location,
     status: row.status,
@@ -1470,7 +1473,9 @@ export async function addEquipment(
         name: input.name,
         model: input.model ?? '',
         manufacturer: input.manufacturer ?? '',
-        ...(serialAvailable ? { serial_number: input.serialNumber ?? '' } : {}),
+        ...(serialAvailable
+          ? { serial_number: input.serialNumber ?? '', hide_from_guests: input.hideFromGuests ?? false }
+          : {}),
         category: input.category ?? 'other',
         location: input.location ?? '',
         service_vendor: input.serviceVendor ?? '',
@@ -1496,6 +1501,7 @@ export async function updateEquipment(
   if (updates.model !== undefined) row.model = updates.model;
   if (updates.manufacturer !== undefined) row.manufacturer = updates.manufacturer;
   if (updates.serialNumber !== undefined && serialAvailable) row.serial_number = updates.serialNumber;
+  if (updates.hideFromGuests !== undefined && serialAvailable) row.hide_from_guests = updates.hideFromGuests;
   if (updates.category !== undefined) row.category = updates.category;
   if (updates.location !== undefined) row.location = updates.location;
   if (updates.serviceVendor !== undefined) row.service_vendor = updates.serviceVendor;

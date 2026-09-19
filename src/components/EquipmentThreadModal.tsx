@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   History,
+  EyeOff,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -354,8 +355,28 @@ export const EquipmentThreadModal: React.FC<Props> = ({ equipment: eq, onClose }
                       {eq.serialNumber}
                     </p>
                   )}
+                  {eq.hideFromGuests && (
+                    <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                      <EyeOff className="w-3 h-3" />
+                      Hidden from visitors
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {/* Who may see it. Only the people who run the lab decide this,
+                  and it is a toggle rather than a form because it is one bit. */}
+              {isAdmin && (
+                <label className="flex items-center gap-2.5 text-xs text-gray-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={eq.hideFromGuests}
+                    onChange={(e) => void editEquipment(eq.id, { hideFromGuests: e.target.checked })}
+                    className="w-4 h-4 accent-primary shrink-0"
+                  />
+                  Hide from visitors
+                </label>
+              )}
 
               {/* Status selector */}
               <div className="flex flex-wrap gap-1.5">

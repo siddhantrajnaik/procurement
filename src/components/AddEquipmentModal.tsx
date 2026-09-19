@@ -18,6 +18,7 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [model, setModel] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
+  const [hideFromGuests, setHideFromGuests] = useState(false);
   const [category, setCategory] = useState<EquipmentCategory>('other');
   const [location, setLocation] = useState('');
   const [serviceVendor, setServiceVendor] = useState('');
@@ -45,6 +46,7 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
         model: model.trim(),
         manufacturer: manufacturer.trim(),
         serialNumber: serialNumber.trim(),
+        hideFromGuests,
         category,
         location: location.trim(),
         serviceVendor: serviceVendor.trim(),
@@ -56,6 +58,7 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setModel('');
       setManufacturer('');
       setSerialNumber('');
+      setHideFromGuests(false);
       setCategory('other');
       setLocation('');
       setServiceVendor('');
@@ -145,6 +148,24 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 className="w-full px-3 py-2 rounded-lg bg-background border border-[#2A2A2A] text-white text-xs font-mono focus:ring-1 focus:ring-primary outline-none placeholder:text-gray-600 placeholder:font-sans"
               />
             </div>
+
+            {/* Off by default: an instrument stays visible until somebody
+                decides otherwise, which is the safe direction for a lab that has
+                been running without this. */}
+            <label className="flex items-start gap-3 p-3 rounded-lg bg-background border border-[#2A2A2A] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hideFromGuests}
+                onChange={(e) => setHideFromGuests(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-primary shrink-0"
+              />
+              <span className="min-w-0">
+                <span className="block text-xs font-bold text-gray-300">Hide from visitors</span>
+                <span className="block text-[11px] text-gray-500 mt-0.5">
+                  Keeps it off the visitor list. The lab still sees it.
+                </span>
+              </span>
+            </label>
 
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1">Category</label>
