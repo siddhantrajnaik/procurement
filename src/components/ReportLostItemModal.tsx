@@ -40,11 +40,12 @@ export const ReportLostItemModal: React.FC<Props> = ({ open, onClose }) => {
     if (!title.trim() || saving) return;
     setSaving(true);
     try {
-      await reportLostItem({
+      const ok = await reportLostItem({
         title: title.trim(),
         description: description.trim(),
         locationLastSeen: location.trim(),
       });
+      if (!ok) return;
       onClose();
     } finally {
       setSaving(false);

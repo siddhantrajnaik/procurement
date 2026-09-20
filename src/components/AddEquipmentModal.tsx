@@ -41,7 +41,7 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
     if (!name.trim()) return;
     setSubmitting(true);
     try {
-      await addEquipment({
+      const ok = await addEquipment({
         name: name.trim(),
         model: model.trim(),
         manufacturer: manufacturer.trim(),
@@ -54,6 +54,8 @@ export const AddEquipmentModal: React.FC<Props> = ({ isOpen, onClose }) => {
         servicePhone: servicePhone.trim(),
         notes: notes.trim(),
       });
+      // Eleven fields, several copied off the back of the machine. Keep them.
+      if (!ok) return;
       setName('');
       setModel('');
       setManufacturer('');

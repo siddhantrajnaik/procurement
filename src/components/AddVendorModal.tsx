@@ -52,23 +52,17 @@ export const AddVendorModal: React.FC<Props> = ({ open, onClose, editVendor: edi
     if (!name.trim() || saving) return;
     setSaving(true);
     try {
-      if (editItem) {
-        await editVendor(editItem.id, {
-          name: name.trim(),
-          type,
-          comment: comment.trim(),
-          contact: contact.trim(),
-          photoUrl: photoUrl.trim(),
-        });
-      } else {
-        await addVendor({
-          name: name.trim(),
-          type,
-          comment: comment.trim(),
-          contact: contact.trim(),
-          photoUrl: photoUrl.trim(),
-        });
-      }
+      const fields = {
+        name: name.trim(),
+        type,
+        comment: comment.trim(),
+        contact: contact.trim(),
+        photoUrl: photoUrl.trim(),
+      };
+      const ok = editItem ? await editVendor(editItem.id, fields) : await addVendor(fields);
+      // Closing on a failed save loses the contact details and looks identical
+      // to a save that worked.
+      if (!ok) return;
       onClose();
     } finally {
       setSaving(false);

@@ -43,7 +43,7 @@ export const CreatePurchaseModal: React.FC = () => {
     if (!title.trim() || !quantity.trim()) return;
     setSubmitting(true);
     try {
-      await createPurchase({
+      const ok = await createPurchase({
         title: title.trim(),
         description: description.trim(),
         quantity: quantity.trim(),
@@ -51,6 +51,9 @@ export const CreatePurchaseModal: React.FC = () => {
         priority,
         category,
       });
+      // Everything typed stays put on failure. Three steps of a request is too
+      // much to ask anybody to retype because the wifi dropped for a second.
+      if (!ok) return;
       setStep(1);
       setTitle('');
       setDescription('');

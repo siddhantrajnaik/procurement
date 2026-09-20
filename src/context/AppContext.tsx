@@ -61,7 +61,7 @@ interface AppContextType {
   pendingDeliveryPurchase: Purchase | null;
   clearPendingDelivery: () => void;
 
-  createPurchase: (data: NewPurchaseInput) => Promise<void>;
+  createPurchase: (data: NewPurchaseInput) => Promise<boolean>;
   editPurchase: (purchaseId: string, updates: Partial<NewPurchaseInput>) => Promise<void>;
   updateStatus: (purchaseId: string, status: PurchaseStatus) => Promise<void>;
   addComment: (purchaseId: string, body: string) => Promise<boolean>;
@@ -85,12 +85,12 @@ interface AppContextType {
   removeInventoryItem: (item: InventoryItem) => Promise<void>;
 
   vendors: Vendor[];
-  addVendor: (input: NewVendorInput) => Promise<void>;
-  editVendor: (vendorId: string, updates: Partial<NewVendorInput>) => Promise<void>;
+  addVendor: (input: NewVendorInput) => Promise<boolean>;
+  editVendor: (vendorId: string, updates: Partial<NewVendorInput>) => Promise<boolean>;
   removeVendor: (vendorId: string) => Promise<void>;
 
   lostFoundItems: LostFoundItem[];
-  reportLostItem: (input: NewLostFoundInput) => Promise<void>;
+  reportLostItem: (input: NewLostFoundInput) => Promise<boolean>;
   addLostFoundResponse: (itemId: string, body: string) => Promise<boolean>;
   updateLostFoundStatus: (itemId: string, status: LostFoundStatus) => Promise<void>;
   removeLostFoundItem: (itemId: string) => Promise<boolean>;
@@ -104,7 +104,7 @@ interface AppContextType {
   removeListItem: (itemId: string) => Promise<void>;
 
   equipment: Equipment[];
-  addEquipment: (input: NewEquipmentInput) => Promise<void>;
+  addEquipment: (input: NewEquipmentInput) => Promise<boolean>;
   editEquipment: (equipmentId: string, updates: Partial<NewEquipmentInput> & { status?: EquipmentStatus }) => Promise<boolean>;
   removeEquipment: (equipmentId: string) => Promise<boolean>;
   reportIssue: (equipmentId: string, input: NewIssueInput) => Promise<boolean>;
@@ -534,8 +534,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createPurchase = useCallback(
     async (data: NewPurchaseInput) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         const created = await api.createPurchase(data, actor);
         showToastRef.current(`Requested "${created.title}".`, 'success');
       }, 'Could not create the request.');
@@ -790,8 +790,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addVendor = useCallback(
     async (input: NewVendorInput) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         const created = await api.addVendor(input, actor);
         showToastRef.current(`Added vendor "${created.name}".`, 'success');
       }, 'Could not add the vendor.');
@@ -801,7 +801,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const editVendor = useCallback(
     async (vendorId: string, updates: Partial<NewVendorInput>) => {
-      await run(async () => {
+      return run(async () => {
         await api.updateVendor(vendorId, updates);
         showToastRef.current(`Vendor updated.`, 'success');
       }, 'Could not update the vendor.');
@@ -823,8 +823,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const reportLostItem = useCallback(
     async (input: NewLostFoundInput) => {
       const actor = requireUser();
-      if (!actor) return;
-      await run(async () => {
+      if (!actor) return false;
+      return run(async () => {
         await api.reportLostItem(input, actor);
         showToastRef.current(`Reported "${input.title}" as lost.`, 'success');
       }, 'Could not report the item.');
@@ -929,8 +929,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addEquipmentCb = useCallback(
     async (input: NewEquipmentInput) => {
       const user = currentUserRef.current;
-      if (!user) return;
-      await run(async () => {
+      if (!user) return false;
+      return run(async () => {
         await api.addEquipment(input, user.id);
         showToastRef.current(`Added "${input.name}".`, 'success');
       }, 'Could not add equipment.');
