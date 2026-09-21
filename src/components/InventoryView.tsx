@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { InventoryItem } from '../types';
+import { useUI } from '../context/UIContext';
+import { useSampleOverview } from '../lib/useSampleOverview';
+import { InventoryItem, Sample } from '../types';
 import { timeAgo, todayISO } from '../lib/format';
 import { avatarClasses } from '../lib/accent';
 import { initialOf } from '../lib/format';
@@ -20,8 +22,11 @@ const ACTION_META: Record<string, { icon: string; color: string; label: string }
 
 export const InventoryView: React.FC = () => {
   const { inventoryItems, inventoryLog } = useApp();
+  const { setActiveTab, setPendingProfileView } = useUI();
+  const { boxes, samples, loading: samplesLoading } = useSampleOverview();
 
-  const [subTab, setSubTab] = useState<'stock' | 'expiry' | 'log'>('stock');
+  const [subTab, setSubTab] = useState<'stock' | 'samples' | 'expiry' | 'log'>('stock');
+  const [sampleSearch, setSampleSearch] = useState('');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'low-first'>('recent');
@@ -108,6 +113,45 @@ export const InventoryView: React.FC = () => {
     [expiryItems]
   );
 
+  const openSampleInventory = () => {
+    setPendingProfileView('samples');
+    setActiveTab('profile');
+  };
+
+  /** Boxes that survive the search, each with its matching samples. */
+  const sampleGroups = useMemo(() => {
+    const q = sampleSearch.trim().toLowerCase();
+    const match = (s: { name: string; container: string; volume: string; notes: string }) =>
+      !q ||
+      s.name.toLowerCase().includes(q) ||
+      s.container.toLowerCase().includes(q) ||
+      s.volume.toLowerCase().includes(q) ||
+      s.notes.toLowerCase().includes(q);
+
+    const groups = boxes.map((box) => {
+      const boxMatches =
+        !q ||
+        box.name.toLowerCase().includes(q) ||
+        box.condition.toLowerCase().includes(q) ||
+        box.location.toLowerCase().includes(q);
+      // A box named in the search keeps all its samples; otherwise only the
+      // samples that matched are worth showing.
+      const inBox = samples.filter((s) => s.boxId === box.id);
+      return { box, samples: boxMatches ? inBox : inBox.filter(match) };
+    });
+
+    const loose = samples.filter((s) => s.boxId === null).filter(match);
+    return {
+      boxes: groups.filter((g) => g.samples.length > 0),
+      loose,
+    };
+  }, [boxes, samples, sampleSearch]);
+
+  const shownSampleCount = useMemo(
+    () => sampleGroups.boxes.reduce((n, g) => n + g.samples.length, 0) + sampleGroups.loose.length,
+    [sampleGroups]
+  );
+
   return (
     <div className="flex-1 w-full mx-auto pb-24 md:pb-8 flex flex-col max-w-3xl px-4 md:px-0">
       <div className="py-4 mt-2 md:mt-6">
@@ -119,7 +163,10 @@ export const InventoryView: React.FC = () => {
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-400">Track lab supplies, find items, log arrivals</p>
+        <p className="text-sm text-gray-400">
+          Track lab supplies, find items, log arrivals
+          {samples.length > 0 && ` · ${samples.length} sample${samples.length !== 1 ? 's' : ''}`}
+        </p>
       </div>
 
       <div className="flex items-center justify-between gap-3 mb-4">
@@ -131,6 +178,14 @@ export const InventoryView: React.FC = () => {
             }`}
           >
             Stock
+          </button>
+          <button
+            onClick={() => setSubTab('samples')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              subTab === 'samples' ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Samples
           </button>
           <button
             onClick={() => setSubTab('expiry')}
@@ -154,13 +209,23 @@ export const InventoryView: React.FC = () => {
             Log
           </button>
         </div>
-        <button
-          onClick={() => { setEditTarget(null); setShowAddModal(true); }}
-          className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          Add item
-        </button>
+        {subTab === 'samples' ? (
+          <button
+            onClick={openSampleInventory}
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-[18px]">science</span>
+            Manage
+          </button>
+        ) : (
+          <button
+            onClick={() => { setEditTarget(null); setShowAddModal(true); }}
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            Add item
+          </button>
+        )}
       </div>
 
       {subTab === 'stock' && (
@@ -235,6 +300,98 @@ export const InventoryView: React.FC = () => {
             )}
           </div>
         </>
+      )}
+
+      {subTab === 'samples' && (
+        <div className="flex flex-col gap-3">
+          {samplesLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 rounded-full border-2 border-[#2A2A2A] border-t-primary animate-spin" />
+            </div>
+          ) : samples.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#2A2A2A] rounded-xl bg-[#1E1E1E]">
+              <span className="material-symbols-outlined text-gray-600 text-4xl mb-3">science</span>
+              <h3 className="text-white font-medium text-sm mb-1">No samples yet</h3>
+              <p className="text-gray-400 text-sm max-w-xs mb-4">
+                Samples live in Sample Inventory. Add them there and they show up here.
+              </p>
+              <button
+                onClick={openSampleInventory}
+                className="px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-md hover:bg-primary/20 transition-colors font-medium text-sm"
+              >
+                Open Sample Inventory
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="relative mb-1">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">
+                  search
+                </span>
+                <input
+                  className="w-full pl-9 pr-4 py-2 bg-[#1E1E1E] border border-[#2A2A2A] rounded-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm text-white placeholder:text-gray-500"
+                  placeholder="Search samples, boxes or containers..."
+                  value={sampleSearch}
+                  onChange={(e) => setSampleSearch(e.target.value)}
+                />
+              </div>
+
+              <p className="text-xs text-gray-500">
+                {shownSampleCount} sample{shownSampleCount !== 1 ? 's' : ''}
+                {sampleSearch && ` matching "${sampleSearch}"`}
+              </p>
+
+              {shownSampleCount === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <p className="text-gray-400 text-sm">No samples match "{sampleSearch}".</p>
+                </div>
+              )}
+
+              {sampleGroups.boxes.map(({ box, samples: boxSamples }) => (
+                <div key={box.id} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#2A2A2A] flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-white text-sm">{box.name}</span>
+                    {box.condition && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-blue-500/15 text-blue-300 border-blue-500/25">
+                        {box.condition}
+                      </span>
+                    )}
+                    {box.location && (
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                        <span className="material-symbols-outlined text-[14px]">location_on</span>
+                        {box.location}
+                      </span>
+                    )}
+                    <span className="text-[11px] text-gray-500 ml-auto">
+                      {boxSamples.length} sample{boxSamples.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-[#2A2A2A] px-4">
+                    {boxSamples.map((sa) => (
+                      <SampleRow key={sa.id} sample={sa} onOpen={openSampleInventory} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {sampleGroups.loose.length > 0 && (
+                <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#2A2A2A] flex items-center gap-2">
+                    <span className="font-bold text-white text-sm">Loose samples</span>
+                    <span className="text-[11px] text-gray-500 ml-auto">
+                      {sampleGroups.loose.length} sample{sampleGroups.loose.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-[#2A2A2A] px-4">
+                    {sampleGroups.loose.map((sa) => (
+                      <SampleRow key={sa.id} sample={sa} onOpen={openSampleInventory} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
 
       {subTab === 'expiry' && (
@@ -422,6 +579,33 @@ export const InventoryView: React.FC = () => {
     </div>
   );
 };
+
+function SampleRow({ sample, onOpen }: { sample: Sample; onOpen: () => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-[#242424] transition-colors rounded"
+    >
+      <span className="material-symbols-outlined text-[16px] text-gray-500 shrink-0">science</span>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm font-medium text-white truncate block">{sample.name}</span>
+        <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
+          {sample.container && <span>{sample.container}</span>}
+          {sample.volume && <span>{sample.volume}</span>}
+          <span>{timeAgo(sample.createdAt)}</span>
+        </div>
+        {sample.notes && (
+          <p className="text-[11px] text-gray-500 italic truncate mt-0.5">{sample.notes}</p>
+        )}
+      </div>
+      {sample.addedBy && (
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${avatarClasses(sample.addedBy.accent)}`}>
+          {initialOf(sample.addedBy.name, sample.addedBy.handle)}
+        </div>
+      )}
+    </button>
+  );
+}
 
 function ItemCard({
   item,

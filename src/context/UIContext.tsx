@@ -23,6 +23,9 @@ interface UIContextType {
   setFilterStatus: (status: string) => void;
   toast: ToastInfo | null;
   showToast: (msg: string, type?: ToastType) => void;
+  /** Set to deep-link into one of Profile's sub-views; Profile clears it on open. */
+  pendingProfileView: string | null;
+  setPendingProfileView: (view: string | null) => void;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -34,6 +37,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [toast, setToast] = useState<ToastInfo | null>(null);
+  const [pendingProfileView, setPendingProfileView] = useState<string | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastSeq = useRef(0);
@@ -77,7 +81,9 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     setFilterStatus,
     toast,
     showToast,
-  }), [activeTab, setActiveTab, tabResetNonce, isCreateModalOpen, searchQuery, filterStatus, toast, showToast]);
+    pendingProfileView,
+    setPendingProfileView,
+  }), [activeTab, setActiveTab, tabResetNonce, isCreateModalOpen, searchQuery, filterStatus, toast, showToast, pendingProfileView]);
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 };

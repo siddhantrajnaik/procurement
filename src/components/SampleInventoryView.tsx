@@ -10,6 +10,7 @@ import { avatarClasses } from '../lib/accent';
 import { initialOf } from '../lib/format';
 import { AddBoxModal } from './AddBoxModal';
 import { AddSampleModal } from './AddSampleModal';
+import { ImportSamplesModal } from './ImportSamplesModal';
 import { ConfirmModal } from './ConfirmModal';
 
 const ACTION_ICONS: Record<string, { icon: string; color: string }> = {
@@ -52,6 +53,8 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
   const [editSample, setEditSample] = useState<Sample | null>(null);
   const [addSampleBoxId, setAddSampleBoxId] = useState<string | null>(null);
   const [deleteBoxTarget, setDeleteBoxTarget] = useState<SampleBox | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importBoxId, setImportBoxId] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
   const hasAnimated = useRef(false);
@@ -206,6 +209,20 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
     }
   };
 
+  const handleBulkImport = async (
+    rows: { name: string; container?: string; volume?: string; notes?: string }[],
+    boxId: string | null
+  ) => {
+    if (!currentUser) return;
+    try {
+      const count = await api.bulkCreateSamples(rows, boxId, currentUser);
+      showToast(`Imported ${count} sample${count !== 1 ? 's' : ''}.`, 'success');
+    } catch {
+      showToast('Import failed.', 'error');
+      throw new Error();
+    }
+  };
+
   const s = (i: number) => hasAnimated.current ? undefined : stagger(i);
 
   if (loading) {
@@ -255,13 +272,22 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
           </button>
         </div>
         {subTab === 'boxes' && !readOnly && (
-          <button
-            onClick={() => { setEditBox(null); setShowBoxModal(true); }}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            New box
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setImportBoxId(null); setShowImportModal(true); }}
+              className="px-3 py-2 bg-[#1E1E1E] border border-[#2A2A2A] text-gray-300 rounded-md hover:border-primary/40 hover:text-white transition-colors font-medium text-sm flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[18px]">upload_file</span>
+              Import
+            </button>
+            <button
+              onClick={() => { setEditBox(null); setShowBoxModal(true); }}
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              New box
+            </button>
+          </div>
         )}
       </div>
 
@@ -382,13 +408,22 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                           </div>
                         )}
                         {!readOnly && (
-                          <button
-                            onClick={() => { setEditSample(null); setAddSampleBoxId(box.id); setShowSampleModal(true); }}
-                            className="mt-2 w-full py-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">add</span>
-                            Add sample
-                          </button>
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              onClick={() => { setEditSample(null); setAddSampleBoxId(box.id); setShowSampleModal(true); }}
+                              className="flex-1 py-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-md hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">add</span>
+                              Add sample
+                            </button>
+                            <button
+                              onClick={() => { setImportBoxId(box.id); setShowImportModal(true); }}
+                              className="py-2 px-3 text-xs font-medium text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-md hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">upload_file</span>
+                              CSV
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -498,6 +533,14 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
         editSample={editSample}
         boxes={boxes}
         preselectedBoxId={addSampleBoxId}
+      />
+
+      <ImportSamplesModal
+        open={showImportModal}
+        onClose={() => { setShowImportModal(false); setImportBoxId(null); }}
+        onImport={handleBulkImport}
+        boxes={boxes}
+        preselectedBoxId={importBoxId}
       />
 
       <ConfirmModal

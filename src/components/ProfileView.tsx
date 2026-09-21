@@ -41,7 +41,7 @@ type SubView = keyof typeof SUB_VIEWS;
 export const ProfileView: React.FC = () => {
   const { purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, bookableItems, bookings } = useApp();
   const { currentUser, allUsers, login, verifyAdminPin, patchUser } = useAuth();
-  const { showToast } = useUI();
+  const { showToast, pendingProfileView, setPendingProfileView } = useUI();
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
   const [isChecking, setIsChecking] = useState(false);
@@ -51,6 +51,13 @@ export const ProfileView: React.FC = () => {
   const [savingBirthday, setSavingBirthday] = useState(false);
   const [notifOn, setNotifOn] = useState(isNotificationEnabled);
   const [soundOn, setSoundOn] = useState(isSoundEnabled);
+
+  useEffect(() => {
+    if (pendingProfileView && pendingProfileView in SUB_VIEWS) {
+      setActiveView(pendingProfileView as SubView);
+      setPendingProfileView(null);
+    }
+  }, [pendingProfileView, setPendingProfileView]);
 
   const activeCount = purchases.filter(
     (p) => p.status !== 'delivered' && p.status !== 'closed'

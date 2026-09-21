@@ -1944,6 +1944,33 @@ export async function createSample(
   return sample;
 }
 
+export async function bulkCreateSamples(
+  rows: { name: string; container?: string; volume?: string; notes?: string }[],
+  boxId: string | null,
+  actor: User
+): Promise<number> {
+  if (rows.length === 0) return 0;
+  const toInsert = rows.map((r) => ({
+    name: r.name.trim(),
+    box_id: boxId,
+    container: r.container?.trim() || '',
+    volume: r.volume?.trim() || '',
+    notes: r.notes?.trim() || '',
+    added_by: actor.id,
+  }));
+  const inserted = unwrap(
+    await supabase.from('samples').insert(toInsert).select('id')
+  ) as { id: string }[];
+  const logRows = inserted.map((s) => ({
+    sample_id: s.id,
+    action: 'added',
+    details: boxId ? 'added to box (CSV import)' : 'added as loose sample (CSV import)',
+    actor_id: actor.id,
+  }));
+  await supabase.from('sample_log').insert(logRows);
+  return inserted.length;
+}
+
 export async function updateSample(
   sampleId: string,
   updates: { name?: string; container?: string; volume?: string; notes?: string },
