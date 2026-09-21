@@ -169,11 +169,13 @@ export const InventoryView: React.FC = () => {
         </p>
       </div>
 
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex gap-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg p-0.5">
+      {/* Four tabs plus an action button is wider than a phone: the tabs shrink
+          and scroll, and the button drops to its icon below sm. */}
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex gap-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg p-0.5 min-w-0 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setSubTab('stock')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               subTab === 'stock' ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -181,7 +183,7 @@ export const InventoryView: React.FC = () => {
           </button>
           <button
             onClick={() => setSubTab('samples')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               subTab === 'samples' ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -189,7 +191,7 @@ export const InventoryView: React.FC = () => {
           </button>
           <button
             onClick={() => setSubTab('expiry')}
-            className={`relative px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`relative shrink-0 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               subTab === 'expiry' ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -202,7 +204,7 @@ export const InventoryView: React.FC = () => {
           </button>
           <button
             onClick={() => setSubTab('log')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               subTab === 'log' ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -212,18 +214,22 @@ export const InventoryView: React.FC = () => {
         {subTab === 'samples' ? (
           <button
             onClick={openSampleInventory}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
+            aria-label="Open Sample Inventory"
+            title="Open Sample Inventory"
+            className="shrink-0 px-3 sm:px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
           >
             <span className="material-symbols-outlined text-[18px]">science</span>
-            Manage
+            <span className="hidden sm:inline">Manage</span>
           </button>
         ) : (
           <button
             onClick={() => { setEditTarget(null); setShowAddModal(true); }}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
+            aria-label="Add item"
+            title="Add item"
+            className="shrink-0 px-3 sm:px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
-            Add item
+            <span className="hidden sm:inline">Add item</span>
           </button>
         )}
       </div>

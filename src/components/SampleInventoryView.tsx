@@ -272,20 +272,24 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
           </button>
         </div>
         {subTab === 'boxes' && !readOnly && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <button
               onClick={() => { setImportBoxId(null); setShowImportModal(true); }}
-              className="px-3 py-2 bg-[#1E1E1E] border border-[#2A2A2A] text-gray-300 rounded-md hover:border-primary/40 hover:text-white transition-colors font-medium text-sm flex items-center gap-1.5"
+              aria-label="Import samples from CSV"
+              title="Import samples from CSV"
+              className="shrink-0 px-3 py-2 bg-[#1E1E1E] border border-[#2A2A2A] text-gray-300 rounded-md hover:border-primary/40 hover:text-white transition-colors font-medium text-sm flex items-center gap-1.5"
             >
               <span className="material-symbols-outlined text-[18px]">upload_file</span>
-              Import
+              <span className="hidden sm:inline">Import</span>
             </button>
             <button
               onClick={() => { setEditBox(null); setShowBoxModal(true); }}
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
+              aria-label="New box"
+              title="New box"
+              className="shrink-0 px-3 sm:px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600 transition-colors font-medium text-sm flex items-center gap-1.5"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
-              New box
+              <span className="hidden sm:inline">New box</span>
             </button>
           </div>
         )}
