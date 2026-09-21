@@ -355,20 +355,20 @@ export const InventoryView: React.FC = () => {
 
               {sampleGroups.boxes.map(({ box, samples: boxSamples }) => (
                 <div key={box.id} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[#2A2A2A] flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-white text-sm">{box.name}</span>
+                  <div className="px-4 py-3 border-b border-[#2A2A2A] flex items-center gap-2 min-w-0">
+                    <span className="font-bold text-white text-sm truncate">{box.name}</span>
                     {box.condition && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-blue-500/15 text-blue-300 border-blue-500/25">
+                      <span className="shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded border bg-blue-500/15 text-blue-300 border-blue-500/25">
                         {box.condition}
                       </span>
                     )}
                     {box.location && (
-                      <span className="flex items-center gap-1 text-xs text-gray-400">
-                        <span className="material-symbols-outlined text-[14px]">location_on</span>
-                        {box.location}
+                      <span className="hidden sm:flex items-center gap-1 text-xs text-gray-400 min-w-0">
+                        <span className="material-symbols-outlined text-[14px] shrink-0">location_on</span>
+                        <span className="truncate">{box.location}</span>
                       </span>
                     )}
-                    <span className="text-[11px] text-gray-500 ml-auto">
+                    <span className="shrink-0 whitespace-nowrap text-[11px] text-gray-500 ml-auto">
                       {boxSamples.length} sample{boxSamples.length !== 1 ? 's' : ''}
                     </span>
                   </div>

@@ -336,29 +336,36 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                     className="w-full text-left p-4 flex items-center gap-3 hover:bg-[#242424] transition-colors"
                   >
                     <span
-                      className="material-symbols-outlined text-[20px]"
+                      className="material-symbols-outlined text-[20px] shrink-0"
                       style={{ transition: 'transform 0.2s ease-out', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                     >
                       chevron_right
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-white">{box.name}</span>
+                      {/* The count moves to the second line so the name keeps
+                          the top one — crowding all three wrapped the name
+                          onto two lines on a phone. */}
+                      <div className="flex items-center gap-2 mb-1 min-w-0">
+                        <span className="font-bold text-white truncate">{box.name}</span>
                         {box.condition && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${conditionClass}`}>
+                          <span className={`shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded border ${conditionClass}`}>
                             {box.condition}
                           </span>
                         )}
-                        <span className="text-[11px] text-gray-500">{boxSamples.length} sample{boxSamples.length !== 1 ? 's' : ''}</span>
                       </div>
-                      {box.location && (
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <span className="material-symbols-outlined text-[14px]">location_on</span>
-                          {box.location}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 text-xs text-gray-400 min-w-0">
+                        {box.location && (
+                          <span className="flex items-center gap-1 min-w-0">
+                            <span className="material-symbols-outlined text-[14px] shrink-0">location_on</span>
+                            <span className="truncate">{box.location}</span>
+                          </span>
+                        )}
+                        <span className="shrink-0 whitespace-nowrap text-[11px] text-gray-500">
+                          {boxSamples.length} sample{boxSamples.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
                     </div>
-                    <div className={`flex gap-1 ${readOnly ? 'hidden' : ''}`}>
+                    <div className={`flex gap-1 shrink-0 ${readOnly ? 'hidden' : ''}`}>
                       <span
                         onClick={(e) => { e.stopPropagation(); setEditBox(box); setShowBoxModal(true); }}
                         className="p-1.5 rounded-md text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors cursor-pointer"
@@ -393,10 +400,10 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                                 onClick={() => { if (readOnly) return; setEditSample(sa); setAddSampleBoxId(null); setShowSampleModal(true); }}
                                 className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-[#242424] transition-colors rounded"
                               >
-                                <span className="material-symbols-outlined text-[16px] text-gray-500">science</span>
+                                <span className="material-symbols-outlined text-[16px] text-gray-500 shrink-0">science</span>
                                 <div className="flex-1 min-w-0">
                                   <span className="text-sm font-medium text-white truncate block">{sa.name}</span>
-                                  <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                                  <div className="flex items-center gap-2 flex-wrap text-[11px] text-gray-500">
                                     {sa.container && <span>{sa.container}</span>}
                                     {sa.volume && <span>{sa.volume}</span>}
                                     <span>{timeAgo(sa.createdAt)}</span>
@@ -446,10 +453,10 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                       onClick={() => { if (readOnly) return; setEditSample(sa); setAddSampleBoxId(null); setShowSampleModal(true); }}
                       className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-[#242424] transition-colors rounded"
                     >
-                      <span className="material-symbols-outlined text-[16px] text-gray-500">science</span>
+                      <span className="material-symbols-outlined text-[16px] text-gray-500 shrink-0">science</span>
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium text-white truncate block">{sa.name}</span>
-                        <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                        <div className="flex items-center gap-2 flex-wrap text-[11px] text-gray-500">
                           {sa.container && <span>{sa.container}</span>}
                           {sa.volume && <span>{sa.volume}</span>}
                           <span>{timeAgo(sa.createdAt)}</span>
