@@ -10,9 +10,12 @@ interface Props {
   onSubmit: (input: { name: string; condition: string; location: string }) => Promise<void>;
   editBox: SampleBox | null;
   existingLocations: string[];
+  boxes: SampleBox[];
 }
 
-export const AddBoxModal: React.FC<Props> = ({ open, onClose, onSubmit, editBox, existingLocations }) => {
+const boxKey = (name: string) => name.toLowerCase().replace(/\s+/g, '');
+
+export const AddBoxModal: React.FC<Props> = ({ open, onClose, onSubmit, editBox, existingLocations, boxes }) => {
   const [name, setName] = useState('');
   const [condition, setCondition] = useState('');
   const [location, setLocation] = useState('');
@@ -41,7 +44,9 @@ export const AddBoxModal: React.FC<Props> = ({ open, onClose, onSubmit, editBox,
 
   if (!open) return null;
 
-  const isValid = name.trim().length > 0;
+  const key = boxKey(name);
+  const clash = key ? boxes.find((b) => b.id !== editBox?.id && boxKey(b.name) === key) : undefined;
+  const isValid = name.trim().length > 0 && !clash;
 
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
@@ -76,6 +81,11 @@ export const AddBoxModal: React.FC<Props> = ({ open, onClose, onSubmit, editBox,
               onChange={(e) => setName(e.target.value)}
               autoFocus
             />
+            {clash && (
+              <p className="text-[11px] text-red-400 mt-1.5">
+                A box called "{clash.name}" already exists{clash.location ? ` (${clash.location})` : ''}. Pick another name.
+              </p>
+            )}
           </div>
 
           <div>

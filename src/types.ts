@@ -477,9 +477,18 @@ export interface Sample {
   container: string;
   volume: string;
   notes: string;
+  copies: number;
   addedBy: User | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A container of a sample that somebody has taken out and not yet returned. */
+export interface SampleCheckout {
+  id: string;
+  sampleId: string;
+  takenBy: User | null;
+  takenAt: string;
 }
 
 export interface SampleLogEntry {

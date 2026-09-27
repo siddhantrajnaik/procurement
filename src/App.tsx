@@ -20,6 +20,7 @@ import { AddInventoryItemModal } from './components/AddInventoryItemModal';
 import { NotificationToast } from './components/NotificationToast';
 import { LoginScreen } from './components/LoginScreen';
 import { ScrollLock } from './lib/useScrollLock';
+import { AssistantButton } from './components/assistant/Assistant';
 
 function LoadingScreen() {
   return (
@@ -221,6 +222,7 @@ function AppContent() {
       <EditPurchaseModal />
       <DeliveryInventoryPrompt />
       <NotificationToast />
+      <AssistantButton />
       <BottomNav />
     </div>
   );

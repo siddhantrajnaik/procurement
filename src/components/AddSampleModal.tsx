@@ -1,24 +1,30 @@
 import { useEffect, useState } from 'react';
 import { ScrollLock } from '../lib/useScrollLock';
-import { Sample, SampleBox } from '../types';
+import { Sample, SampleBox, SampleCheckout } from '../types';
+import { timeAgo } from '../lib/format';
 
 const CONTAINERS = ['Microcentrifuge tube', '15 mL Falcon', '50 mL Falcon', 'Cryovial', 'PCR tube'];
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (input: { name: string; boxId: string | null; container: string; volume: string; notes: string }) => Promise<void>;
+  onSubmit: (input: { name: string; boxId: string | null; container: string; volume: string; notes: string; copies: number }) => Promise<void>;
   onMove?: (toBoxId: string | null) => Promise<void>;
   onDelete?: () => Promise<void>;
+  onTake?: () => Promise<void>;
+  onReturn?: () => Promise<void>;
+  /** Open check-outs of editSample. */
+  out?: SampleCheckout[];
   editSample: Sample | null;
   boxes: SampleBox[];
   preselectedBoxId: string | null;
 }
 
 export const AddSampleModal: React.FC<Props> = ({
-  open, onClose, onSubmit, onMove, onDelete, editSample, boxes, preselectedBoxId,
+  open, onClose, onSubmit, onMove, onDelete, onTake, onReturn, out = [], editSample, boxes, preselectedBoxId,
 }) => {
   const [name, setName] = useState('');
+  const [copies, setCopies] = useState(1);
   const [boxId, setBoxId] = useState<string>('');
   const [container, setContainer] = useState('');
   const [volume, setVolume] = useState('');
@@ -36,12 +42,14 @@ export const AddSampleModal: React.FC<Props> = ({
         setContainer(editSample.container);
         setVolume(editSample.volume);
         setNotes(editSample.notes);
+        setCopies(editSample.copies);
       } else {
         setName('');
         setBoxId(preselectedBoxId ?? '');
         setContainer('');
         setVolume('');
         setNotes('');
+        setCopies(1);
       }
       setShowMoveSelect(false);
       setMoveTarget('');
@@ -59,6 +67,9 @@ export const AddSampleModal: React.FC<Props> = ({
   if (!open) return null;
 
   const isValid = name.trim().length > 0;
+  // Can't own fewer containers than are currently out of the box.
+  const minCopies = Math.max(1, out.length);
+  const allOut = editSample !== null && out.length >= editSample.copies;
 
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
@@ -70,6 +81,7 @@ export const AddSampleModal: React.FC<Props> = ({
         container,
         volume: volume.trim(),
         notes: notes.trim(),
+        copies: Math.max(minCopies, copies),
       });
       onClose();
     } finally {
@@ -82,6 +94,17 @@ export const AddSampleModal: React.FC<Props> = ({
     setSubmitting(true);
     try {
       await onMove(moveTarget || null);
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const runAndClose = async (fn?: () => Promise<void>) => {
+    if (!fn || submitting) return;
+    setSubmitting(true);
+    try {
+      await fn();
       onClose();
     } finally {
       setSubmitting(false);
@@ -121,6 +144,41 @@ export const AddSampleModal: React.FC<Props> = ({
               onChange={(e) => setName(e.target.value)}
               autoFocus
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Copies</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="One fewer copy"
+                onClick={() => setCopies((c) => Math.max(minCopies, c - 1))}
+                disabled={copies <= minCopies}
+                className="w-9 h-9 shrink-0 rounded-md bg-[#161616] border border-[#2A2A2A] text-gray-300 hover:text-white disabled:opacity-40 flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined text-[18px]">remove</span>
+              </button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={minCopies}
+                className="w-16 px-2 py-2 bg-[#161616] border border-[#2A2A2A] rounded-md text-sm text-white text-center focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                value={copies}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setCopies(Number.isFinite(n) ? Math.max(1, n) : 1);
+                }}
+              />
+              <button
+                type="button"
+                aria-label="One more copy"
+                onClick={() => setCopies((c) => c + 1)}
+                className="w-9 h-9 shrink-0 rounded-md bg-[#161616] border border-[#2A2A2A] text-gray-300 hover:text-white flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined text-[18px]">add</span>
+              </button>
+              <span className="text-[11px] text-gray-500 min-w-0">containers of this in the box</span>
+            </div>
           </div>
 
           {!editSample && (
@@ -197,6 +255,40 @@ export const AddSampleModal: React.FC<Props> = ({
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
+
+          {editSample && (onTake || onReturn) && (
+            <div className="border-t border-[#2A2A2A] pt-4 space-y-2">
+              {out.length > 0 && (
+                <p className="text-xs text-amber-300">
+                  {allOut ? 'All out' : `${out.length} of ${editSample.copies} out`}
+                  {' · '}
+                  {out.map((c) => `${c.takenBy?.name.split(' ')[0] ?? 'someone'} (${timeAgo(c.takenAt)})`).join(', ')}
+                </p>
+              )}
+              <div className="flex gap-2">
+                {onTake && (
+                  <button
+                    onClick={() => void runAndClose(onTake)}
+                    disabled={submitting || allOut}
+                    className="flex-1 min-w-0 py-2 text-sm font-medium text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-md hover:bg-amber-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">logout</span>
+                    Take one out
+                  </button>
+                )}
+                {onReturn && out.length > 0 && (
+                  <button
+                    onClick={() => void runAndClose(onReturn)}
+                    disabled={submitting}
+                    className="flex-1 min-w-0 py-2 text-sm font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-md hover:bg-emerald-500/20 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">login</span>
+                    Put one back
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {editSample && onMove && (
             <div className="border-t border-[#2A2A2A] pt-4">

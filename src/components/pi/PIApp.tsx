@@ -10,6 +10,7 @@ import { SampleInventoryView } from '../SampleInventoryView';
 import { MuhuratView } from '../MuhuratView';
 import { NotebookView } from '../NotebookView';
 import { RemindersView } from './RemindersView';
+import { AssistantButton } from '../assistant/Assistant';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { EquipmentStatus, Purchase } from '../../types';
@@ -204,6 +205,7 @@ export const PIApp: React.FC = () => {
         <p className="text-[11px] text-gray-500 truncate">Structural Virology Lab, IIT Delhi</p>
       </header>
 
+      <AssistantButton bottom="bottom-[calc(24px+env(safe-area-inset-bottom))]" />
       <main className="flex-1 w-full mx-auto max-w-3xl px-4 pb-16 pt-4 space-y-6">
         {/* Chrome will not offer this by itself any more, and the menu item that
             does is three taps deep behind an icon nobody looks for. */}

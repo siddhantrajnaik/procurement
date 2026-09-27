@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useReadOnly } from '../lib/useReadOnly';
 import { useUI } from '../context/UIContext';
-import { supabase } from '../lib/supabase';
+import { useSampleData } from '../lib/useSampleData';
 import * as api from '../lib/api';
-import { Sample, SampleBox, SampleLogEntry } from '../types';
+import { Sample, SampleBox, SampleCheckout } from '../types';
 import { timeAgo } from '../lib/format';
 import { avatarClasses } from '../lib/accent';
 import { initialOf } from '../lib/format';
@@ -18,7 +18,11 @@ const ACTION_ICONS: Record<string, { icon: string; color: string }> = {
   moved:   { icon: 'swap_horiz',    color: 'text-blue-400' },
   updated: { icon: 'edit',          color: 'text-amber-400' },
   removed: { icon: 'delete',        color: 'text-red-400' },
+  taken:    { icon: 'logout',        color: 'text-amber-400' },
+  returned: { icon: 'login',         color: 'text-emerald-400' },
 };
+
+const ACTION_VERBS: Record<string, string> = { taken: 'took out', returned: 'put back' };
 
 const CONDITION_COLORS: Record<string, string> = {
   '-80°C': 'bg-blue-500/15 text-blue-300 border-blue-500/25',
@@ -26,6 +30,40 @@ const CONDITION_COLORS: Record<string, string> = {
   '4°C':   'bg-sky-500/15 text-sky-300 border-sky-500/25',
   'RT':    'bg-amber-500/15 text-amber-300 border-amber-500/25',
   'LN₂':  'bg-indigo-500/15 text-indigo-300 border-indigo-500/25',
+};
+
+const firstName = (c: SampleCheckout) => c.takenBy?.name.split(' ')[0] || 'someone';
+
+/** "12 samples", or "12 samples · 15 containers" once some rows hold several. */
+export function sampleCountLabel(list: Sample[]): string {
+  const containers = list.reduce((n, sa) => n + sa.copies, 0);
+  const rows = `${list.length} sample${list.length !== 1 ? 's' : ''}`;
+  return containers === list.length ? rows : `${rows} · ${containers} containers`;
+}
+
+/** Sample name with a "×3" chip when the row stands for several containers. */
+export const SampleNameLine: React.FC<{ sample: Sample }> = ({ sample }) => (
+  <div className="flex items-center gap-1.5 min-w-0">
+    <span className="text-sm font-medium text-white truncate">{sample.name}</span>
+    {sample.copies > 1 && (
+      <span className="shrink-0 whitespace-nowrap text-[10px] font-bold px-1.5 py-px rounded border bg-[#2A2A2A] text-gray-300 border-[#333]">
+        ×{sample.copies}
+      </span>
+    )}
+  </div>
+);
+
+/** "1 out · Rupam, 2h ago", "2 out · Rupam, Bhawna", or "out · Rupam" when none are left in the box. */
+export const SampleOutPill: React.FC<{ sample: Sample; out?: SampleCheckout[] }> = ({ sample, out }) => {
+  if (!out || out.length === 0) return null;
+  const names = Array.from(new Set(out.map(firstName))).join(', ');
+  const count = out.length >= sample.copies ? 'out' : `${out.length} out`;
+  const when = out.length === 1 ? `, ${timeAgo(out[0].takenAt)}` : '';
+  return (
+    <span className="min-w-0 max-w-full truncate whitespace-nowrap text-[10px] font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-px rounded-full">
+      {count} · {names}{when}
+    </span>
+  );
 };
 
 const stagger = (i: number): React.CSSProperties => ({
@@ -39,10 +77,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
   const readOnly = useReadOnly();
   const { showToast } = useUI();
 
-  const [boxes, setBoxes] = useState<SampleBox[]>([]);
-  const [samples, setSamples] = useState<Sample[]>([]);
-  const [sampleLog, setSampleLog] = useState<SampleLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { boxes, samples, outBySample, log: sampleLog, loading, error: loadError } = useSampleData({ withLog: true });
   const [subTab, setSubTab] = useState<'boxes' | 'log'>('boxes');
   const [search, setSearch] = useState('');
   const [expandedBoxId, setExpandedBoxId] = useState<string | null>(null);
@@ -56,33 +91,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
   const [showImportModal, setShowImportModal] = useState(false);
   const [importBoxId, setImportBoxId] = useState<string | null>(null);
 
-  const mountedRef = useRef(true);
   const hasAnimated = useRef(false);
-
-  const reload = useCallback(async () => {
-    try {
-      const [b, s, l] = await Promise.all([
-        api.fetchSampleBoxes(),
-        api.fetchSamples(),
-        api.fetchSampleLog(),
-      ]);
-      if (mountedRef.current) {
-        setBoxes(b);
-        setSamples(s);
-        setSampleLog(l);
-      }
-    } catch {
-      // silently fail — tables may not exist yet
-    } finally {
-      if (mountedRef.current) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    void reload();
-    return () => { mountedRef.current = false; };
-  }, [reload]);
 
   useEffect(() => {
     if (!loading && !hasAnimated.current) {
@@ -90,16 +99,6 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
       return () => cancelAnimationFrame(raf);
     }
   }, [loading]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('sample-inventory')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sample_boxes' }, () => void reload())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'samples' }, () => void reload())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sample_log' }, () => void reload())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [reload]);
 
   const existingLocations = useMemo(() => {
     const locs = new Set(boxes.map((b) => b.location).filter(Boolean));
@@ -163,7 +162,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
     }
   };
 
-  const handleCreateSample = async (input: { name: string; boxId: string | null; container: string; volume: string; notes: string }) => {
+  const handleCreateSample = async (input: { name: string; boxId: string | null; container: string; volume: string; notes: string; copies: number }) => {
     if (!currentUser) return;
     try {
       await api.createSample(input, currentUser);
@@ -174,10 +173,15 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
     }
   };
 
-  const handleUpdateSample = async (input: { name: string; boxId: string | null; container: string; volume: string; notes: string }) => {
+  const handleUpdateSample = async (input: { name: string; boxId: string | null; container: string; volume: string; notes: string; copies: number }) => {
     if (!editSample || !currentUser) return;
     try {
-      await api.updateSample(editSample.id, input, currentUser);
+      const { copies, ...fields } = input;
+      await api.updateSample(editSample.id, fields, currentUser);
+      // Sent as a change, not a total, so a top-up made while this form was
+      // open is added to rather than overwritten.
+      const delta = copies - editSample.copies;
+      if (delta !== 0) await api.addSampleCopies(editSample.id, delta, currentUser);
       showToast(`Sample "${input.name}" updated.`, 'success');
     } catch {
       showToast('Could not update sample.', 'error');
@@ -209,17 +213,53 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
     }
   };
 
+  const handleTakeSample = async () => {
+    if (!editSample || !currentUser) return;
+    try {
+      await api.takeSample(editSample.id, currentUser);
+      showToast(`Took out "${editSample.name}".`, 'info');
+    } catch {
+      showToast('Could not take it out.', 'error');
+      throw new Error();
+    }
+  };
+
+  const handleReturnSample = async () => {
+    if (!editSample || !currentUser) return;
+    try {
+      const done = await api.returnSample(editSample.id, currentUser);
+      showToast(done ? `Put back "${editSample.name}".` : 'Nothing was out.', done ? 'success' : 'info');
+    } catch {
+      showToast('Could not put it back.', 'error');
+      throw new Error();
+    }
+  };
+
   const handleBulkImport = async (
-    rows: { name: string; container?: string; volume?: string; notes?: string }[],
+    rows: { name: string; container?: string; volume?: string; notes?: string; copies?: number }[],
+    topUps: { sampleId: string; delta: number }[],
     boxId: string | null
   ) => {
     if (!currentUser) return;
+    let count = 0;
+    let topped = 0;
     try {
-      const count = await api.bulkCreateSamples(rows, boxId, currentUser);
-      showToast(`Imported ${count} sample${count !== 1 ? 's' : ''}.`, 'success');
-    } catch {
-      showToast('Import failed.', 'error');
-      throw new Error();
+      count = await api.bulkCreateSamples(rows, boxId, currentUser);
+      for (const t of topUps) {
+        await api.addSampleCopies(t.sampleId, t.delta, currentUser);
+        topped++;
+      }
+      const parts = [
+        count > 0 && `imported ${count} sample${count !== 1 ? 's' : ''}`,
+        topped > 0 && `added copies to ${topped}`,
+      ].filter(Boolean).join(', ');
+      showToast(`${parts.charAt(0).toUpperCase()}${parts.slice(1)}.`, 'success');
+    } catch (e) {
+      const done = count + topped > 0 ? ` (${count} added, ${topped} topped up before it stopped)` : '';
+      showToast(`Import failed${done}: ${e instanceof Error && e.message ? e.message : 'unknown error'}`, 'error');
+      // Keep the sheet open for a retry only if nothing was written; otherwise
+      // a second tap would import the first half again.
+      if (count + topped === 0) throw new Error();
     }
   };
 
@@ -250,6 +290,12 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
           </span>
         </div>
         <p className="text-sm text-gray-400">Track boxes, tubes & storage</p>
+        {loadError && (
+            <div role="alert" className="mt-3 flex items-center gap-2 text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-md px-3 py-2">
+              <span className="material-symbols-outlined text-[16px]">cloud_off</span>
+              {loadError} What you see may be out of date.
+            </div>
+          )}
       </div>
 
       <div className="flex items-center justify-between gap-3 mb-4" style={s(1)}>
@@ -361,7 +407,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                           </span>
                         )}
                         <span className="shrink-0 whitespace-nowrap text-[11px] text-gray-500">
-                          {boxSamples.length} sample{boxSamples.length !== 1 ? 's' : ''}
+                          {sampleCountLabel(boxSamples)}
                         </span>
                       </div>
                     </div>
@@ -402,11 +448,12 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                               >
                                 <span className="material-symbols-outlined text-[16px] text-gray-500 shrink-0">science</span>
                                 <div className="flex-1 min-w-0">
-                                  <span className="text-sm font-medium text-white truncate block">{sa.name}</span>
-                                  <div className="flex items-center gap-2 flex-wrap text-[11px] text-gray-500">
+                                  <SampleNameLine sample={sa} />
+                                  <div className="flex items-center gap-2 flex-wrap text-[11px] text-gray-500 min-w-0">
                                     {sa.container && <span>{sa.container}</span>}
                                     {sa.volume && <span>{sa.volume}</span>}
                                     <span>{timeAgo(sa.createdAt)}</span>
+                                    <SampleOutPill sample={sa} out={outBySample.get(sa.id)} />
                                   </div>
                                 </div>
                                 {sa.addedBy && (
@@ -455,11 +502,12 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                     >
                       <span className="material-symbols-outlined text-[16px] text-gray-500 shrink-0">science</span>
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-white truncate block">{sa.name}</span>
-                        <div className="flex items-center gap-2 flex-wrap text-[11px] text-gray-500">
+                        <SampleNameLine sample={sa} />
+                        <div className="flex items-center gap-2 flex-wrap text-[11px] text-gray-500 min-w-0">
                           {sa.container && <span>{sa.container}</span>}
                           {sa.volume && <span>{sa.volume}</span>}
                           <span>{timeAgo(sa.createdAt)}</span>
+                          <SampleOutPill sample={sa} out={outBySample.get(sa.id)} />
                         </div>
                       </div>
                     </button>
@@ -469,7 +517,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
             )}
           </div>
 
-          {(filteredBoxes.length > 0 || filteredLoose.length > 0) && (
+          {!readOnly && (filteredBoxes.length > 0 || filteredLoose.length > 0) && (
             <button
               onClick={() => { setEditSample(null); setAddSampleBoxId(null); setShowSampleModal(true); }}
               className="mt-4 w-full py-2.5 text-sm font-medium text-gray-300 bg-[#1E1E1E] border border-[#2A2A2A] border-dashed rounded-xl hover:border-primary/40 hover:text-white transition-colors flex items-center justify-center gap-1.5"
@@ -511,10 +559,10 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-200">
                         {entry.actor && <span className="font-semibold text-white">{entry.actor.name}</span>}{' '}
-                        {entry.action}{' '}
+                        {ACTION_VERBS[entry.action] ?? entry.action}{' '}
                         <span className="font-medium text-white">{sampleName}</span>
                       </p>
-                      {entry.details && entry.action !== 'removed' && (
+                      {entry.details && entry.action !== 'removed' && !ACTION_VERBS[entry.action] && (
                         <p className="text-xs text-gray-500 mt-0.5">{entry.details}</p>
                       )}
                       <p className="text-[11px] text-gray-500 mt-1">{timeAgo(entry.createdAt)}</p>
@@ -533,6 +581,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
         onSubmit={editBox ? handleEditBox : handleCreateBox}
         editBox={editBox}
         existingLocations={existingLocations}
+        boxes={boxes}
       />
 
       <AddSampleModal
@@ -541,6 +590,9 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
         onSubmit={editSample ? handleUpdateSample : handleCreateSample}
         onMove={editSample ? handleMoveSample : undefined}
         onDelete={editSample ? handleDeleteSample : undefined}
+        onTake={editSample ? handleTakeSample : undefined}
+        onReturn={editSample ? handleReturnSample : undefined}
+        out={editSample ? outBySample.get(editSample.id) : undefined}
         editSample={editSample}
         boxes={boxes}
         preselectedBoxId={addSampleBoxId}
@@ -551,6 +603,7 @@ export const SampleInventoryView: React.FC<{ onBack: () => void }> = ({ onBack }
         onClose={() => { setShowImportModal(false); setImportBoxId(null); }}
         onImport={handleBulkImport}
         boxes={boxes}
+        samples={samples}
         preselectedBoxId={importBoxId}
       />
 

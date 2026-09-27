@@ -47,6 +47,7 @@ import {
   ReminderRecurrence,
   Sample,
   SampleBox,
+  SampleCheckout,
   SampleLogEntry,
   User,
   Vendor,
@@ -1823,7 +1824,7 @@ const SAMPLE_BOX_SELECT = `
 `;
 
 const SAMPLE_SELECT = `
-  id, name, box_id, container, volume, notes, created_at, updated_at,
+  id, name, box_id, container, volume, notes, copies, created_at, updated_at,
   owner:profiles!samples_added_by_fkey(${PROFILE_FIELDS})
 `;
 
@@ -1852,6 +1853,7 @@ function toSample(row: any): Sample {
     container: row.container,
     volume: row.volume,
     notes: row.notes,
+    copies: row.copies ?? 1,
     addedBy: toUser(row.owner),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -1876,11 +1878,40 @@ export async function fetchSampleBoxes(): Promise<SampleBox[]> {
   return (data as any[]).map(toSampleBox);
 }
 
+/** PostgREST hands back at most 1000 rows a request; a lab's racks pass that. */
+const PAGE = 1000;
+
 export async function fetchSamples(): Promise<Sample[]> {
+  const rows: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const page = unwrap(
+      await supabase
+        .from('samples')
+        .select(SAMPLE_SELECT)
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(from, from + PAGE - 1)
+    ) as any[];
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return rows.map(toSample);
+}
+
+export async function fetchOpenCheckouts(): Promise<SampleCheckout[]> {
   const data = unwrap(
-    await supabase.from('samples').select(SAMPLE_SELECT).order('updated_at', { ascending: false })
-  );
-  return (data as any[]).map(toSample);
+    await supabase
+      .from('sample_checkouts')
+      .select(`id, sample_id, taken_at, taker:profiles!sample_checkouts_taken_by_fkey(${PROFILE_FIELDS})`)
+      .is('returned_at', null)
+      .order('taken_at')
+  ) as any[];
+  return data.map((row) => ({
+    id: row.id,
+    sampleId: row.sample_id,
+    takenBy: toUser(row.taker),
+    takenAt: row.taken_at,
+  }));
 }
 
 export async function fetchSampleLog(): Promise<SampleLogEntry[]> {
@@ -1921,7 +1952,7 @@ export async function deleteSampleBox(boxId: string): Promise<void> {
 }
 
 export async function createSample(
-  input: { name: string; boxId?: string | null; container?: string; volume?: string; notes?: string },
+  input: { name: string; boxId?: string | null; container?: string; volume?: string; notes?: string; copies?: number },
   actor: User
 ): Promise<Sample> {
   const inserted = unwrap(
@@ -1931,6 +1962,7 @@ export async function createSample(
       container: input.container || '',
       volume: input.volume || '',
       notes: input.notes || '',
+      copies: Math.max(1, Math.round(input.copies ?? 1)),
       added_by: actor.id,
     }).select(SAMPLE_SELECT).single()
   );
@@ -1945,9 +1977,10 @@ export async function createSample(
 }
 
 export async function bulkCreateSamples(
-  rows: { name: string; container?: string; volume?: string; notes?: string }[],
+  rows: { name: string; container?: string; volume?: string; notes?: string; copies?: number }[],
   boxId: string | null,
-  actor: User
+  actor: User,
+  source = 'CSV import'
 ): Promise<number> {
   if (rows.length === 0) return 0;
   const toInsert = rows.map((r) => ({
@@ -1956,6 +1989,7 @@ export async function bulkCreateSamples(
     container: r.container?.trim() || '',
     volume: r.volume?.trim() || '',
     notes: r.notes?.trim() || '',
+    copies: Math.max(1, Math.round(r.copies ?? 1)),
     added_by: actor.id,
   }));
   const inserted = unwrap(
@@ -1964,7 +1998,7 @@ export async function bulkCreateSamples(
   const logRows = inserted.map((s) => ({
     sample_id: s.id,
     action: 'added',
-    details: boxId ? 'added to box (CSV import)' : 'added as loose sample (CSV import)',
+    details: boxId ? `added to box (${source})` : `added as loose sample (${source})`,
     actor_id: actor.id,
   }));
   await supabase.from('sample_log').insert(logRows);
@@ -1973,7 +2007,7 @@ export async function bulkCreateSamples(
 
 export async function updateSample(
   sampleId: string,
-  updates: { name?: string; container?: string; volume?: string; notes?: string },
+  updates: { name?: string; container?: string; volume?: string; notes?: string; copies?: number },
   actor: User
 ): Promise<void> {
   const row: Record<string, unknown> = {};
@@ -1981,6 +2015,7 @@ export async function updateSample(
   if (updates.container !== undefined) row.container = updates.container;
   if (updates.volume !== undefined) row.volume = updates.volume;
   if (updates.notes !== undefined) row.notes = updates.notes;
+  if (updates.copies !== undefined) row.copies = Math.max(1, Math.round(updates.copies));
   unwrap(await supabase.from('samples').update(row).eq('id', sampleId).select('id'));
   await supabase.from('sample_log').insert({
     sample_id: sampleId,
@@ -2007,6 +2042,54 @@ export async function moveSample(
     details,
     actor_id: actor.id,
   });
+}
+
+/** Top up an existing row ("two more KCl") in the database, not on the phone. */
+export async function addSampleCopies(sampleId: string, delta: number, actor: User): Promise<number> {
+  const copies = unwrap(
+    await supabase.rpc('add_sample_copies', { p_sample_id: sampleId, p_delta: delta })
+  ) as number | null;
+  if (copies == null) throw new Error('That sample no longer exists.');
+  await supabase.from('sample_log').insert({
+    sample_id: sampleId,
+    action: 'updated',
+    details: `${delta > 0 ? '+' : ''}${delta} cop${Math.abs(delta) === 1 ? 'y' : 'ies'}, now ×${copies}`,
+    actor_id: actor.id,
+  });
+  return copies;
+}
+
+/** Moves one sample; throws if it no longer exists rather than reporting success. */
+export async function moveSampleTo(
+  m: { sampleId: string; toBoxId: string | null; fromBoxName: string; toBoxName: string },
+  actor: User
+): Promise<void> {
+  const moved = unwrap(
+    await supabase.from('samples').update({ box_id: m.toBoxId }).eq('id', m.sampleId).select('id')
+  ) as unknown[];
+  if (moved.length === 0) throw new Error('That sample no longer exists.');
+  await supabase.from('sample_log').insert({
+    sample_id: m.sampleId,
+    action: 'moved',
+    details: `moved from ${m.fromBoxName || 'loose'} to ${m.toBoxName || 'loose'}`,
+    actor_id: actor.id,
+  });
+}
+
+/** The database refuses when every copy is already out, so two phones cannot both take the last one. */
+export async function takeSample(sampleId: string, actor: User): Promise<void> {
+  unwrap(await supabase.rpc('take_sample', { p_sample_id: sampleId, p_actor: actor.id }));
+  await supabase.from('sample_log').insert({ sample_id: sampleId, action: 'taken', details: 'taken out', actor_id: actor.id });
+}
+
+/** Closes the returner's own open check-out if they have one, else the oldest. False if nothing was out. */
+export async function returnSample(sampleId: string, actor: User): Promise<boolean> {
+  const closed = unwrap(
+    await supabase.rpc('return_sample', { p_sample_id: sampleId, p_actor: actor.id })
+  ) as string | null;
+  if (!closed) return false;
+  await supabase.from('sample_log').insert({ sample_id: sampleId, action: 'returned', details: 'put back', actor_id: actor.id });
+  return true;
 }
 
 export async function deleteSample(sampleId: string, actor: User): Promise<void> {
