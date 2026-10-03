@@ -67,7 +67,7 @@ export function VendorPage() {
               <button
                 type="button"
                 onClick={() => void fetchBoard()}
-                className="inline-flex items-center gap-2 min-h-11 px-4 rounded-lg bg-ink text-white text-sm font-semibold"
+                className="inline-flex items-center gap-2 min-h-11 px-4 rounded-lg bg-accent text-white hover:bg-orange-600 text-sm font-semibold"
               >
                 <RefreshCw className="w-4 h-4" /> Retry
               </button>
@@ -240,12 +240,12 @@ function FormSheet({ kind, onClose }: { kind: FormKind; onClose: () => void }) {
   };
 
   const title = kind === 'register' ? 'Register as a vendor' : 'Share an offer';
-  const input = 'w-full min-h-11 px-3 rounded-lg border border-line bg-card text-[16px] focus:outline-none focus:border-accent';
+  const input = 'w-full min-h-11 px-3 rounded-lg border border-line bg-paper text-[16px] focus:outline-none focus:border-accent';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
-      <div className="relative w-full max-w-md max-h-[92dvh] overflow-y-auto bg-paper rounded-t-2xl sm:rounded-2xl p-5 pb-[calc(20px+env(safe-area-inset-bottom))] flex flex-col gap-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md max-h-[92dvh] overflow-y-auto bg-card border border-line rounded-t-2xl sm:rounded-2xl p-5 pb-[calc(20px+env(safe-area-inset-bottom))] flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="w-10 h-10 -mr-2 inline-flex items-center justify-center rounded-lg text-muted hover:text-ink">
@@ -256,7 +256,7 @@ function FormSheet({ kind, onClose }: { kind: FormKind; onClose: () => void }) {
         {sent ? (
           <div className="flex flex-col gap-4">
             <p className="text-sm">Thanks — we'll be in touch.</p>
-            <button type="button" onClick={onClose} className="min-h-11 rounded-lg bg-ink text-white text-sm font-semibold">
+            <button type="button" onClick={onClose} className="min-h-11 rounded-lg bg-accent text-white hover:bg-orange-600 text-sm font-semibold">
               Done
             </button>
           </div>
@@ -296,7 +296,7 @@ function FormSheet({ kind, onClose }: { kind: FormKind; onClose: () => void }) {
               aria-hidden="true"
               className="absolute -left-[9999px] w-px h-px opacity-0"
             />
-            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+            {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
             <button
               type="submit"
               disabled={sending || !fields.name.trim() || (kind === 'offer' && !fields.message.trim())}
