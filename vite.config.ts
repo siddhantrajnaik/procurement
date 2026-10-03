@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => {
       target: 'es2022',
       sourcemap: false,
       rollupOptions: {
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+          vendor: path.resolve(__dirname, 'vendor.html'),
+        },
         output: {
           manualChunks: {
             react: ['react', 'react-dom'],

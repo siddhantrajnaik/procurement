@@ -78,6 +78,8 @@ export interface Purchase {
   priority: UrgencyLevel;
   status: PurchaseStatus;
   preferredCompany: string | null;
+  catalogNumber: string | null;
+  vendorVisible: boolean;
   requestedBy: User | null;
   assignedTo: User | null;
   requiresPiApproval: boolean;
@@ -507,6 +509,23 @@ export interface NewPurchaseInput {
   category: string;
   priority: UrgencyLevel;
   preferredCompany?: string;
+  catalogNumber?: string;
+  vendorVisible?: boolean;
+}
+
+export type VendorSubmissionKind = 'register' | 'offer';
+export type VendorSubmissionStatus = 'new' | 'added' | 'dismissed';
+
+export interface VendorSubmission {
+  id: string;
+  kind: VendorSubmissionKind;
+  name: string;
+  company: string | null;
+  phone: string | null;
+  email: string | null;
+  message: string | null;
+  status: VendorSubmissionStatus;
+  createdAt: string;
 }
 
 export interface NewQuotationInput {

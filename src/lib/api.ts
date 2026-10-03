@@ -36,6 +36,8 @@ import {
   NewPurchaseInput,
   NewQuotationInput,
   NewVendorInput,
+  VendorSubmission,
+  VendorSubmissionStatus,
   NotebookPage,
   DriveLink,
   NewPIReminderInput,
@@ -60,6 +62,7 @@ const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department, birth
 
 const PURCHASE_CORE_SELECT = `
   id, title, description, quantity, category, priority, status, preferred_company,
+  catalog_number, vendor_visible,
   requires_pi_approval, pi_approved, created_at, updated_at,
   requester:profiles!purchases_requested_by_fkey(${PROFILE_FIELDS}),
   assignee:profiles!purchases_assigned_to_fkey(${PROFILE_FIELDS}),
@@ -200,6 +203,8 @@ function toPurchase(row: any): Purchase {
     priority: row.priority,
     status: row.status,
     preferredCompany: row.preferred_company,
+    catalogNumber: row.catalog_number ?? null,
+    vendorVisible: row.vendor_visible ?? false,
     requestedBy: toUser(row.requester),
     assignedTo: toUser(row.assignee),
     requiresPiApproval: row.requires_pi_approval,
@@ -330,6 +335,8 @@ export async function createPurchase(input: NewPurchaseInput, actor: User): Prom
         category: input.category,
         priority: input.priority,
         preferred_company: input.preferredCompany || null,
+        catalog_number: input.catalogNumber || null,
+        vendor_visible: input.vendorVisible ?? false,
         requested_by: actor.id,
       })
       .select(purchaseSelect())
@@ -392,6 +399,8 @@ export async function updatePurchaseFields(
   if (updates.category !== undefined) row.category = updates.category;
   if (updates.priority !== undefined) row.priority = updates.priority;
   if (updates.preferredCompany !== undefined) row.preferred_company = updates.preferredCompany || null;
+  if (updates.catalogNumber !== undefined) row.catalog_number = updates.catalogNumber || null;
+  if (updates.vendorVisible !== undefined) row.vendor_visible = updates.vendorVisible;
   unwrap(
     await supabase.from('purchases').update(row).eq('id', purchaseId).select('id')
   );
@@ -2244,4 +2253,54 @@ export async function reopenPIReminder(id: string): Promise<PIReminder> {
 
 export async function deletePIReminder(id: string): Promise<void> {
   unwrap(await supabase.from('pi_reminders').delete().eq('id', id).select('id'));
+}
+
+// ---------------------------------------------------------------- vendor page
+
+function toVendorSubmission(row: any): VendorSubmission {
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.name,
+    company: row.company,
+    phone: row.phone,
+    email: row.email,
+    message: row.message,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+export async function fetchVendorSubmissions(): Promise<VendorSubmission[]> {
+  const rows = unwrap(
+    await supabase
+      .from('vendor_submissions')
+      .select('id, kind, name, company, phone, email, message, status, created_at')
+      .eq('status', 'new')
+      .order('created_at', { ascending: false })
+      .limit(200)
+  );
+  return (rows ?? []).map(toVendorSubmission);
+}
+
+export async function setVendorSubmissionStatus(id: string, status: VendorSubmissionStatus): Promise<void> {
+  unwrap(await supabase.from('vendor_submissions').update({ status }).eq('id', id).select('id'));
+}
+
+export async function fetchQuoteEmail(): Promise<string | null> {
+  const row = unwrap(
+    await supabase.from('vendor_page_settings').select('quote_email').eq('id', 1).maybeSingle()
+  ) as { quote_email: string | null } | null;
+  return row?.quote_email ?? null;
+}
+
+export async function setQuoteEmail(email: string | null): Promise<void> {
+  const rows = unwrap(
+    await supabase
+      .from('vendor_page_settings')
+      .update({ quote_email: email, updated_at: new Date().toISOString() })
+      .eq('id', 1)
+      .select('id')
+  );
+  if (!rows?.length) throw new Error('Vendor page settings are missing. Run migration 0033.');
 }

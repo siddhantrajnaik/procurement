@@ -8,9 +8,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   editVendor: Vendor | null;
+  prefill?: { name: string; contact: string; comment: string } | null;
+  onSaved?: () => void;
 }
 
-export const AddVendorModal: React.FC<Props> = ({ open, onClose, editVendor: editItem }) => {
+export const AddVendorModal: React.FC<Props> = ({ open, onClose, editVendor: editItem, prefill, onSaved }) => {
   const { addVendor, editVendor } = useApp();
 
   const [name, setName] = useState('');
@@ -28,13 +30,13 @@ export const AddVendorModal: React.FC<Props> = ({ open, onClose, editVendor: edi
       setContact(editItem.contact);
       setPhotoUrl(editItem.photoUrl ?? '');
     } else if (open) {
-      setName('');
+      setName(prefill?.name ?? '');
       setType('direct');
-      setComment('');
-      setContact('');
+      setComment(prefill?.comment ?? '');
+      setContact(prefill?.contact ?? '');
       setPhotoUrl('');
     }
-  }, [open, editItem]);
+  }, [open, editItem, prefill]);
 
   useEffect(() => {
     if (!open) return;
@@ -63,6 +65,7 @@ export const AddVendorModal: React.FC<Props> = ({ open, onClose, editVendor: edi
       // Closing on a failed save loses the contact details and looks identical
       // to a save that worked.
       if (!ok) return;
+      onSaved?.();
       onClose();
     } finally {
       setSaving(false);

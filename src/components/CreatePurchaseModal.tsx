@@ -6,6 +6,7 @@ import { useUI } from '../context/UIContext';
 import { UrgencyLevel } from '../types';
 import { SHEET_SPRING } from '../lib/motion';
 import { ScrollLock } from '../lib/useScrollLock';
+import { VendorVisibleToggle } from './VendorVisibleToggle';
 
 export const CreatePurchaseModal: React.FC = () => {
   const { createPurchase } = useApp();
@@ -16,6 +17,8 @@ export const CreatePurchaseModal: React.FC = () => {
   const [description, setDescription] = useState('');
   const [quantity, setQuantity] = useState('');
   const [preferredCompany, setPreferredCompany] = useState('');
+  const [catalogNumber, setCatalogNumber] = useState('');
+  const [vendorVisible, setVendorVisible] = useState(false);
   const [priority, setPriority] = useState<UrgencyLevel>('normal');
   const [category, setCategory] = useState('Reagents');
   const [submitting, setSubmitting] = useState(false);
@@ -48,6 +51,8 @@ export const CreatePurchaseModal: React.FC = () => {
         description: description.trim(),
         quantity: quantity.trim(),
         preferredCompany: preferredCompany.trim() || undefined,
+        catalogNumber: catalogNumber.trim() || undefined,
+        vendorVisible,
         priority,
         category,
       });
@@ -59,6 +64,8 @@ export const CreatePurchaseModal: React.FC = () => {
       setDescription('');
       setQuantity('');
       setPreferredCompany('');
+      setCatalogNumber('');
+      setVendorVisible(false);
       setPriority('normal');
       setCategory('Reagents');
       setIsCreateModalOpen(false);
@@ -285,6 +292,22 @@ export const CreatePurchaseModal: React.FC = () => {
                     className="w-full px-4 py-3 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-medium placeholder:text-gray-600"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-white mb-1">
+                    Catalogue Number (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. T8787"
+                    maxLength={80}
+                    value={catalogNumber}
+                    onChange={(e) => setCatalogNumber(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg bg-background border border-[#2A2A2A] text-white text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-gray-600 placeholder:font-sans"
+                  />
+                </div>
+
+                <VendorVisibleToggle checked={vendorVisible} onChange={setVendorVisible} />
 
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-2">

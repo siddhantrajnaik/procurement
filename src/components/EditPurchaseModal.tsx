@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UrgencyLevel } from '../types';
 import { ScrollLock } from '../lib/useScrollLock';
+import { VendorVisibleToggle } from './VendorVisibleToggle';
 
 const CATEGORIES = [
   'Reagents',
@@ -21,6 +22,8 @@ export const EditPurchaseModal: React.FC = () => {
   const [category, setCategory] = useState('Reagents');
   const [priority, setPriority] = useState<UrgencyLevel>('normal');
   const [preferredCompany, setPreferredCompany] = useState('');
+  const [catalogNumber, setCatalogNumber] = useState('');
+  const [vendorVisible, setVendorVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -31,6 +34,8 @@ export const EditPurchaseModal: React.FC = () => {
       setCategory(editingPurchase.category);
       setPriority(editingPurchase.priority);
       setPreferredCompany(editingPurchase.preferredCompany ?? '');
+      setCatalogNumber(editingPurchase.catalogNumber ?? '');
+      setVendorVisible(editingPurchase.vendorVisible);
     }
   }, [editingPurchase]);
 
@@ -58,6 +63,8 @@ export const EditPurchaseModal: React.FC = () => {
         category,
         priority,
         preferredCompany: preferredCompany.trim() || undefined,
+        catalogNumber: catalogNumber.trim(),
+        vendorVisible,
       });
     } finally {
       setSubmitting(false);
@@ -164,6 +171,22 @@ export const EditPurchaseModal: React.FC = () => {
               onChange={(e) => setPreferredCompany(e.target.value)}
             />
           </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+              Catalogue number
+              <span className="text-gray-500 font-normal normal-case ml-1">(optional)</span>
+            </label>
+            <input
+              className="w-full px-3 py-2 bg-[#161616] border border-[#2A2A2A] rounded-md text-sm text-white font-mono placeholder:text-gray-500 placeholder:font-sans focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              placeholder="e.g. T8787"
+              maxLength={80}
+              value={catalogNumber}
+              onChange={(e) => setCatalogNumber(e.target.value)}
+            />
+          </div>
+
+          <VendorVisibleToggle checked={vendorVisible} onChange={setVendorVisible} />
         </div>
 
         <div className="sticky bottom-0 bg-[#1E1E1E] border-t border-[#2A2A2A] px-5 py-4 flex gap-3">
