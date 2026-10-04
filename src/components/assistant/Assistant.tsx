@@ -7,21 +7,25 @@ import { useSampleData } from '../../lib/useSampleData';
 import { useSpeech } from '../../lib/useSpeech';
 import { ScrollLock } from '../../lib/useScrollLock';
 import { parse, parseItem } from '../../lib/assistant/parse';
+import { askAi } from '../../lib/assistant/ai';
 import { rankBoxes } from './resolve';
 import { WEAK } from '../../lib/assistant/match';
 import type { Intent } from '../../lib/assistant/types';
-import { AddPanel, BoxPanel, FindPanel, MovePanel, PanelData, RestockPanel, ReturnPanel, SwapPanel, TakePanel } from './panels';
+import { AddPanel, BoxPanel, FindPanel, LowPanel, MovePanel, PanelData, RequestPanel, RestockPanel, ReturnPanel, SwapPanel, TakePanel } from './panels';
 
 const EXAMPLES = [
   'where is triton',
   "what's in CC-S05",
-  'CC-S05: silver nitrate, trypan blue',
-  'move FCV to PN01',
-  'took out FCV',
+  "what's running low?",
+  'took out FCV and moved trypan blue to PN01',
   'used 50 mL methanol',
+  'we need 2 boxes of 15 mL falcons, urgent',
 ];
 
-const LOOKUPS: Intent['kind'][] = ['find', 'box', 'empty'];
+const LOOKUPS: Intent['kind'][] = ['find', 'box', 'low', 'empty'];
+
+interface Shown { id: number; intent: Intent }
+let shownSeq = 0;
 
 // Phone keyboards have no Shift+Enter, so there Enter makes a new line and the
 // arrow button runs the command.
@@ -51,29 +55,60 @@ export const AssistantButton: React.FC<{ bottom?: string }> = ({
 };
 
 function AssistantSheet({ onClose }: { onClose: () => void }) {
-  const { inventoryItems, consumeItem, restockItem, moveItem } = useApp();
+  const { inventoryItems, consumeItem, restockItem, moveItem, createPurchase } = useApp();
   const { currentUser } = useAuth();
   const { showToast, setActiveTab, setPendingProfileView } = useUI();
   const readOnly = useReadOnly();
   const { boxes, samples, outBySample, loading, error: loadError, reload } = useSampleData();
 
   const [text, setText] = useState('');
-  const [intent, setIntent] = useState<Intent | null>(null);
-  const [runId, setRunId] = useState(0);
+  const [results, setResults] = useState<Shown[]>([]);
+  const [reply, setReply] = useState<string | null>(null);
+  const [mode, setMode] = useState<'smart' | 'basic' | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [thinking, setThinking] = useState(false);
+  const runSeq = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const autoRun = useRef(false);
   const textRef = useRef('');
   textRef.current = text;
 
-  const run = useCallback((value: string) => {
-    const parsed = parse(value);
-    setIntent(parsed.kind === 'empty' ? null : parsed);
-    setRunId((n) => n + 1);
+  const lookupNames = useMemo(() => ({
+    boxes: boxes.map((b) => b.name),
+    items: [...new Set([...samples.map((x) => x.name), ...inventoryItems.map((i) => i.name)])],
+  }), [boxes, samples, inventoryItems]);
+  const namesRef = useRef(lookupNames);
+  namesRef.current = lookupNames;
+
+  // Gemini first; the built-in parser whenever it is offline, over the daily
+  // cap, or has nothing to say, so the assistant never stops working.
+  const run = useCallback(async (value: string) => {
+    const t = value.trim();
+    const mine = ++runSeq.current;
+    setResults([]); setReply(null); setNotice(null); setMode(null);
+    if (!t) return;
+    setThinking(true);
+    const ai = await askAi(t, namesRef.current.boxes, namesRef.current.items);
+    if (mine !== runSeq.current) return;
+    setThinking(false);
+    const show = (intents: Intent[]) => setResults(intents.map((intent) => ({ id: ++shownSeq, intent })));
+    if (typeof ai === 'object' && (ai.intents.length > 0 || ai.reply)) {
+      show(ai.intents);
+      setReply(ai.reply);
+      setMode('smart');
+      return;
+    }
+    const parsed = parse(t);
+    show(parsed.kind === 'empty' ? [] : [parsed]);
+    setMode('basic');
+    if (ai === 'limit') setNotice("Smart assistant has used today's free limit. Using basic mode.");
+    else if (ai === 'offline') setNotice("You're offline. Using basic mode.");
+    else if (ai === 'unavailable') setNotice('Smart assistant is unavailable. Using basic mode.');
   }, []);
 
   const startListening = () => {
     // A new spoken command replaces the one whose result is showing.
-    if (intent) { setText(''); setIntent(null); }
+    if (mode) { setText(''); setResults([]); setReply(null); setMode(null); setNotice(null); }
     speech.start();
   };
 
@@ -85,7 +120,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
     () => {
       if (!autoRun.current) return;
       autoRun.current = false;
-      run(textRef.current);
+      void run(textRef.current);
     }
   );
 
@@ -98,7 +133,21 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
   // On a phone, focusing would throw the keyboard over the examples.
   useEffect(() => { if (!coarsePointer) inputRef.current?.focus(); }, []);
 
-  const reset = useCallback(() => { setText(''); setIntent(null); inputRef.current?.focus(); }, []);
+  const reset = useCallback(() => {
+    runSeq.current++;
+    setText(''); setResults([]); setReply(null); setMode(null); setNotice(null); setThinking(false);
+    inputRef.current?.focus();
+  }, []);
+
+  // A saved card leaves; when the last one goes, the sheet is ready for the next command.
+  const finish = useCallback((id: number, msg: string) => {
+    if (msg) showToast(msg, 'success');
+    setResults((rs) => {
+      const left = rs.filter((r) => r.id !== id);
+      if (left.length === 0) { setText(''); setReply(null); setMode(null); setNotice(null); }
+      return left;
+    });
+  }, [showToast]);
 
   const data: PanelData = useMemo(() => ({
     boxes,
@@ -110,13 +159,12 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
     consumeItem,
     restockItem,
     moveItem,
+    createPurchase,
     reload: () => void reload(),
-    onDone: (msg) => { showToast(msg, 'success'); reset(); },
+    onDone: (msg) => { if (msg) showToast(msg, 'success'); reset(); },
     onError: (msg) => showToast(msg, 'error'),
     openSample: readOnly ? undefined : () => { setPendingProfileView('samples'); setActiveTab('profile'); onClose(); },
-  }), [boxes, samples, outBySample, inventoryItems, currentUser, readOnly, consumeItem, restockItem, moveItem, reload, showToast, reset, setPendingProfileView, setActiveTab, onClose]);
-
-  const blocked = intent && readOnly && !LOOKUPS.includes(intent.kind);
+  }), [boxes, samples, outBySample, inventoryItems, currentUser, readOnly, consumeItem, restockItem, moveItem, createPurchase, reload, showToast, reset, setPendingProfileView, setActiveTab, onClose]);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Assistant">
@@ -134,7 +182,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <form
-            onSubmit={(e) => { e.preventDefault(); run(text); }}
+            onSubmit={(e) => { e.preventDefault(); void run(text); }}
             className="flex items-end gap-2"
           >
             <textarea
@@ -143,7 +191,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !coarsePointer && !e.nativeEvent.isComposing) { e.preventDefault(); run(text); }
+                if (e.key === 'Enter' && !e.shiftKey && !coarsePointer && !e.nativeEvent.isComposing) { e.preventDefault(); void run(text); }
               }}
               placeholder={readOnly ? 'Where is…' : 'Find, add, move, took…'}
               className="flex-1 min-w-0 px-3 py-2 bg-[#121212] border border-[#2A2A2A] rounded-lg text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-primary resize-none"
@@ -165,7 +213,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
             )}
             <button
               type="submit"
-              disabled={!text.trim()}
+              disabled={!text.trim() || thinking}
               aria-label="Go"
               className="shrink-0 w-10 h-10 rounded-lg bg-primary text-white flex items-center justify-center disabled:opacity-40"
             >
@@ -197,10 +245,25 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 rounded-full border-2 border-[#2A2A2A] border-t-primary animate-spin" />
             </div>
-          ) : blocked ? (
-            <p className="text-sm text-gray-400">You can look things up here. Adding, moving and taking is done by lab members.</p>
-          ) : intent ? (
-            <Result key={runId} intent={intent} d={data} />
+          ) : thinking ? (
+            <div className="flex items-center gap-2 py-6 justify-center text-sm text-gray-400" role="status">
+              <span className="material-symbols-outlined text-primary text-[18px] animate-pulse">auto_awesome</span>
+              Understanding…
+            </div>
+          ) : mode ? (
+            <div className="space-y-4 pb-4">
+              {notice && <p className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">{notice}</p>}
+              {reply && <p className="text-sm text-gray-200 bg-[#161616] border border-[#2A2A2A] rounded-lg px-3 py-2.5">{reply}</p>}
+              {results.map((r) => (
+                <ResultItem key={r.id} shown={r} data={data} readOnly={readOnly} onFinish={finish} />
+              ))}
+              {results.length === 0 && !reply && (
+                <p className="text-sm text-gray-400">I didn't understand that. Try one of the examples, or say it another way.</p>
+              )}
+              {mode === 'smart' && results.length > 0 && (
+                <p className="text-[10px] text-gray-500">Understood by Gemini. Nothing is saved until you tap Save.</p>
+              )}
+            </div>
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-gray-400">Try:</p>
@@ -209,7 +272,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
                   <button
                     key={ex}
                     type="button"
-                    onClick={() => { setText(ex); run(ex); }}
+                    onClick={() => { setText(ex); void run(ex); }}
                     className="px-3 py-2 rounded-full text-xs bg-[#161616] border border-[#2A2A2A] text-gray-300 hover:border-primary/40"
                   >
                     {ex}
@@ -218,7 +281,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
               </div>
               {!readOnly && (
                 <p className="text-[11px] text-gray-400 pt-2 pb-4">
-                  For a whole shelf: "CC-S05: silver nitrate, trypan blue, …" — or tap the mic, say the box, and read the bottles out with a pause between each. Nothing is saved until you tap Save.
+                  Say it however you like, in English or Hindi, several things at once. For a whole shelf: "CC-S05: silver nitrate, trypan blue, …" — or tap the mic and read the bottles out. Nothing is saved until you tap Save.
                 </p>
               )}
             </div>
@@ -227,6 +290,14 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+}
+
+function ResultItem({ shown, data, readOnly, onFinish }: { shown: Shown; data: PanelData; readOnly: boolean; onFinish: (id: number, msg: string) => void }) {
+  const d = useMemo<PanelData>(() => ({ ...data, onDone: (msg) => onFinish(shown.id, msg) }), [data, onFinish, shown.id]);
+  if (readOnly && !LOOKUPS.includes(shown.intent.kind)) {
+    return <p className="text-sm text-gray-400">You can look things up here. Adding, moving, taking and ordering is done by lab members.</p>;
+  }
+  return <Result intent={shown.intent} d={d} />;
 }
 
 function Result({ intent: raw, d }: { intent: Intent; d: PanelData }) {
@@ -238,7 +309,7 @@ function Result({ intent: raw, d }: { intent: Intent; d: PanelData }) {
       : raw;
   const title: Record<Intent['kind'], string> = {
     find: 'Found', box: 'Box', add: 'Add to a box', move: 'Move', swap: 'Swap',
-    take: 'Taking', return: 'Putting back', restock: 'Restock', empty: '',
+    take: 'Taking', return: 'Putting back', restock: 'Restock', low: 'Running low', request: 'New purchase request', empty: '',
   };
   return (
     <div className="space-y-2">
@@ -251,6 +322,8 @@ function Result({ intent: raw, d }: { intent: Intent; d: PanelData }) {
       {intent.kind === 'take' && <TakePanel items={intent.items} d={d} />}
       {intent.kind === 'return' && <ReturnPanel items={intent.items} d={d} />}
       {intent.kind === 'restock' && <RestockPanel items={intent.items} d={d} />}
+      {intent.kind === 'low' && <LowPanel d={d} />}
+      {intent.kind === 'request' && <RequestPanel title={intent.title} quantity={intent.quantity} priority={intent.priority} note={intent.note} d={d} />}
     </div>
   );
 }

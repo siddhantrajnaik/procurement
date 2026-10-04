@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { InventoryItem, Sample, SampleBox, SampleCheckout, User } from '../../types';
+import { InventoryItem, NewPurchaseInput, Sample, SampleBox, SampleCheckout, User } from '../../types';
 import type { ParsedItem } from '../../lib/assistant/types';
 import { normalize } from '../../lib/assistant/match';
 import * as api from '../../lib/api';
@@ -18,6 +18,7 @@ export interface PanelData {
   consumeItem: (item: InventoryItem, qty: number, notes?: string) => Promise<boolean>;
   restockItem: (item: InventoryItem, qty: number, notes?: string) => Promise<boolean>;
   moveItem: (item: InventoryItem, loc: string, notes?: string) => Promise<boolean>;
+  createPurchase: (input: NewPurchaseInput) => Promise<boolean>;
   reload: () => void;
   onDone: (message: string) => void;
   onError: (message: string) => void;
@@ -675,6 +676,130 @@ export function ReturnPanel({ items, d }: { items: string[]; d: PanelData }) {
         ))}
       </div>
       <SaveBar label={`Put back ${rows.length}`} disabled={!!why} busy={saving} busyLabel="Saving…" why={why} onSave={() => void save()} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- low / expiring
+
+export function LowPanel({ d }: { d: PanelData }) {
+  const today = new Date(new Date().toDateString()).getTime();
+  const low = d.stock.filter((i) => i.lowStockThreshold != null && i.quantity <= i.lowStockThreshold);
+  const expiring = d.stock
+    .filter((i) => i.expiryDate)
+    .map((i) => ({ item: i, days: Math.ceil((new Date(i.expiryDate!).getTime() - today) / 86_400_000) }))
+    .filter((e) => e.days <= 30)
+    .sort((a, b) => a.days - b.days);
+  if (low.length === 0 && expiring.length === 0) {
+    return <p className="text-sm text-gray-400 px-1">Nothing is low on stock or expiring in the next 30 days.</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {low.length > 0 && (
+        <div className={`${card} space-y-1.5`}>
+          <p className="text-[11px] font-semibold text-amber-300 uppercase tracking-wider">Low stock · {low.length}</p>
+          {low.map((i) => (
+            <div key={i.id} className="flex items-baseline justify-between gap-2 text-sm min-w-0">
+              <span className="text-white truncate">{i.name}</span>
+              <span className="shrink-0 text-xs text-gray-400 tabular-nums">{i.quantity} {i.unit} left · alert at {i.lowStockThreshold}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {expiring.length > 0 && (
+        <div className={`${card} space-y-1.5`}>
+          <p className="text-[11px] font-semibold text-red-300 uppercase tracking-wider">Expiring · {expiring.length}</p>
+          {expiring.map(({ item, days }) => (
+            <div key={item.id} className="flex items-baseline justify-between gap-2 text-sm min-w-0">
+              <span className="text-white truncate">{item.name}</span>
+              <span className={`shrink-0 text-xs tabular-nums ${days < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                {days < 0 ? `expired ${-days}d ago` : days === 0 ? 'expires today' : `${days}d left`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- purchase request
+
+const PRIORITIES = ['normal', 'urgent', 'critical'] as const;
+
+export function RequestPanel({
+  title: initialTitle,
+  quantity: initialQty,
+  priority: initialPriority,
+  note: initialNote,
+  d,
+}: {
+  title: string;
+  quantity: string;
+  priority: (typeof PRIORITIES)[number];
+  note: string;
+  d: PanelData;
+}) {
+  const [title, setTitle] = useState(initialTitle);
+  const [quantity, setQuantity] = useState(initialQty);
+  const [priority, setPriority] = useState(initialPriority);
+  const [note, setNote] = useState(initialNote);
+  const [saving, setSaving] = useState(false);
+  const why = !title.trim() ? 'Name the item.' : !quantity.trim() ? 'Say how much is needed.' : null;
+  const input = 'w-full px-2.5 py-2 bg-[#161616] border border-[#2A2A2A] rounded-md text-sm text-white focus:outline-none focus:border-primary';
+
+  const save = async () => {
+    if (why || d.readOnly || saving) return;
+    setSaving(true);
+    try {
+      const ok = await d.createPurchase({
+        title: title.trim(),
+        quantity: quantity.trim(),
+        description: note.trim(),
+        category: 'Reagents',
+        priority,
+      });
+      // createPurchase shows its own toast either way; keep the card on failure.
+      if (ok) d.onDone('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className={`${card} space-y-2.5`}>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Item</span>
+          <input className={input} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+        </label>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">How much</span>
+          <input className={input} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="e.g. 2 boxes" maxLength={60} />
+        </label>
+        <div>
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Priority</span>
+          <div className="grid grid-cols-3 gap-1.5">
+            {PRIORITIES.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPriority(p)}
+                className={`min-h-10 rounded-md text-xs font-semibold capitalize border ${
+                  priority === p ? (p === 'normal' ? 'bg-primary/10 border-primary text-primary' : 'bg-red-500/10 border-red-500/30 text-red-300') : 'bg-[#161616] border-[#2A2A2A] text-gray-400'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Note (optional)</span>
+          <input className={input} value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
+        </label>
+      </div>
+      <SaveBar label="Raise request" disabled={!!why} busy={saving} busyLabel="Saving…" why={why} onSave={() => void save()} />
     </div>
   );
 }
