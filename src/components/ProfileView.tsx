@@ -5,7 +5,7 @@ import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
 import { formatRupees, initialOf, roleLabel, todayISO } from '../lib/format';
 import { User } from '../types';
-import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff, Volume2, VolumeX, UserRound } from 'lucide-react';
+import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff, Volume2, VolumeX, UserRound, Speech, MicOff } from 'lucide-react';
 import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
 import { LostFoundView } from './LostFoundView';
@@ -20,6 +20,7 @@ import { GuestLogView } from './GuestLogView';
 import { ScrollLock } from '../lib/useScrollLock';
 import { isNotificationSupported, isNotificationEnabled, requestNotificationPermission, disableNotifications } from '../lib/notify';
 import { isSoundEnabled, setSoundEnabled, playSound } from '../lib/sound';
+import { isAssistantVoiceOn, setAssistantVoiceOn } from '../lib/assistantVoice';
 import { Link } from 'lucide-react';
 
 /** Full-page views reachable from the profile menu. Each takes only `onBack`. */
@@ -51,6 +52,7 @@ export const ProfileView: React.FC = () => {
   const [savingBirthday, setSavingBirthday] = useState(false);
   const [notifOn, setNotifOn] = useState(isNotificationEnabled);
   const [soundOn, setSoundOn] = useState(isSoundEnabled);
+  const [voiceOn, setVoiceOn] = useState(isAssistantVoiceOn);
 
   useEffect(() => {
     if (pendingProfileView && pendingProfileView in SUB_VIEWS) {
@@ -175,7 +177,7 @@ export const ProfileView: React.FC = () => {
             </div>
           </div>
         ) : (
-          // Birthday keeps the label; the two toggles collapse to icons, where
+          // Birthday keeps the label; the toggles collapse to icons, where
           // the icon swap plus colour already carries the on/off state.
           <div className="flex items-center gap-2">
             <button
@@ -244,6 +246,25 @@ export const ProfileView: React.FC = () => {
               }`}
             >
               {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+
+            <button
+              onClick={() => {
+                const next = !voiceOn;
+                setAssistantVoiceOn(next);
+                setVoiceOn(next);
+                showToast(next ? 'The assistant will read its replies aloud.' : 'The assistant will reply silently.', 'info');
+              }}
+              aria-pressed={voiceOn}
+              title={voiceOn ? 'Assistant voice on' : 'Assistant voice off'}
+              aria-label={voiceOn ? 'Turn assistant voice off' : 'Turn assistant voice on'}
+              className={`shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+                voiceOn
+                  ? 'bg-primary/10 border-primary/25 text-primary hover:bg-primary/20'
+                  : 'bg-background border-[#2A2A2A] text-gray-500 hover:border-gray-500'
+              }`}
+            >
+              {voiceOn ? <Speech className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
             </button>
           </div>
         )}

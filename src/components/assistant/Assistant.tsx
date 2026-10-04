@@ -6,6 +6,7 @@ import { useReadOnly } from '../../lib/useReadOnly';
 import { useSampleData } from '../../lib/useSampleData';
 import { useSpeech } from '../../lib/useSpeech';
 import { ScrollLock } from '../../lib/useScrollLock';
+import { isAssistantVoiceOn, setAssistantVoiceOn } from '../../lib/assistantVoice';
 import { parse, parseItem } from '../../lib/assistant/parse';
 import { callAssistant, Content, LabSnapshot, MAX_STEPS, Part, Proposal, runTools } from '../../lib/assistant/agent';
 import { rankBoxes } from './resolve';
@@ -25,7 +26,6 @@ const EXAMPLES = [
 const LOOKUP_EXAMPLE = /^(where|what|when|who)/i;
 
 const LOOKUPS: Intent['kind'][] = ['find', 'box', 'low', 'empty'];
-const SPEAK_KEY = 'procure.assistant.speak';
 
 // Phone keyboards have no Shift+Enter, so there Enter makes a new line and the
 // arrow button sends.
@@ -88,9 +88,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [thinking, setThinking] = useState(false);
-  const [speakOn, setSpeakOn] = useState(() => {
-    try { return localStorage.getItem(SPEAK_KEY) !== 'off'; } catch { return true; }
-  });
+  const [speakOn, setSpeakOn] = useState(isAssistantVoiceOn);
   const history = useRef<Content[]>([]);
   const busy = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -201,7 +199,7 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
     const next = !speakOn;
     setSpeakOn(next);
     if (!next) hush();
-    try { localStorage.setItem(SPEAK_KEY, next ? 'on' : 'off'); } catch { /* storage blocked */ }
+    setAssistantVoiceOn(next);
   };
 
   // A saved card leaves the conversation; the words stay.
@@ -245,9 +243,12 @@ function AssistantSheet({ onClose }: { onClose: () => void }) {
               </button>
             )}
             {canSpeak() && (
-              <button type="button" onClick={toggleSpeak} aria-pressed={speakOn} aria-label={speakOn ? 'Mute spoken replies' : 'Speak replies'} title={speakOn ? 'Replies are spoken' : 'Replies are silent'}
-                className="w-9 h-9 rounded-md flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#2A2A2A]">
-                <span className="material-symbols-outlined text-[20px]">{speakOn ? 'volume_up' : 'volume_off'}</span>
+              <button type="button" onClick={toggleSpeak} aria-pressed={speakOn} title={speakOn ? 'Tap to stop reading replies aloud' : 'Tap to read replies aloud'}
+                className={`h-9 px-2.5 rounded-md flex items-center gap-1 text-xs font-semibold border transition-colors ${
+                  speakOn ? 'text-primary border-primary/30 bg-primary/10' : 'text-gray-400 border-[#2A2A2A] hover:text-white'
+                }`}>
+                <span className="material-symbols-outlined text-[18px]">{speakOn ? 'volume_up' : 'volume_off'}</span>
+                Voice {speakOn ? 'on' : 'off'}
               </button>
             )}
             <button onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-md flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#2A2A2A]">
