@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { InventoryItem, NewPurchaseInput, Sample, SampleBox, SampleCheckout, User } from '../../types';
+import { InventoryItem, NewInventoryItemInput, NewPurchaseInput, Sample, SampleBox, SampleCheckout, User } from '../../types';
+import { VendorVisibleToggle } from '../VendorVisibleToggle';
 import type { ParsedItem } from '../../lib/assistant/types';
 import { normalize } from '../../lib/assistant/match';
 import * as api from '../../lib/api';
@@ -19,6 +20,7 @@ export interface PanelData {
   restockItem: (item: InventoryItem, qty: number, notes?: string) => Promise<boolean>;
   moveItem: (item: InventoryItem, loc: string, notes?: string) => Promise<boolean>;
   createPurchase: (input: NewPurchaseInput) => Promise<boolean>;
+  addInventoryItem: (input: NewInventoryItemInput) => Promise<boolean>;
   reload: () => void;
   onDone: (message: string) => void;
   onError: (message: string) => void;
@@ -732,14 +734,24 @@ export function RequestPanel({
   quantity: initialQty,
   priority: initialPriority,
   note: initialNote,
+  catalogNumber: initialCat,
+  brand: initialBrand,
+  vendorVisible: initialVisible = false,
   d,
 }: {
   title: string;
   quantity: string;
   priority: (typeof PRIORITIES)[number];
   note: string;
+  catalogNumber: string;
+  brand: string;
+  vendorVisible?: boolean;
   d: PanelData;
 }) {
+  const [catalogNumber, setCatalogNumber] = useState(initialCat);
+  const [brand, setBrand] = useState(initialBrand);
+  const [vendorVisible, setVendorVisible] = useState(initialVisible);
+  const askCat = !initialCat;
   const [title, setTitle] = useState(initialTitle);
   const [quantity, setQuantity] = useState(initialQty);
   const [priority, setPriority] = useState(initialPriority);
@@ -758,6 +770,9 @@ export function RequestPanel({
         description: note.trim(),
         category: 'Reagents',
         priority,
+        catalogNumber: catalogNumber.trim() || undefined,
+        preferredCompany: brand.trim() || undefined,
+        vendorVisible,
       });
       // createPurchase shows its own toast either way; keep the card on failure.
       if (ok) d.onDone('');
@@ -794,12 +809,148 @@ export function RequestPanel({
             ))}
           </div>
         </div>
+        <label className={`block ${askCat && !catalogNumber ? 'rounded-md ring-1 ring-primary/50 p-2 -m-2 bg-primary/5' : ''}`}>
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Catalogue number</span>
+          {askCat && !catalogNumber && <span className="block text-[11px] text-primary mb-1">What's the catalogue number? Add it if you have one, or leave it blank.</span>}
+          <input className={`${input} font-mono`} value={catalogNumber} onChange={(e) => setCatalogNumber(e.target.value)} placeholder="e.g. T8787" maxLength={80} />
+        </label>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Preferred brand / vendor (optional)</span>
+          <input className={input} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Sigma, Thermo" maxLength={80} />
+        </label>
         <label className="block">
           <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Note (optional)</span>
           <input className={input} value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
         </label>
+        <VendorVisibleToggle checked={vendorVisible} onChange={setVendorVisible} />
       </div>
       <SaveBar label="Raise request" disabled={!!why} busy={saving} busyLabel="Saving…" why={why} onSave={() => void save()} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- new box
+
+const CONDITIONS = ['-80°C', '-20°C', '4°C', 'RT', 'LN₂'];
+
+export function NewBoxPanel({ name: initialName, condition: initialCond, location: initialLoc, d }: { name: string; condition: string; location: string; d: PanelData }) {
+  const [name, setName] = useState(initialName);
+  const [condition, setCondition] = useState(initialCond);
+  const [location, setLocation] = useState(initialLoc);
+  const [saving, setSaving] = useState(false);
+  const taken = d.boxes.some((b) => normalize(b.name) === normalize(name));
+  const why = !name.trim() ? 'Name the box.' : taken ? `There is already a box called ${name.trim()}.` : null;
+  const input = 'w-full px-2.5 py-2 bg-[#161616] border border-[#2A2A2A] rounded-md text-sm text-white focus:outline-none focus:border-primary';
+
+  const save = async () => {
+    const actor = d.actor;
+    if (!actor || d.readOnly || why || saving) return;
+    setSaving(true);
+    try {
+      await api.createSampleBox({ name: name.trim(), condition: condition.trim(), location: location.trim() }, actor);
+      d.reload();
+      d.onDone(`Created box ${name.trim()}.`);
+    } catch (e) {
+      d.onError(`Couldn't create the box: ${errText(e)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className={`${card} space-y-2.5`}>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Box name</span>
+          <input className={`${input} font-mono`} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+        </label>
+        <div>
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Storage</span>
+          <div className="flex flex-wrap gap-1.5 mb-1.5">
+            {CONDITIONS.map((c) => (
+              <button key={c} type="button" onClick={() => setCondition(c)}
+                className={`min-h-9 px-3 rounded-md text-xs font-semibold border ${condition === c ? 'bg-primary/10 border-primary text-primary' : 'bg-[#161616] border-[#2A2A2A] text-gray-400'}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+          <input className={input} value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="Or type, e.g. Cabinet" maxLength={60} />
+        </div>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Location</span>
+          <input className={input} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Chemical Cabinet, 309" maxLength={120} />
+        </label>
+      </div>
+      <SaveBar label={`Create box ${name.trim() || ''}`.trim()} disabled={!!why} busy={saving} busyLabel="Saving…" why={why} onSave={() => void save()} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- new stock item
+
+const STOCK_CATEGORIES = ['Reagents', 'Consumables', 'Antibodies', 'Resins & Media', 'Plasticware', 'Equipment', 'Kits', 'Chemicals', 'Buffers', 'General'];
+const STOCK_UNITS = ['mL', 'µL', 'L', 'g', 'mg', 'µg', 'pcs', 'packs', 'boxes', 'bottles', 'vials', 'plates', 'strips'];
+
+export function NewStockPanel({ name: n0, quantity: q0, unit: u0, location: l0, category: c0, d }: { name: string; quantity: number | null; unit: string; location: string; category: string; d: PanelData }) {
+  const matchUnit = STOCK_UNITS.find((u) => u.toLowerCase() === u0.toLowerCase().replace(/s$/, '') || u.toLowerCase() === u0.toLowerCase()) ?? 'pcs';
+  const [name, setName] = useState(n0);
+  const [quantity, setQuantity] = useState(q0 != null ? String(q0) : '');
+  const [unit, setUnit] = useState(matchUnit);
+  const [location, setLocation] = useState(l0);
+  const [category, setCategory] = useState(STOCK_CATEGORIES.includes(c0) ? c0 : 'General');
+  const [saving, setSaving] = useState(false);
+  const exists = d.stock.find((i) => normalize(i.name) === normalize(name));
+  const qty = Number(quantity);
+  const why = !name.trim() ? 'Name the item.' : quantity === '' || !Number.isFinite(qty) || qty < 0 ? 'Enter how much there is.' : null;
+  const input = 'w-full px-2.5 py-2 bg-[#161616] border border-[#2A2A2A] rounded-md text-sm text-white focus:outline-none focus:border-primary';
+
+  const save = async () => {
+    if (d.readOnly || why || saving) return;
+    setSaving(true);
+    try {
+      const ok = await d.addInventoryItem({ name: name.trim(), category, quantity: qty, unit, location: location.trim() });
+      if (ok) d.onDone('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      {exists && (
+        <p className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
+          {exists.name} is already in stock ({exists.quantity} {exists.unit}). To add more to it, say "restock {exists.name}" instead.
+        </p>
+      )}
+      <div className={`${card} space-y-2.5`}>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Item</span>
+          <input className={input} value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+        </label>
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <label className="block">
+            <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Quantity</span>
+            <input className={input} inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Unit</span>
+            <select className={input} value={unit} onChange={(e) => setUnit(e.target.value)}>
+              {STOCK_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </label>
+        </div>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Location</span>
+          <input className={input} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Cold Room, Shelf B" maxLength={120} />
+        </label>
+        <label className="block">
+          <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Category</span>
+          <select className={input} value={category} onChange={(e) => setCategory(e.target.value)}>
+            {STOCK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+      </div>
+      <SaveBar label="Add to stock" disabled={!!why} busy={saving} busyLabel="Saving…" why={why} onSave={() => void save()} />
     </div>
   );
 }

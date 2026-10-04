@@ -36,7 +36,11 @@ export type Intent =
   /** "what's running low", "what's expiring". Produced by the AI parser only. */
   | { kind: 'low' }
   /** "we need 2 boxes of falcons, urgent" — raise a purchase request. AI parser only. */
-  | { kind: 'request'; title: string; quantity: string; priority: 'normal' | 'urgent' | 'critical'; note: string }
+  | { kind: 'request'; title: string; quantity: string; priority: 'normal' | 'urgent' | 'critical'; note: string; catalogNumber: string; brand: string }
+  /** "make a new box CC-S10 in the chemical cabinet". AI parser only. */
+  | { kind: 'newbox'; name: string; condition: string; location: string }
+  /** "add 500 mL ethanol to stock in the cold room". AI parser only. */
+  | { kind: 'newstock'; name: string; quantity: number | null; unit: string; location: string; category: string }
   /** Nothing usable (empty input). */
   | { kind: 'empty' };
 
