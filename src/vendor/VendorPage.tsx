@@ -74,16 +74,6 @@ export function VendorPage() {
               Items the lab is buying right now. Pick one, send your best price, and we'll get back to you.
             </p>
           </div>
-          {load.state === 'ready' && (
-            <div className="inline-flex items-center gap-2 self-start rounded-full border border-line bg-card px-3 py-1.5 text-xs">
-              <span className="relative flex w-2 h-2">
-                <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" />
-                <span className="relative w-2 h-2 rounded-full bg-emerald-400" />
-              </span>
-              <span className="font-semibold tabular-nums">{items.length} open</span>
-              <span className="text-muted">· updates live</span>
-            </div>
-          )}
         </header>
 
         <ol className="grid grid-cols-3 gap-2 text-center" aria-label="How to quote">
