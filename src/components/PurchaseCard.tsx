@@ -101,7 +101,7 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({
           {purchase.vendorVisible && (purchase.status === 'waiting' || purchase.status === 'quotes') && (
             <span className="inline-flex items-center gap-1 text-emerald-300 text-[11px] font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
               <span className="material-symbols-outlined text-[14px]">storefront</span>
-              On vendor page
+              On vendor page{purchase.vendorPhotoPath && <span className="material-symbols-outlined text-[14px]" title="Has a photo">photo_camera</span>}
             </span>
           )}
           {purchase.status === 'partial' && purchase.deliveries.length > 0 && (

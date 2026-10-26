@@ -7,6 +7,7 @@ import { UrgencyLevel } from '../types';
 import { SHEET_SPRING } from '../lib/motion';
 import { ScrollLock } from '../lib/useScrollLock';
 import { VendorVisibleToggle } from './VendorVisibleToggle';
+import { VendorPhotoField } from './VendorPhotoField';
 
 export const CreatePurchaseModal: React.FC = () => {
   const { createPurchase } = useApp();
@@ -19,6 +20,7 @@ export const CreatePurchaseModal: React.FC = () => {
   const [preferredCompany, setPreferredCompany] = useState('');
   const [catalogNumber, setCatalogNumber] = useState('');
   const [vendorVisible, setVendorVisible] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
   const [priority, setPriority] = useState<UrgencyLevel>('normal');
   const [category, setCategory] = useState('Reagents');
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +57,7 @@ export const CreatePurchaseModal: React.FC = () => {
         vendorVisible,
         priority,
         category,
-      });
+      }, photo);
       // Everything typed stays put on failure. Three steps of a request is too
       // much to ask anybody to retype because the wifi dropped for a second.
       if (!ok) return;
@@ -66,6 +68,7 @@ export const CreatePurchaseModal: React.FC = () => {
       setPreferredCompany('');
       setCatalogNumber('');
       setVendorVisible(false);
+      setPhoto(null);
       setPriority('normal');
       setCategory('Reagents');
       setIsCreateModalOpen(false);
@@ -308,6 +311,7 @@ export const CreatePurchaseModal: React.FC = () => {
                 </div>
 
                 <VendorVisibleToggle checked={vendorVisible} onChange={setVendorVisible} />
+                {vendorVisible && <VendorPhotoField file={photo} onFile={setPhoto} />}
 
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-2">

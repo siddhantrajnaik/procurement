@@ -128,6 +128,7 @@ function requestRow(p: Purchase) {
     chosenVendor: chosen?.vendor,
     deliveries: p.deliveries.map((d) => ({ received: d.quantityReceived, on: day(d.createdAt), by: first(d.receivedBy) })),
     onVendorPage: p.vendorVisible && (p.status === 'waiting' || p.status === 'quotes'),
+    hasVendorPhoto: !!p.vendorPhotoPath,
     comments: p.comments.slice(-3).map((c) => `${first(c.author)}: ${noMoney(c.body)}`),
   };
 }

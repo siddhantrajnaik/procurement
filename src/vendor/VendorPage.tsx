@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, Copy, FlaskConical, ListChecks, Mail, Package, RefreshCw, Reply, Search, Tag, UserPlus, X } from 'lucide-react';
+import { Check, Copy, FlaskConical, ListChecks, Mail, MessageCircle, Package, RefreshCw, Reply, Search, Tag, UserPlus, X, ZoomIn } from 'lucide-react';
 
 // Only the project URL is referenced here — never the client or its key.
 const FEED_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vendor-board`;
@@ -9,10 +9,21 @@ interface Item {
   catalogNumber: string | null;
   quantity: string;
   brand: string | null;
+  photoUrl: string | null;
 }
 
-type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; items: Item[]; quoteEmail: string | null };
+type Load =
+  | { state: 'loading' }
+  | { state: 'error' }
+  | { state: 'ready'; items: Item[]; quoteEmail: string | null; whatsappNumber: string | null };
 type FormKind = 'register' | 'offer';
+
+const itemLine = (item: Item) => `${item.title}${item.catalogNumber ? ` (Cat. ${item.catalogNumber})` : ''}`;
+
+function whatsappHref(number: string, item: Item): string {
+  const text = `Quotation for ${itemLine(item)}${item.quantity ? `, ${item.quantity}` : ''}. From: `;
+  return `https://wa.me/${number.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
+}
 
 function quoteHref(email: string, item?: Item): string {
   const subject = item
@@ -32,7 +43,7 @@ export function VendorPage() {
       const res = await fetch(FEED_URL);
       if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
-      setLoad({ state: 'ready', items: data.items ?? [], quoteEmail: data.quoteEmail ?? null });
+      setLoad({ state: 'ready', items: data.items ?? [], quoteEmail: data.quoteEmail ?? null, whatsappNumber: data.whatsappNumber ?? null });
     } catch {
       setLoad({ state: 'error' });
     }
@@ -41,6 +52,8 @@ export function VendorPage() {
   useEffect(() => { void fetchBoard(); }, [fetchBoard]);
 
   const quoteEmail = load.state === 'ready' ? load.quoteEmail : null;
+  const whatsappNumber = load.state === 'ready' ? load.whatsappNumber : null;
+  const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null);
   const items = useMemo(() => (load.state === 'ready' ? load.items : []), [load]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -70,7 +83,7 @@ export function VendorPage() {
             <h1 className="text-[34px] sm:text-[44px] leading-[1.05] font-extrabold tracking-tight">
               What we need<span className="text-accent">.</span>
             </h1>
-            <p className="text-[15px] text-muted max-w-md">
+            <p className="text-[16px] text-muted max-w-md">
               Items the lab is buying right now. Pick one, send your best price, and we'll get back to you.
             </p>
           </div>
@@ -78,16 +91,17 @@ export function VendorPage() {
 
         <ol className="grid grid-cols-3 gap-2 text-center" aria-label="How to quote">
           {[
-            { icon: ListChecks, label: 'Pick an item' },
-            { icon: Mail, label: 'Email your quote' },
-            { icon: Reply, label: 'We reply' },
-          ].map(({ icon: Icon, label }, i) => (
-            <li key={label} className="rounded-xl border border-line bg-card/60 px-2 py-3 flex flex-col items-center gap-1.5">
+            { icon: ListChecks, label: 'Pick an item', hi: 'आइटम चुनें' },
+            { icon: whatsappNumber ? MessageCircle : Mail, label: whatsappNumber ? 'Send your quote' : 'Email your quote', hi: 'कोटेशन भेजें' },
+            { icon: Reply, label: 'We reply', hi: 'हम जवाब देंगे' },
+          ].map(({ icon: Icon, label, hi }, i) => (
+            <li key={label} className="rounded-xl border border-line bg-card/60 px-2 py-3.5 flex flex-col items-center gap-1.5">
               <span className="relative">
-                <Icon className="w-5 h-5 text-accent" />
-                <span className="absolute -top-2 -right-3 text-[10px] font-bold text-muted tabular-nums">{i + 1}</span>
+                <Icon className="w-6 h-6 text-accent" />
+                <span className="absolute -top-2 -right-3 text-[11px] font-bold text-muted tabular-nums">{i + 1}</span>
               </span>
-              <span className="text-[12px] font-semibold leading-tight">{label}</span>
+              <span className="text-[13px] font-semibold leading-tight">{label}</span>
+              <span lang="hi" className="text-[12px] text-muted leading-tight">{hi}</span>
             </li>
           ))}
         </ol>
@@ -145,7 +159,7 @@ export function VendorPage() {
           {shown.length > 0 && (
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {shown.map((item, i) => (
-                <Slip key={`${item.title}-${i}`} item={item} quoteEmail={quoteEmail} />
+                <Slip key={`${item.title}-${i}`} item={item} quoteEmail={quoteEmail} whatsappNumber={whatsappNumber} onPhoto={setViewer} />
               ))}
             </ul>
           )}
@@ -176,6 +190,7 @@ export function VendorPage() {
       </main>
 
       {form && <FormSheet kind={form} onClose={() => setForm(null)} />}
+      {viewer && <PhotoViewer url={viewer.url} title={viewer.title} onClose={() => setViewer(null)} />}
     </div>
   );
 }
@@ -199,22 +214,50 @@ function Tile({ icon: Icon, title, sub, onClick }: { icon: typeof Tag; title: st
   );
 }
 
-/** A requisition slip: what we want on top, the catalogue number on the tear-off stub. */
-function Slip({ item, quoteEmail }: { item: Item; quoteEmail: string | null }) {
+/** A requisition slip: photo and what we want on top, the catalogue number on the tear-off stub. */
+function Slip({ item, quoteEmail, whatsappNumber, onPhoto }: {
+  item: Item;
+  quoteEmail: string | null;
+  whatsappNumber: string | null;
+  onPhoto: (p: { url: string; title: string }) => void;
+}) {
+  const [broken, setBroken] = useState(false);
   return (
-    <li className="rounded-2xl bg-card border border-line hover:border-accent/40 transition-colors flex flex-col">
+    <li className="rounded-2xl bg-card border border-line hover:border-accent/40 transition-colors flex flex-col overflow-hidden">
+      {item.photoUrl && !broken && (
+        <button
+          type="button"
+          onClick={() => onPhoto({ url: item.photoUrl!, title: item.title })}
+          aria-label={`View photo of ${item.title}`}
+          className="relative block w-full aspect-[4/3] bg-paper border-b border-line"
+        >
+          <img
+            src={item.photoUrl}
+            alt={item.title}
+            loading="lazy"
+            onError={() => setBroken(true)}
+            className="w-full h-full object-contain"
+          />
+          <span className="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[11px] font-semibold text-white">
+            <ZoomIn className="w-3.5 h-3.5" /> Tap to enlarge
+          </span>
+        </button>
+      )}
+      {item.photoUrl && broken && (
+        <p className="px-4 pt-3 text-[12px] text-muted">The photo has expired. Reload the page to see it.</p>
+      )}
       <div className="p-4 pb-3 flex flex-col gap-3 flex-1">
         <div className="flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full bg-paper border border-line px-2 py-0.5 text-[11px] font-semibold">
-            <Package className="w-3 h-3 text-accent" /> {item.quantity}
+          <span className="inline-flex items-center gap-1 rounded-full bg-paper border border-line px-2.5 py-1 text-[12px] font-semibold">
+            <Package className="w-3.5 h-3.5 text-accent" /> {item.quantity}
           </span>
           {item.brand && (
-            <span className="inline-flex items-center rounded-full bg-paper border border-line px-2 py-0.5 text-[11px] text-muted">
+            <span className="inline-flex items-center rounded-full bg-paper border border-line px-2.5 py-1 text-[12px] text-muted">
               {item.brand}
             </span>
           )}
         </div>
-        <p className="text-[17px] font-bold leading-snug break-words">{item.title}</p>
+        <p className="text-[19px] font-bold leading-snug break-words">{item.title}</p>
       </div>
 
       <div className="relative h-0 border-t border-dashed border-line mx-3" aria-hidden>
@@ -225,23 +268,58 @@ function Slip({ item, quoteEmail }: { item: Item; quoteEmail: string | null }) {
       <div className="p-4 pt-3 flex flex-col gap-3">
         {item.catalogNumber ? (
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted shrink-0">Cat. no.</span>
-            <span className="font-mono text-[13px] min-w-0 flex-1 break-all line-clamp-2">{item.catalogNumber}</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted shrink-0">Cat. no.</span>
+            <span className="font-mono text-[14px] min-w-0 flex-1 break-all line-clamp-2">{item.catalogNumber}</span>
             <CopyButton text={item.catalogNumber} label={`Copy catalogue number ${item.catalogNumber}`} compact />
           </div>
         ) : (
-          <p className="text-[12px] text-muted">No catalogue number. Quote your closest match.</p>
+          <p className="text-[13px] text-muted">No catalogue number. Quote your closest match.</p>
+        )}
+        {whatsappNumber && (
+          <a
+            href={whatsappHref(whatsappNumber, item)}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center justify-center gap-2 min-h-12 rounded-lg bg-[#25D366] text-black text-[15px] font-bold hover:brightness-110 transition"
+          >
+            <MessageCircle className="w-5 h-5" /> Quote on WhatsApp
+          </a>
         )}
         {quoteEmail && (
           <a
             href={quoteHref(quoteEmail, item)}
-            className="inline-flex items-center justify-center gap-2 min-h-10 rounded-lg border border-accent/40 text-accent text-sm font-semibold hover:bg-accent hover:text-white transition-colors"
+            className="inline-flex items-center justify-center gap-2 min-h-12 rounded-lg border border-accent/40 text-accent text-[15px] font-semibold hover:bg-accent hover:text-white transition-colors"
           >
-            <Mail className="w-4 h-4" /> Quote this item
+            <Mail className="w-4 h-4" /> Quote by email
           </a>
         )}
       </div>
     </li>
+  );
+}
+
+function PhotoViewer({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/95" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <p className="text-sm font-semibold text-white truncate">{title}</p>
+        <button type="button" onClick={onClose} aria-label="Close photo" className="w-11 h-11 -mr-2 inline-flex items-center justify-center rounded-lg text-white hover:bg-white/10">
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+      <div className="flex-1 min-h-0 flex items-center justify-center p-2" style={{ touchAction: 'pinch-zoom' }}>
+        <img src={url} alt={title} className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} />
+      </div>
+    </div>
   );
 }
 

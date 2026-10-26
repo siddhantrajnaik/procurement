@@ -3,6 +3,9 @@ import { useApp } from '../context/AppContext';
 import { UrgencyLevel } from '../types';
 import { ScrollLock } from '../lib/useScrollLock';
 import { VendorVisibleToggle } from './VendorVisibleToggle';
+import { VendorPhotoField } from './VendorPhotoField';
+import * as api from '../lib/api';
+import { useUI } from '../context/UIContext';
 
 const CATEGORIES = [
   'Reagents',
@@ -14,7 +17,8 @@ const CATEGORIES = [
 ];
 
 export const EditPurchaseModal: React.FC = () => {
-  const { editingPurchase, setEditingPurchase, editPurchase } = useApp();
+  const { editingPurchase, setEditingPurchase, editPurchase, reload } = useApp();
+  const { showToast } = useUI();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -24,6 +28,8 @@ export const EditPurchaseModal: React.FC = () => {
   const [preferredCompany, setPreferredCompany] = useState('');
   const [catalogNumber, setCatalogNumber] = useState('');
   const [vendorVisible, setVendorVisible] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -36,6 +42,8 @@ export const EditPurchaseModal: React.FC = () => {
       setPreferredCompany(editingPurchase.preferredCompany ?? '');
       setCatalogNumber(editingPurchase.catalogNumber ?? '');
       setVendorVisible(editingPurchase.vendorVisible);
+      setPhoto(null);
+      setRemovePhoto(false);
     }
   }, [editingPurchase]);
 
@@ -56,7 +64,7 @@ export const EditPurchaseModal: React.FC = () => {
     if (!isValid || submitting) return;
     setSubmitting(true);
     try {
-      await editPurchase(editingPurchase.id, {
+      const saved = await editPurchase(editingPurchase.id, {
         title: title.trim(),
         description: description.trim(),
         quantity: quantity.trim(),
@@ -66,6 +74,16 @@ export const EditPurchaseModal: React.FC = () => {
         catalogNumber: catalogNumber.trim(),
         vendorVisible,
       });
+      // Switching "Show to vendors" off already removed the photo; otherwise apply what was chosen.
+      if (saved && vendorVisible && (photo || removePhoto)) {
+        try {
+          if (photo) await api.uploadVendorPhoto(editingPurchase.id, photo);
+          else await api.dropVendorPhoto(editingPurchase.id);
+          await reload();
+        } catch (e) {
+          showToast(`Saved, but the photo did not upload: ${e instanceof Error ? e.message : 'try again'}.`, 'warning');
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -187,6 +205,15 @@ export const EditPurchaseModal: React.FC = () => {
           </div>
 
           <VendorVisibleToggle checked={vendorVisible} onChange={setVendorVisible} />
+          {vendorVisible && (
+            <VendorPhotoField
+              file={photo}
+              onFile={setPhoto}
+              existingPath={editingPurchase.vendorPhotoPath}
+              removeExisting={removePhoto}
+              onRemoveExisting={setRemovePhoto}
+            />
+          )}
         </div>
 
         <div className="sticky bottom-0 bg-[#1E1E1E] border-t border-[#2A2A2A] px-5 py-4 flex gap-3">

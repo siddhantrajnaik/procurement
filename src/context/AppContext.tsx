@@ -61,8 +61,8 @@ interface AppContextType {
   pendingDeliveryPurchase: Purchase | null;
   clearPendingDelivery: () => void;
 
-  createPurchase: (data: NewPurchaseInput) => Promise<boolean>;
-  editPurchase: (purchaseId: string, updates: Partial<NewPurchaseInput>) => Promise<void>;
+  createPurchase: (data: NewPurchaseInput, photo?: File | null) => Promise<boolean>;
+  editPurchase: (purchaseId: string, updates: Partial<NewPurchaseInput>) => Promise<boolean>;
   updateStatus: (purchaseId: string, status: PurchaseStatus) => Promise<void>;
   addComment: (purchaseId: string, body: string) => Promise<boolean>;
   addQuotation: (purchaseId: string, input: NewQuotationInput) => Promise<void>;
@@ -532,12 +532,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const createPurchase = useCallback(
-    async (data: NewPurchaseInput) => {
+    async (data: NewPurchaseInput, photo?: File | null) => {
       const actor = requireUser();
       if (!actor) return false;
       return run(async () => {
         const created = await api.createPurchase(data, actor);
         showToastRef.current(`Requested "${created.title}".`, 'success');
+        // The request exists either way; a photo that fails is reported, not fatal.
+        if (photo && data.vendorVisible) {
+          try {
+            await api.uploadVendorPhoto(created.id, photo);
+          } catch (e) {
+            showToastRef.current(`Request saved, but the photo did not upload: ${e instanceof Error ? e.message : 'try again from Edit'}.`, 'warning');
+          }
+        }
       }, 'Could not create the request.');
     },
     [requireUser, run]
@@ -547,8 +555,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async (purchaseId: string, updates: Partial<NewPurchaseInput>) => {
       const actor = requireUser();
       const purchase = findPurchase(purchaseId);
-      if (!actor || !purchase) return;
-      await run(async () => {
+      if (!actor || !purchase) return false;
+      return run(async () => {
         await api.updatePurchaseFields(purchaseId, updates);
         showToastRef.current(`Updated "${updates.title ?? purchase.title}".`, 'success');
         setEditingPurchaseId(null);

@@ -80,6 +80,8 @@ export interface Purchase {
   preferredCompany: string | null;
   catalogNumber: string | null;
   vendorVisible: boolean;
+  /** Storage path of the optional photo shown on the vendor page; cleared automatically. */
+  vendorPhotoPath: string | null;
   requestedBy: User | null;
   assignedTo: User | null;
   requiresPiApproval: boolean;

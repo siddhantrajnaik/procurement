@@ -1,4 +1,5 @@
-import { INVOICE_BUCKET, QUOTATION_BUCKET, supabase } from './supabase';
+import { INVOICE_BUCKET, QUOTATION_BUCKET, VENDOR_PHOTO_BUCKET, supabase } from './supabase';
+import { compressImage } from './compress';
 import { addDaysISO, addMonthsISO, todayISO } from './format';
 import {
   Activity,
@@ -62,7 +63,7 @@ const PROFILE_FIELDS = 'id, handle, name, role, accent, email, department, birth
 
 const PURCHASE_CORE_SELECT = `
   id, title, description, quantity, category, priority, status, preferred_company,
-  catalog_number, vendor_visible,
+  catalog_number, vendor_visible, vendor_photo_path,
   requires_pi_approval, pi_approved, created_at, updated_at,
   requester:profiles!purchases_requested_by_fkey(${PROFILE_FIELDS}),
   assignee:profiles!purchases_assigned_to_fkey(${PROFILE_FIELDS}),
@@ -205,6 +206,7 @@ function toPurchase(row: any): Purchase {
     preferredCompany: row.preferred_company,
     catalogNumber: row.catalog_number ?? null,
     vendorVisible: row.vendor_visible ?? false,
+    vendorPhotoPath: row.vendor_photo_path ?? null,
     requestedBy: toUser(row.requester),
     assignedTo: toUser(row.assignee),
     requiresPiApproval: row.requires_pi_approval,
@@ -354,6 +356,7 @@ export async function updatePurchaseStatus(
   actor: User
 ): Promise<void> {
   unwrap(await supabase.from('purchases').update({ status }).eq('id', purchase.id).select('id'));
+  if (status !== 'waiting' && status !== 'quotes') await dropVendorPhoto(purchase.id);
   await logActivity(
     purchase.id,
     purchase.title,
@@ -382,6 +385,7 @@ export async function recordDelivery(
   unwrap(
     await supabase.from('purchases').update({ status: nextStatus }).eq('id', purchase.id).select('id')
   );
+  await dropVendorPhoto(purchase.id);
   const detail = isFinal
     ? `received ${quantityReceived} — delivery complete`
     : `received ${quantityReceived} — more pending`;
@@ -404,6 +408,63 @@ export async function updatePurchaseFields(
   unwrap(
     await supabase.from('purchases').update(row).eq('id', purchaseId).select('id')
   );
+  if (updates.vendorVisible === false) await dropVendorPhoto(purchaseId);
+}
+
+// ---------------------------------------------------------------- vendor photo
+
+const VENDOR_PHOTO_OPTIONS = { maxDimension: 1280, targetBytes: 300 * 1024 };
+const PHOTO_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+/**
+ * Sets (or replaces) the one photo vendors see for a request. Photos are small,
+ * private, and removed by the vendor-board function once the request is ordered,
+ * un-listed, or 30 days old; this just makes the common cases immediate.
+ */
+export async function uploadVendorPhoto(purchaseId: string, file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Choose a photo (JPEG, PNG or WebP).');
+  const { file: small } = await compressImage(file, VENDOR_PHOTO_OPTIONS);
+  const ext = PHOTO_EXT[small.type];
+  if (!ext) throw new Error('That photo type is not supported. Use JPEG, PNG or WebP.');
+  if (small.size > 2 * 1024 * 1024) throw new Error('That photo is too large even after shrinking it.');
+
+  const path = `${purchaseId}/${crypto.randomUUID()}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from(VENDOR_PHOTO_BUCKET)
+    .upload(path, small, { contentType: small.type, upsert: false });
+  if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+  const { data: before } = await supabase.from('purchases').select('vendor_photo_path').eq('id', purchaseId).maybeSingle();
+  const { error } = await supabase
+    .from('purchases')
+    .update({ vendor_photo_path: path, vendor_photo_at: new Date().toISOString() })
+    .eq('id', purchaseId);
+  if (error) {
+    await supabase.storage.from(VENDOR_PHOTO_BUCKET).remove([path]);
+    throw new Error(error.message);
+  }
+  const old = before?.vendor_photo_path as string | null | undefined;
+  if (old && old !== path) await supabase.storage.from(VENDOR_PHOTO_BUCKET).remove([old]);
+  return path;
+}
+
+/** Removes the photo file and clears the request's link to it. Never throws: it is housekeeping. */
+export async function dropVendorPhoto(purchaseId: string): Promise<void> {
+  try {
+    const { data } = await supabase.from('purchases').select('vendor_photo_path').eq('id', purchaseId).maybeSingle();
+    const path = data?.vendor_photo_path as string | null | undefined;
+    if (!path) return;
+    await supabase.from('purchases').update({ vendor_photo_path: null, vendor_photo_at: null }).eq('id', purchaseId);
+    await supabase.storage.from(VENDOR_PHOTO_BUCKET).remove([path]);
+  } catch {
+    /* the nightly cleanup catches anything missed */
+  }
+}
+
+/** A short-lived link so a lab member can see the photo that is attached. */
+export async function vendorPhotoPreviewUrl(path: string): Promise<string | null> {
+  const { data } = await supabase.storage.from(VENDOR_PHOTO_BUCKET).createSignedUrl(path, 600);
+  return data?.signedUrl ?? null;
 }
 
 export async function deletePurchase(purchaseId: string): Promise<void> {
@@ -412,9 +473,9 @@ export async function deletePurchase(purchaseId: string): Promise<void> {
   // storage belonged to it — they would sit in the bucket forever, unreachable.
   const { data: doomed } = await supabase
     .from('purchases')
-    .select('invoice_path, quotations(file_path)')
+    .select('invoice_path, vendor_photo_path, quotations(file_path)')
     .eq('id', purchaseId)
-    .maybeSingle<{ invoice_path: string | null; quotations: { file_path: string | null }[] }>();
+    .maybeSingle<{ invoice_path: string | null; vendor_photo_path: string | null; quotations: { file_path: string | null }[] }>();
 
   const { error } = await supabase.from('purchases').delete().eq('id', purchaseId);
   if (error) throw new Error(error.message);
@@ -433,6 +494,9 @@ export async function deletePurchase(purchaseId: string): Promise<void> {
     }
     if (quotationFiles.length > 0) {
       await supabase.storage.from(QUOTATION_BUCKET).remove(quotationFiles);
+    }
+    if (doomed.vendor_photo_path) {
+      await supabase.storage.from(VENDOR_PHOTO_BUCKET).remove([doomed.vendor_photo_path]);
     }
   } catch {
     /* The delete itself succeeded — never fail it over a cleanup that didn't. */
@@ -477,6 +541,7 @@ export async function selectQuotation(
   unwrap(
     await supabase.from('purchases').update({ status: 'ordered' }).eq('id', purchase.id).select('id')
   );
+  await dropVendorPhoto(purchase.id);
 
   await logActivity(
     purchase.id,
@@ -2287,18 +2352,23 @@ export async function setVendorSubmissionStatus(id: string, status: VendorSubmis
   unwrap(await supabase.from('vendor_submissions').update({ status }).eq('id', id).select('id'));
 }
 
-export async function fetchQuoteEmail(): Promise<string | null> {
-  const row = unwrap(
-    await supabase.from('vendor_page_settings').select('quote_email').eq('id', 1).maybeSingle()
-  ) as { quote_email: string | null } | null;
-  return row?.quote_email ?? null;
+export interface VendorPageSettings {
+  quoteEmail: string | null;
+  whatsappNumber: string | null;
 }
 
-export async function setQuoteEmail(email: string | null): Promise<void> {
+export async function fetchVendorPageSettings(): Promise<VendorPageSettings> {
+  const row = unwrap(
+    await supabase.from('vendor_page_settings').select('quote_email, whatsapp_number').eq('id', 1).maybeSingle()
+  ) as { quote_email: string | null; whatsapp_number: string | null } | null;
+  return { quoteEmail: row?.quote_email ?? null, whatsappNumber: row?.whatsapp_number ?? null };
+}
+
+export async function setVendorPageSettings(settings: VendorPageSettings): Promise<void> {
   const rows = unwrap(
     await supabase
       .from('vendor_page_settings')
-      .update({ quote_email: email, updated_at: new Date().toISOString() })
+      .update({ quote_email: settings.quoteEmail, whatsapp_number: settings.whatsappNumber, updated_at: new Date().toISOString() })
       .eq('id', 1)
       .select('id')
   );

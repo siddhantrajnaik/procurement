@@ -16,6 +16,8 @@ export const VendorPagePanel: React.FC<{ readOnly: boolean }> = ({ readOnly }) =
   const { showToast } = useUI();
   const [submissions, setSubmissions] = useState<VendorSubmission[]>([]);
   const [savedEmail, setSavedEmail] = useState<string | null>(null);
+  const [savedWhatsapp, setSavedWhatsapp] = useState<string | null>(null);
+  const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
   const [loadError, setLoadError] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
@@ -33,11 +35,14 @@ export const VendorPagePanel: React.FC<{ readOnly: boolean }> = ({ readOnly }) =
 
   const reload = useCallback(async () => {
     const mine = ++seq.current;
-    const [subs, mail] = await Promise.allSettled([api.fetchVendorSubmissions(), api.fetchQuoteEmail()]);
+    const [subs, settings] = await Promise.allSettled([api.fetchVendorSubmissions(), api.fetchVendorPageSettings()]);
     if (mine !== seq.current) return;
     if (subs.status === 'fulfilled') setSubmissions(subs.value);
-    if (mail.status === 'fulfilled') setSavedEmail(mail.value);
-    setLoadError(subs.status === 'rejected' || mail.status === 'rejected');
+    if (settings.status === 'fulfilled') {
+      setSavedEmail(settings.value.quoteEmail);
+      setSavedWhatsapp(settings.value.whatsappNumber);
+    }
+    setLoadError(subs.status === 'rejected' || settings.status === 'rejected');
   }, []);
 
   useEffect(() => {
@@ -58,17 +63,27 @@ export const VendorPagePanel: React.FC<{ readOnly: boolean }> = ({ readOnly }) =
   }, [reload]);
 
   useEffect(() => { setEmail(savedEmail ?? ''); }, [savedEmail]);
+  useEffect(() => { setWhatsapp(savedWhatsapp ?? ''); }, [savedWhatsapp]);
 
   const emailValid = !email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  // Digits only, with the country code: a 10-digit Indian number gets 91 in front.
+  const whatsappDigits = (() => {
+    const d = whatsapp.replace(/\D/g, '');
+    return d.length === 10 ? `91${d}` : d;
+  })();
+  const whatsappValid = !whatsapp.trim() || (whatsappDigits.length >= 11 && whatsappDigits.length <= 15);
   const emailDirty = email.trim() !== (savedEmail ?? '');
+  const whatsappDirty = (whatsappDigits || '') !== (savedWhatsapp ?? '');
+  const dirty = emailDirty || whatsappDirty;
 
   const saveEmail = async () => {
-    if (!emailValid || savingEmail) return;
+    if (!emailValid || !whatsappValid || savingEmail) return;
     setSavingEmail(true);
     try {
-      await api.setQuoteEmail(email.trim() || null);
+      await api.setVendorPageSettings({ quoteEmail: email.trim() || null, whatsappNumber: whatsappDigits || null });
       setSavedEmail(email.trim() || null);
-      showToast(email.trim() ? 'Quotation email saved.' : 'Quotation email removed from the vendor page.', 'success');
+      setSavedWhatsapp(whatsappDigits || null);
+      showToast('Vendor page settings saved.', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Could not save the email.', 'error');
     } finally {
@@ -142,11 +157,11 @@ export const VendorPagePanel: React.FC<{ readOnly: boolean }> = ({ readOnly }) =
             placeholder="Not set — hidden from vendors"
             className="flex-1 min-w-0 px-3 py-2 bg-[#161616] border border-[#2A2A2A] rounded-md text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-primary disabled:opacity-60"
           />
-          {!readOnly && emailDirty && (
+          {!readOnly && dirty && (
             <button
               type="button"
               onClick={() => void saveEmail()}
-              disabled={!emailValid || savingEmail}
+              disabled={!emailValid || !whatsappValid || savingEmail}
               className="shrink-0 px-3 rounded-md text-xs font-semibold bg-primary text-white disabled:opacity-40"
             >
               {savingEmail ? 'Saving…' : 'Save'}
@@ -154,6 +169,24 @@ export const VendorPagePanel: React.FC<{ readOnly: boolean }> = ({ readOnly }) =
           )}
         </div>
         {!emailValid && <p className="text-[11px] text-red-400 mt-1">That email address doesn't look right.</p>}
+      </div>
+
+      <div>
+        <label htmlFor="quote-whatsapp" className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+          WhatsApp number for quotes
+        </label>
+        <input
+          id="quote-whatsapp"
+          type="tel"
+          inputMode="tel"
+          value={whatsapp}
+          disabled={readOnly}
+          onChange={(e) => setWhatsapp(e.target.value)}
+          placeholder="e.g. +91 98765 43210. Not set: no WhatsApp button"
+          className="w-full px-3 py-2 bg-[#161616] border border-[#2A2A2A] rounded-md text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-primary disabled:opacity-60"
+        />
+        {!whatsappValid && <p className="text-[11px] text-red-400 mt-1">Enter the full number with country code, e.g. +91 98765 43210.</p>}
+        <p className="text-[11px] text-gray-500 mt-1">Vendors tap a button on each item to send their quote here on WhatsApp. Use the lab's shared number.</p>
       </div>
 
       {submissions.length > 0 && (
