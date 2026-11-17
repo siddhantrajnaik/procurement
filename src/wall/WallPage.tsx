@@ -318,13 +318,13 @@ function QrStrip() {
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`;
   return (
     <div className="col-span-2 grid grid-cols-2 gap-[1.1rem]">
-      <QrCard title="Vendors" hi="वेंडर" line="Scan to see what we need to buy and send your rate." url={`${base}vendor.html`} />
-      <QrCard title="Visitors" hi="विज़िटर" line="Scan to log an instrument you used or something you borrowed." url={`${base}#/visit`} />
+      <QrCard title="Vendors" line="Scan to see what we need to buy and send your rate." url={`${base}vendor.html`} />
+      <QrCard title="Visitors" line="Scan to log an instrument you used or something you borrowed." url={`${base}#/visit`} />
     </div>
   );
 }
 
-function QrCard({ title, hi, line, url }: { title: string; hi: string; line: string; url: string }) {
+function QrCard({ title, line, url }: { title: string; line: string; url: string }) {
   const [svg, setSvg] = useState('');
   useEffect(() => {
     let live = true;
@@ -336,7 +336,7 @@ function QrCard({ title, hi, line, url }: { title: string; hi: string; line: str
     <section className={`${panel} flex items-center gap-[1.3rem] !p-[1rem]`}>
       <div className="w-[9.5rem] h-[9.5rem] shrink-0 rounded-2xl bg-white p-[0.4rem] [&>svg]:w-full [&>svg]:h-full" role="img" aria-label={`QR code for ${title}`} dangerouslySetInnerHTML={{ __html: svg }} />
       <div className="min-w-0">
-        <p className="text-[2rem] font-extrabold leading-tight">{title} <span lang="hi" className="text-accent font-bold">· {hi}</span></p>
+        <p className="text-[2rem] font-extrabold leading-tight">{title}</p>
         <p className="text-[1.2rem] text-muted mt-1 leading-snug">{line}</p>
       </div>
     </section>
