@@ -24,3 +24,7 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+@keyframes wall-fade { from { opacity: 0; transform: translateY(0.4rem); } to { opacity: 1; transform: none; } }
+.wall-fade { animation: wall-fade 0.5s ease-out; }
+@media (prefers-reduced-motion: reduce) { .wall-fade { animation: none; } }

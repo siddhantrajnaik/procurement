@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   const tomorrow = istDate(new Date(now.getTime() + 86_400_000));
   const soon = istDate(new Date(now.getTime() + 30 * 86_400_000));
 
-  const [items, bookings, orders, stock, equipment, maint, people] = await Promise.all([
+  const [items, bookings, orders, stock, equipment, maint, people, need] = await Promise.all([
     db.from('bookable_items').select('id, name, color').order('name'),
     db.from('bookings').select('item_id, date, start_time, end_time, purpose, booked_by').eq('status', 'confirmed').in('date', [today, tomorrow]).order('start_time'),
     db.from('purchases').select('title, status, requested_by, created_at').in('status', ['waiting', 'quotes', 'ordered', 'transit', 'partial']).order('created_at', { ascending: false }).limit(60),
@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
     db.from('equipment').select('id, name, status').limit(100),
     db.from('maintenance_logs').select('equipment_id, next_due_date').not('next_due_date', 'is', null).limit(500),
     db.from('profiles').select('id, name').limit(100),
+    db.from('purchases').select('title, catalog_number, quantity, preferred_company, vendor_photo_path').eq('vendor_visible', true).in('status', ['waiting', 'quotes']).order('created_at', { ascending: false }).limit(20),
   ]);
   if (items.error || bookings.error || orders.error) return json({ error: 'Could not load.' }, 500, h);
 
@@ -64,6 +65,14 @@ Deno.serve(async (req) => {
     .filter((o) => ['ordered', 'transit', 'partial'].includes(o.status))
     .slice(0, 8)
     .map((o) => ({ title: o.title as string, status: o.status as string }));
+
+  const needRows = need.data ?? [];
+  const paths = needRows.map((r) => r.vendor_photo_path).filter((p): p is string => !!p);
+  const urls = new Map<string, string>();
+  if (paths.length) {
+    const { data: signed } = await db.storage.from('vendor-photos').createSignedUrls(paths, 3600);
+    for (const s of signed ?? []) if (s.path && s.signedUrl) urls.set(s.path, s.signedUrl);
+  }
 
   const lastDue = new Map<string, string>();
   for (const m of maint.data ?? []) {
@@ -89,6 +98,13 @@ Deno.serve(async (req) => {
         waiting: open.filter((o) => o.status === 'waiting').length,
         quotes: open.filter((o) => o.status === 'quotes').length,
         incoming,
+        need: needRows.map((r) => ({
+          title: r.title as string,
+          catalogNumber: r.catalog_number as string | null,
+          quantity: r.quantity as string,
+          brand: r.preferred_company as string | null,
+          photoUrl: r.vendor_photo_path ? urls.get(r.vendor_photo_path as string) ?? null : null,
+        })),
       },
       alerts: {
         low: (stock.data ?? [])

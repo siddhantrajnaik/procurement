@@ -14,7 +14,12 @@ interface Board {
   tomorrow: string;
   items: { name: string; color: string; hood: boolean }[];
   bookings: Booking[];
-  orders: { waiting: number; quotes: number; incoming: { title: string; status: string }[] };
+  orders: {
+    waiting: number;
+    quotes: number;
+    incoming: { title: string; status: string }[];
+    need?: { title: string; catalogNumber: string | null; quantity: string; brand: string | null; photoUrl: string | null }[];
+  };
   alerts: {
     low: { name: string; left: string }[];
     expiring: { name: string; date: string; expired: boolean }[];
@@ -36,7 +41,6 @@ const clock = (d: Date) => { const { h, m } = istParts(d); return `${String(h).p
 const longDate = (d: Date) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' }).format(d);
 const hours = (t: string) => Number(t.slice(0, 2)) + Number(t.slice(3, 5)) / 60;
 
-const STATUS_LABEL: Record<string, string> = { ordered: 'Ordered', transit: 'On the way', partial: 'Part arrived' };
 const INSTRUMENT_LABEL: Record<string, string> = { needs_attention: 'Needs attention', down: 'Down', under_service: 'Under service' };
 
 // ---------------------------------------------------------------- page
@@ -276,8 +280,21 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
 
 // ---------------------------------------------------------------- orders and alerts
 
+const ROTATE_MS = 5000;
+
 function Orders({ board }: { board: Board | null }) {
   const o = board?.orders;
+  const need = o?.need ?? [];
+  const [i, setI] = useState(0);
+  const [broken, setBroken] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (need.length < 2) return;
+    const id = setInterval(() => setI((n) => n + 1), ROTATE_MS);
+    return () => clearInterval(id);
+  }, [need.length]);
+  const cur = need.length ? need[i % need.length] : null;
+  const arriving = o?.incoming.length ?? 0;
+  const onTheWay = o?.incoming.filter((x) => x.status === 'transit').length ?? 0;
   return (
     <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0`}>
       <h2 className={heading}>Orders</h2>
@@ -285,18 +302,32 @@ function Orders({ board }: { board: Board | null }) {
         <Stat n={o?.waiting} label="Waiting for quotes" />
         <Stat n={o?.quotes} label="Comparing quotes" />
       </div>
-      <h3 className={`${heading} mt-1`}>Arriving</h3>
-      {o && o.incoming.length === 0 && <p className="text-[1.15rem] text-muted">Nothing on the way.</p>}
-      <ul className="flex flex-col gap-[0.35rem] min-h-0 overflow-hidden">
-        {o?.incoming.map((x, i) => (
-          <li key={i} className="flex items-center justify-between gap-3 text-[1.15rem]">
-            <span className="truncate font-semibold">{x.title}</span>
-            <span className={`shrink-0 text-[0.95rem] font-semibold rounded-full px-[0.7rem] py-[0.1rem] ${x.status === 'transit' ? 'bg-amber-500/15 text-amber-300' : 'bg-blue-500/15 text-blue-300'}`}>
-              {STATUS_LABEL[x.status] ?? x.status}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <p className="text-[1.1rem] text-muted">
+        {arriving === 0 ? 'Nothing on the way.' : <><span className="text-ink font-semibold">{arriving}</span> arriving{onTheWay > 0 && <> · <span className="text-amber-300 font-semibold">{onTheWay} on the way</span></>}</>}
+      </p>
+      {cur && (
+        <>
+          <h3 className={`${heading} mt-1`}>We need quotes for</h3>
+          <div key={i % need.length} className="wall-fade flex items-center gap-[1rem] rounded-2xl bg-paper border border-line p-[0.8rem] min-h-0">
+            {cur.photoUrl && !broken.has(cur.photoUrl) && (
+              <img src={cur.photoUrl} alt="" onError={() => setBroken((s) => new Set(s).add(cur.photoUrl!))}
+                className="w-[7rem] h-[7rem] rounded-xl object-cover bg-card shrink-0" />
+            )}
+            <div className="min-w-0 flex flex-col gap-[0.3rem]">
+              <p className="text-[1.5rem] font-bold leading-tight line-clamp-2">{cur.title}</p>
+              <p className="text-[1.1rem] text-muted truncate">{cur.quantity}{cur.brand ? ` · ${cur.brand}` : ''}</p>
+              {cur.catalogNumber && <p className="text-[1.05rem] font-mono text-muted truncate">Cat. {cur.catalogNumber}</p>}
+            </div>
+          </div>
+          {need.length > 1 && (
+            <div className="flex justify-center gap-[0.4rem]" aria-hidden>
+              {need.slice(0, 12).map((_, k) => (
+                <span key={k} className={`h-[0.5rem] rounded-full transition-all ${k === i % need.length ? 'w-[1.4rem] bg-accent' : 'w-[0.5rem] bg-line'}`} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </section>
   );
 }
