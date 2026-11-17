@@ -166,66 +166,84 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
   const nowH = (() => { const { h, m } = istParts(now); return h + m / 60; })();
   const todays = (board?.bookings ?? []).filter((b) => b.date === board?.today);
   const tomorrows = (board?.bookings ?? []).filter((b) => b.date === board?.tomorrow);
-  const live = todays.filter((b) => hours(b.start) <= nowH && nowH < hours(b.end));
-  const next = todays.filter((b) => hours(b.start) > nowH).sort((a, b) => hours(a.start) - hours(b.start))[0];
+  const inUse = items.filter((it) => todays.some((b) => b.item === it.name && hours(b.start) <= nowH && nowH < hours(b.end))).length;
   const span = DAY_END - DAY_START;
   const nowPct = ((nowH - DAY_START) / span) * 100;
+  const showNow = nowPct > 0 && nowPct < 100;
+  const pct = (h: number) => `${((h - DAY_START) / span) * 100}%`;
+  const hourMarks = Array.from({ length: span - 1 }, (_, i) => DAY_START + 1 + i);
 
   return (
     <section className={`${panel} flex flex-col gap-[1rem] min-h-0`}>
       <div className="flex items-baseline justify-between gap-4">
         <h2 className={heading}>Bookings today</h2>
-        <p className="text-[1.15rem] text-muted truncate">
-          {live.length > 0 && (
-            <>In use: {live.map((b, i) => (
-              <span key={i}><span className="text-ink font-semibold">{b.item}</span> ({b.by}, till {b.end}){i < live.length - 1 ? ', ' : ''}</span>
-            ))}</>
-          )}
-          {live.length > 0 && next && <span className="mx-3">·</span>}
-          {next && (
-            <>Next: <span className="text-ink font-semibold">{next.item}</span> at {next.start} ({next.by})</>
-          )}
+        <p className="text-[1.15rem] text-muted">
+          {todays.length === 0 ? 'No bookings today' : `${todays.length} booking${todays.length === 1 ? '' : 's'}`}
+          {items.length > 0 && <> <span className="mx-2">·</span> <span className={inUse > 0 ? 'text-red-300 font-semibold' : 'text-emerald-400 font-semibold'}>{inUse} of {items.length} in use now</span></>}
         </p>
       </div>
 
       {items.length === 0 && board ? (
         <p className="text-[1.3rem] text-muted">Nothing is set up for booking yet.</p>
       ) : (
-        <div className="flex flex-col gap-[0.9rem]">
-          <div className="grid grid-cols-[11rem_minmax(0,1fr)] gap-[0.8rem]">
+        <div className="flex flex-col gap-[0.8rem]">
+          <div className="grid grid-cols-[15rem_minmax(0,1fr)] gap-[0.9rem]">
             <span />
-            <div className="relative h-[1.3rem] text-[0.95rem] text-muted tabular-nums">
-              {[8, 10, 12, 14, 16, 18, 20].map((h) => (
-                <span key={h} className="absolute -translate-x-1/2" style={{ left: `${((h - DAY_START) / span) * 100}%` }}>{h}:00</span>
+            <div className="relative h-[1.8rem] text-[0.95rem] text-muted tabular-nums">
+              {[8, 10, 12, 14, 16, 18, 20].filter((h) => !showNow || Math.abs(h - nowH) > 0.8).map((h) => (
+                <span key={h} className="absolute top-0 -translate-x-1/2" style={{ left: pct(h) }}>{h}:00</span>
               ))}
+              {showNow && (
+                <span className="absolute -top-[0.1rem] -translate-x-1/2 rounded-full bg-accent text-white font-bold px-[0.6rem] text-[0.95rem] leading-[1.6rem] z-10" style={{ left: `${nowPct}%` }}>
+                  {clock(now)}
+                </span>
+              )}
             </div>
           </div>
           {items.map((it) => {
-            const mine = todays.filter((b) => b.item === it.name);
+            const mine = todays.filter((b) => b.item === it.name).sort((a, b) => hours(a.start) - hours(b.start));
+            const live = mine.find((b) => hours(b.start) <= nowH && nowH < hours(b.end));
+            const next = mine.find((b) => hours(b.start) > nowH);
             return (
-              <div key={it.name} className="grid grid-cols-[11rem_minmax(0,1fr)] gap-[0.8rem] items-center">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-[0.8rem] h-[0.8rem] rounded-full shrink-0" style={{ background: it.color }} />
-                  <span className="text-[1.25rem] font-bold leading-tight break-words">{it.name}</span>
+              <div key={it.name} className="grid grid-cols-[15rem_minmax(0,1fr)] gap-[0.9rem] items-center">
+                <div className="min-w-0 flex flex-col gap-[0.3rem]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-[0.8rem] h-[0.8rem] rounded-full shrink-0" style={{ background: it.color }} />
+                    <span className="text-[1.3rem] font-bold leading-tight break-words">{it.name}</span>
+                  </div>
+                  {live ? (
+                    <p className="text-[1rem] leading-tight">
+                      <span className="inline-block rounded-full bg-red-500/15 text-red-300 font-bold px-[0.6rem] py-[0.05rem] mr-2">In use</span>
+                      <span className="text-muted">{live.by} until {live.end}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[1rem] leading-tight">
+                      <span className="inline-block rounded-full bg-emerald-500/15 text-emerald-300 font-bold px-[0.6rem] py-[0.05rem] mr-2">Free now</span>
+                      <span className="text-muted">{next ? `next ${next.start} · ${next.by}` : 'rest of the day'}</span>
+                    </p>
+                  )}
                 </div>
-                <div className="relative h-[4rem] rounded-2xl bg-paper border border-line overflow-hidden">
-                  {[10, 12, 14, 16, 18, 20].map((h) => (
-                    <span key={h} className="absolute top-0 bottom-0 w-px bg-line" style={{ left: `${((h - DAY_START) / span) * 100}%` }} />
+                <div className="relative h-[4.2rem] rounded-2xl bg-paper border border-line overflow-hidden">
+                  {showNow && <span className="absolute top-0 bottom-0 left-0 bg-black/30" style={{ width: `${nowPct}%` }} />}
+                  {hourMarks.map((h) => (
+                    <span key={h} className={`absolute top-0 bottom-0 w-px ${h % 2 === 0 ? 'bg-line' : 'bg-line/40'}`} style={{ left: pct(h) }} />
                   ))}
-                  {mine.length === 0 && <span className="absolute inset-0 flex items-center px-4 text-[1.05rem] text-emerald-400/80">Free all day</span>}
+                  {mine.length === 0 && <span className="absolute inset-0 flex items-center justify-center text-[1.05rem] text-emerald-400/70">Free all day</span>}
                   {mine.map((b, i) => {
-                    const left = Math.max(0, ((hours(b.start) - DAY_START) / span) * 100);
-                    const width = Math.max(4, ((hours(b.end) - Math.max(hours(b.start), DAY_START)) / span) * 100);
-                    const isLive = hours(b.start) <= nowH && nowH < hours(b.end);
+                    const start = Math.max(DAY_START, hours(b.start));
+                    const left = ((start - DAY_START) / span) * 100;
+                    const width = Math.max(4, ((Math.min(DAY_END, hours(b.end)) - start) / span) * 100);
+                    const isLive = b === live;
+                    const done = hours(b.end) <= nowH;
                     return (
                       <div key={i} className="absolute top-[0.35rem] bottom-[0.35rem] rounded-xl px-[0.7rem] flex flex-col justify-center overflow-hidden text-black"
-                        style={{ left: `${left}%`, width: `${width}%`, background: it.color, outline: isLive ? '0.2rem solid #fff' : undefined }}>
+                        style={{ left: `${left}%`, width: `${width}%`, background: it.color, opacity: done ? 0.45 : 1, outline: isLive ? '0.2rem solid #fff' : undefined }}>
                         <span className="text-[1.1rem] font-bold leading-tight truncate">{b.by}</span>
                         <span className="text-[0.9rem] leading-tight truncate opacity-80">{b.start}–{b.end}{b.purpose ? ` · ${b.purpose}` : ''}</span>
                       </div>
                     );
                   })}
-                  {nowPct > 0 && nowPct < 100 && <span className="absolute top-0 bottom-0 w-[0.18rem] bg-accent" style={{ left: `${nowPct}%` }} />}
+                  {showNow && <span className="absolute top-0 bottom-0 w-[0.2rem] bg-accent z-10" style={{ left: `${nowPct}%` }} />}
                 </div>
               </div>
             );
@@ -234,16 +252,21 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
       )}
 
       <div className="mt-auto pt-[0.9rem] border-t border-line">
-        <h3 className={`${heading} mb-[0.6rem]`}>Tomorrow</h3>
+        <h3 className={`${heading} mb-[0.6rem]`}>Tomorrow{tomorrows.length > 0 && ` · ${tomorrows.length} booking${tomorrows.length === 1 ? '' : 's'}`}</h3>
         {tomorrows.length === 0 ? (
-          <p className="text-[1.15rem] text-muted">Nothing booked yet.</p>
+          <p className="text-[1.15rem] text-muted">Nothing booked yet. Everything is free.</p>
         ) : (
           <ul className="grid grid-cols-2 gap-x-[1.5rem] gap-y-[0.4rem]">
-            {tomorrows.slice(0, 8).map((b, i) => (
-              <li key={i} className="text-[1.15rem] truncate">
-                <span className="text-ink font-semibold">{b.item}</span> <span className="text-muted tabular-nums">{b.start}–{b.end}</span> · {b.by}
-              </li>
-            ))}
+            {tomorrows.slice(0, 8).map((b, i) => {
+              const color = board?.items.find((x) => x.name === b.item)?.color;
+              return (
+                <li key={i} className="text-[1.15rem] truncate flex items-center gap-2">
+                  <span className="w-[0.6rem] h-[0.6rem] rounded-full shrink-0" style={{ background: color }} />
+                  <span className="text-ink font-semibold">{b.item}</span> <span className="text-muted tabular-nums">{b.start}–{b.end}</span> · {b.by}
+                </li>
+              );
+            })}
+            {tomorrows.length > 8 && <li className="text-[1rem] text-muted">+ {tomorrows.length - 8} more</li>}
           </ul>
         )}
       </div>
