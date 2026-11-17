@@ -1,0 +1,26 @@
+@import "tailwindcss" source("./");
+
+/* Same palette and type as the lab app (src/index.css). */
+@theme {
+  --color-paper: #121212;
+  --color-card: #1E1E1E;
+  --color-ink: #F3F4F6;
+  --color-muted: #9CA3AF;
+  --color-line: #2A2A2A;
+  --color-accent: #FF6B4A;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html { color-scheme: dark; font-size: clamp(12px, 0.83vw, 22px); }
+  body { background: var(--color-paper); color: var(--color-ink); margin: 0; overflow: hidden; cursor: none; }
+}
+
+/* The picture drifts a few pixels every few minutes so a TV left on all day
+   does not burn the clock and borders into the panel. */
+.drift { transition: transform 60s linear; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

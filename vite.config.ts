@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
         input: {
           main: path.resolve(__dirname, 'index.html'),
           vendor: path.resolve(__dirname, 'vendor.html'),
+          wall: path.resolve(__dirname, 'wall.html'),
         },
         output: {
           manualChunks: {

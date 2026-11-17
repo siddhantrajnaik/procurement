@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import { avatarClasses } from '../lib/accent';
@@ -22,6 +22,15 @@ export const LoginScreen: React.FC = () => {
   const admins = allUsers.filter((u) => u.role === 'procurement_incharge');
   const labMembers = allUsers.filter((u) => u.role === 'lab_member');
   const guests = allUsers.filter((u) => u.role === 'guest');
+
+  // The visitor QR code on the wall screen links to #/visit: skip the lab-member
+  // list and go straight to the visitor sign-in. The hash is cleared first so
+  // signing out later does not bounce the visitor straight back in.
+  useEffect(() => {
+    if (window.location.hash.trim().toLowerCase() !== '#/visit' || guests.length === 0) return;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    login(guests[0].id);
+  }, [guests, login]);
 
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
