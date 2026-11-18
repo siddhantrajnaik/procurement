@@ -30,6 +30,32 @@ function sameKey(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// PDB-101 "Molecule of the Month": its site does not allow browser requests from our page, so the function fetches it
+// (once every 12 hours at most) and passes on just the title, one line and the picture.
+interface Motm { title: string; blurb: string; image: string; url: string }
+let motmCache: { at: number; value: Motm | null } | null = null;
+async function getMotm(): Promise<Motm | null> {
+  if (motmCache && Date.now() - motmCache.at < 12 * 3_600_000) return motmCache.value;
+  let value: Motm | null = motmCache?.value ?? null; // on failure keep the last good one
+  try {
+    const list = await (await fetch('https://pdb101.rcsb.org/motm/motm-by-title')).text();
+    const newest = Math.max(0, ...[...list.matchAll(/\/motm\/(\d{1,4})"/g)].map((m) => Number(m[1])));
+    if (newest > 0) {
+      const url = `https://pdb101.rcsb.org/motm/${newest}`;
+      const html = await (await fetch(url)).text();
+      const meta = (k: string) =>
+        html.match(new RegExp(`<meta[^>]+(?:property|name)="${k}"[^>]+content="([^"]*)"`, 'i'))?.[1] ??
+        html.match(new RegExp(`<meta[^>]+content="([^"]*)"[^>]+(?:property|name)="${k}"`, 'i'))?.[1] ?? '';
+      const decode = (t: string) => t.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+      const title = decode(meta('og:title')).replace(/^PDB-?101:\s*Molecule of the Month:\s*/i, '');
+      const image = meta('og:image');
+      if (title && image.startsWith('https://cdn.rcsb.org/')) value = { title, blurb: decode(meta('og:description')), image, url };
+    }
+  } catch { /* keep the last good one */ }
+  motmCache = { at: Date.now(), value };
+  return value;
+}
+
 const istDate = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d); // YYYY-MM-DD
 const first = (n: string | null | undefined) => (n ?? '').trim().split(/\s+/)[0] || 'Someone';
 
@@ -45,7 +71,7 @@ Deno.serve(async (req) => {
   const tomorrow = istDate(new Date(now.getTime() + 86_400_000));
   const soon = istDate(new Date(now.getTime() + 30 * 86_400_000));
 
-  const [items, bookings, orders, stock, equipment, maint, people, need] = await Promise.all([
+  const [items, bookings, orders, stock, equipment, maint, people, need, motm] = await Promise.all([
     db.from('bookable_items').select('id, name, color').order('name'),
     db.from('bookings').select('item_id, date, start_time, end_time, purpose, booked_by').eq('status', 'confirmed').in('date', [today, tomorrow]).order('start_time'),
     db.from('purchases').select('title, status, requested_by, created_at').in('status', ['waiting', 'quotes', 'ordered', 'transit', 'partial']).order('created_at', { ascending: false }).limit(60),
@@ -54,6 +80,7 @@ Deno.serve(async (req) => {
     db.from('maintenance_logs').select('equipment_id, next_due_date').not('next_due_date', 'is', null).limit(500),
     db.from('profiles').select('id, name').limit(100),
     db.from('purchases').select('title, catalog_number, quantity, preferred_company, vendor_photo_path').eq('vendor_visible', true).in('status', ['waiting', 'quotes']).order('created_at', { ascending: false }).limit(20),
+    getMotm(),
   ]);
   if (items.error || bookings.error || orders.error) return json({ error: 'Could not load.' }, 500, h);
 
@@ -85,6 +112,7 @@ Deno.serve(async (req) => {
       now: now.toISOString(),
       today,
       tomorrow,
+      motm,
       items: (items.data ?? []).map((i) => ({ name: i.name, color: i.color, hood: /hood/i.test(i.name) })),
       bookings: (bookings.data ?? []).map((b) => ({
         item: itemName.get(b.item_id as string) ?? '',

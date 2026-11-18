@@ -17,6 +17,7 @@ interface Board {
   today: string;
   tomorrow: string;
   items: { name: string; color: string; hood: boolean }[];
+  motm?: { title: string; blurb: string; image: string } | null;
   bookings: Booking[];
   orders: {
     waiting: number;
@@ -193,7 +194,7 @@ export function WallPage() {
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
           <Alerts board={board} />
-          <Picture />
+          <Picture motm={board?.motm ?? null} />
         </aside>
         <Ticker />
         <QrStrip />
