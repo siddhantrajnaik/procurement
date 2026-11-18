@@ -481,6 +481,12 @@ function Orders({ board }: { board: Board | null }) {
         </ul>
       )}
 
+      {o && !cur && (
+        <>
+          <h3 className={`${heading} mt-2`}>We need quotes for</h3>
+          <p className="text-[1.4rem] text-muted">None</p>
+        </>
+      )}
       {cur && (
         <>
           <h3 className={`${heading} mt-2 flex items-center justify-between`}>
