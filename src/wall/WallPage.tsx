@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { MonthStrip } from './MonthCalendar';
 import { Papers } from './Papers';
 import { Picture } from './Picture';
 import { Ticker } from './Ticker';
@@ -416,6 +417,8 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
         </div>
       )}
 
+      <MonthStrip now={now} />
+
       {!evening && (
         <div className="pt-[0.9rem] border-t border-line">
           <h3 className={`${heading} mb-[0.6rem]`}>
@@ -461,28 +464,30 @@ function Orders({ board }: { board: Board | null }) {
   const cur = need.length ? need[i % need.length] : null;
 
   return (
-    <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0`}>
+    <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0 ${o && !cur ? '!py-[0.9rem]' : ''}`}>
       <h2 className={`${heading} flex items-center justify-between`}>
-        <span>We need quotes for</span>
+        <span>We need quotes for{o && !cur && <span className="ml-4 normal-case tracking-normal font-semibold text-[1.3rem] text-muted">None</span>}</span>
         {need.length > 1 && <span className="normal-case tracking-normal font-semibold tabular-nums">{(i % need.length) + 1} / {need.length}</span>}
       </h2>
-      {o && !cur && <p className="text-[1.4rem] text-muted">None</p>}
       {cur && (
         <>
           <div key={i % need.length} className="wall-fade flex items-center gap-[1rem] rounded-2xl bg-paper border border-line p-[0.8rem] min-h-0">
             {cur.photoUrl && !broken.has(cur.photoUrl) ? (
               <img src={cur.photoUrl} alt="" onError={() => setBroken((s) => new Set(s).add(cur.photoUrl!))}
-                className="w-[7rem] h-[7rem] rounded-xl object-cover bg-card shrink-0" />
+                className="w-[8.5rem] h-[8.5rem] rounded-xl object-cover bg-card shrink-0" />
             ) : (
-              <div className="w-[7rem] h-[7rem] rounded-xl bg-card border border-line shrink-0 flex items-center justify-center text-muted" aria-hidden>
+              <div className="w-[8.5rem] h-[8.5rem] rounded-xl bg-card border border-line shrink-0 flex items-center justify-center text-muted" aria-hidden>
                 <svg viewBox="0 0 24 24" className="w-[2.4rem] h-[2.4rem]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" /><path d="m3 8 9 5 9-5" /><path d="M12 13v8" />
                 </svg>
               </div>
             )}
-            <div className="min-w-0 flex flex-col gap-[0.3rem]">
-              <p className="text-[1.5rem] font-bold leading-tight line-clamp-2">{cur.title}</p>
-              <p className="text-[1.1rem] text-muted truncate">{cur.quantity}{cur.brand ? ` · ${cur.brand}` : ''}</p>
+            <div className="min-w-0 flex flex-col gap-[0.5rem]">
+              <p className="text-[1.8rem] font-extrabold leading-tight tracking-tight line-clamp-2">{cur.title}</p>
+              <div className="flex flex-wrap items-center gap-x-[0.6rem] gap-y-[0.3rem]">
+                <span className="rounded-full bg-accent/15 text-accent text-[1.15rem] font-bold px-[0.8rem] py-[0.1rem]">{cur.quantity}</span>
+                {cur.brand && <span className="text-[1.15rem] text-muted truncate">{cur.brand}</span>}
+              </div>
               {cur.catalogNumber && <p className="text-[1.05rem] font-mono text-muted truncate">Cat. {cur.catalogNumber}</p>}
             </div>
           </div>
@@ -545,7 +550,7 @@ function QrStrip() {
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`;
   return (
     <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] gap-[1.1rem]">
-      <QrCard title="Vendors" line="Scan to see what we need and send your rate." url={`${base}vendor.html`} />
+      <QrCard title="Vendors" line="Scan to see what we need and send your quotes." url={`${base}vendor.html`} />
       <Papers />
     </div>
   );
