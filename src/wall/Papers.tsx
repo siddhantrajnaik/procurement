@@ -6,7 +6,9 @@ const BASE = 'https://www.ebi.ac.uk/europepmc/webservices/rest/search';
 const TERMS = ['"cryo-EM"', '"cryo-electron"', '"cryoEM"', '"cryo-ET"', '"structural biology"'].map((t) => `TITLE:${t}`).join(' OR ');
 const REFRESH_MS = 3 * 60 * 60_000;
 const ROTATE_MS = 10_000;
-const KEEP = 12;
+const RETRY_MS = 5 * 60_000;
+const KEEP = 15;
+const VIRUS = '(TITLE:"virus" OR TITLE:"viral" OR TITLE:"capsid" OR TITLE:"spike") AND (TITLE:"structure" OR TITLE:"structural")';
 
 interface Paper { id: string; title: string; authors: string; journal: string; date: string; preprint: boolean }
 
@@ -19,15 +21,25 @@ const firstAuthors = (s: string) => {
   return list.length > 3 ? `${list.slice(0, 3).join(', ')} et al.` : list.join(', ');
 };
 
-async function fetchPapers(): Promise<Paper[]> {
+async function search(terms: string): Promise<Record<string, string>[]> {
   const from = isoDay(new Date(Date.now() - 45 * 86_400_000));
   const to = isoDay(new Date());
-  const q = `(${TERMS}) AND (FIRST_PDATE:[${from} TO ${to}])`;
-  const url = `${BASE}?query=${encodeURIComponent(q)}&resultType=lite&sort=${encodeURIComponent('P_PDATE_D desc')}&pageSize=40&format=json`;
+  const q = `(${terms}) AND (FIRST_PDATE:[${from} TO ${to}])`;
+  const url = `${BASE}?query=${encodeURIComponent(q)}&resultType=lite&sort=${encodeURIComponent('P_PDATE_D desc')}&pageSize=30&format=json`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('papers');
   const data = (await res.json()) as { resultList?: { result?: Record<string, string>[] } };
-  return (data.resultList?.result ?? [])
+  return data.resultList?.result ?? [];
+}
+
+/** Cryo-EM / structural biology and virus-structure papers, merged. Either search may fail without losing the other. */
+async function fetchPapers(): Promise<Paper[]> {
+  const parts = await Promise.allSettled([search(TERMS), search(VIRUS)]);
+  if (parts.every((p) => p.status === 'rejected')) throw new Error('papers');
+  const seen = new Set<string>();
+  const all = parts.flatMap((p) => (p.status === 'fulfilled' ? p.value : []))
+    .filter((r) => (seen.has(`${r.source}:${r.id}`) ? false : (seen.add(`${r.source}:${r.id}`), true)));
+  return all
     .filter((r) => r.title && !/^(correction|erratum|retraction|publisher correction)\b/i.test(r.title))
     .map((r) => ({
       id: `${r.source}:${r.id}`,
@@ -47,10 +59,14 @@ export function Papers() {
 
   useEffect(() => {
     let live = true;
-    const load = () => fetchPapers().then((p) => { if (live && p.length) setPapers(p); }).catch(() => { /* keep the last list */ });
-    void load();
-    const id = setInterval(load, REFRESH_MS);
-    return () => { live = false; clearInterval(id); };
+    let timer: ReturnType<typeof setTimeout>;
+    const load = () => {
+      fetchPapers()
+        .then((p) => { if (live && p.length) setPapers(p); timer = setTimeout(load, REFRESH_MS); })
+        .catch(() => { timer = setTimeout(load, RETRY_MS); }); // service down: keep the last list, try again soon
+    };
+    load();
+    return () => { live = false; clearTimeout(timer); };
   }, []);
   useEffect(() => {
     if (papers.length < 2) return;

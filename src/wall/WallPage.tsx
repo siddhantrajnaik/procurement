@@ -117,6 +117,21 @@ export function WallPage() {
     return () => { document.removeEventListener('pointerdown', unlock); document.removeEventListener('keydown', onKey); };
   }, []);
 
+  // Every night at 3 AM India time: reload, which fetches a fresh paper list and any new version of this page.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const { h, m } = istParts(new Date());
+      if (h !== 3 || m > 5) return;
+      const stamp = new Date().toISOString().slice(0, 10);
+      try {
+        if (sessionStorage.getItem('mb.wall.reloaded') === stamp) return;
+        sessionStorage.setItem('mb.wall.reloaded', stamp);
+      } catch { /* reload anyway */ }
+      window.location.reload();
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const said = useRef<{ date: string; keys: Set<string> } | null>(null);
   const lastDown = useRef<Set<string> | null>(null);
   useEffect(() => {
