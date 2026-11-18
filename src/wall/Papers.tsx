@@ -54,7 +54,10 @@ async function fetchPapers(): Promise<Paper[]> {
 }
 
 export function Papers() {
-  const [papers, setPapers] = useState<Paper[]>([]);
+  // Europe PMC can take 15 seconds or more to answer, so the last list is kept on the device and shown straight away.
+  const [papers, setPapers] = useState<Paper[]>(() => {
+    try { return JSON.parse(localStorage.getItem('mb.wall.papers') ?? '[]') as Paper[]; } catch { return []; }
+  });
   const [i, setI] = useState(0);
 
   useEffect(() => {
@@ -62,7 +65,13 @@ export function Papers() {
     let timer: ReturnType<typeof setTimeout>;
     const load = () => {
       fetchPapers()
-        .then((p) => { if (live && p.length) setPapers(p); timer = setTimeout(load, REFRESH_MS); })
+        .then((p) => {
+          if (live && p.length) {
+            setPapers(p);
+            try { localStorage.setItem('mb.wall.papers', JSON.stringify(p)); } catch { /* private mode */ }
+          }
+          timer = setTimeout(load, REFRESH_MS);
+        })
         .catch(() => { timer = setTimeout(load, RETRY_MS); }); // service down: keep the last list, try again soon
     };
     load();
