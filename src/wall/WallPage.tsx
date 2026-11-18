@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { announce, canPlay, quietHour, setSoundOn, soundOn, spokenTime } from './sound';
 
 // Only the project URL is referenced here — never the client or its key.
 const FEED_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wall-board`;
@@ -100,6 +101,57 @@ export function WallPage() {
     return () => { document.removeEventListener('visibilitychange', ask); void lock?.release(); };
   }, []);
 
+  // ---- sound: a chime and a spoken line before and at the start of each booking, and when an instrument goes down
+  const [sound, setSound] = useState(soundOn);
+  const [unlocked, setUnlocked] = useState(canPlay);
+  useEffect(() => {
+    const unlock = () => setUnlocked(true);
+    const onKey = (e: KeyboardEvent) => {
+      unlock();
+      if (e.key === 'm' || e.key === 'M') setSound((on) => { setSoundOn(!on); return !on; });
+    };
+    document.addEventListener('pointerdown', unlock);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('pointerdown', unlock); document.removeEventListener('keydown', onKey); };
+  }, []);
+
+  const said = useRef<{ date: string; keys: Set<string> } | null>(null);
+  const lastDown = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!board) return;
+    if (!said.current || said.current.date !== board.today) {
+      let keys: string[] = [];
+      try { const v = JSON.parse(localStorage.getItem('mb.wall.said') ?? '{}'); if (v.date === board.today) keys = v.keys; } catch { /* fresh start */ }
+      said.current = { date: board.today, keys: new Set(keys) };
+    }
+    const memo = said.current;
+    const lines: { text: string; urgent: boolean }[] = [];
+    const once = (k: string, text: string, urgent = false) => { if (!memo.keys.has(k)) { memo.keys.add(k); lines.push({ text, urgent }); } };
+
+    const { h, m } = istParts(now);
+    const nowH = h + m / 60;
+    for (const b of board.bookings) {
+      if (b.date !== board.today) continue;
+      const mins = Math.round((hours(b.start) - nowH) * 60);
+      const id = `${b.item}|${b.start}|${b.by}`;
+      if (mins > 0 && mins <= 10) once(`soon|${id}`, `${b.item}. ${b.by}'s booking starts in ${mins} minute${mins === 1 ? '' : 's'}.`);
+      else if (mins <= 0 && mins > -2) {
+        memo.keys.add(`soon|${id}`);
+        once(`start|${id}`, `${b.item} is now booked for ${b.by}, until ${spokenTime(b.end)}.`);
+      }
+    }
+    const down = new Set(board.alerts.instruments.map((i) => i.name));
+    if (lastDown.current) {
+      for (const i of board.alerts.instruments) {
+        if (!lastDown.current.has(i.name)) lines.push({ text: `Attention. ${i.name} is marked ${INSTRUMENT_LABEL[i.status]?.toLowerCase() ?? i.status}.`, urgent: true });
+      }
+    }
+    lastDown.current = down;
+    try { localStorage.setItem('mb.wall.said', JSON.stringify({ date: memo.date, keys: [...memo.keys] })); } catch { /* ignore */ }
+
+    if (sound && unlocked && !quietHour(h)) lines.forEach((l) => announce(l.text, l.urgent));
+  }, [board, now, sound, unlocked]);
+
   if (!key || status === 'badkey') {
     return (
       <div className="h-dvh flex items-center justify-center p-10 text-center">
@@ -118,7 +170,7 @@ export function WallPage() {
   return (
     <div className="h-dvh p-[1.4rem] drift" style={{ transform: `translate(${drift.x}px, ${drift.y}px)` }}>
       <div className="h-full grid gap-[1.1rem] grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
-        <Header now={now} status={status} board={board} />
+        <Header now={now} status={status} board={board} sound={!sound ? 'off' : !unlocked ? 'blocked' : quietHour(istParts(now).h) ? 'quiet' : 'on'} />
         <Bookings board={board} now={now} />
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
@@ -142,7 +194,7 @@ const colorOf = (board: Board | null, item: string) => board?.items.find((x) => 
 
 // ---------------------------------------------------------------- header
 
-function Header({ now, status, board }: { now: Date; status: string; board: Board | null }) {
+function Header({ now, status, board, sound }: { now: Date; status: string; board: Board | null; sound: 'on' | 'off' | 'blocked' | 'quiet' }) {
   const nowH = nowHours(now);
   const todays = (board?.bookings ?? []).filter((b) => b.date === board?.today).sort(byStart);
   const live = todays.filter((b) => hours(b.start) <= nowH && nowH < hours(b.end));
@@ -198,12 +250,27 @@ function Header({ now, status, board }: { now: Date; status: string; board: Boar
 
       <div className="flex items-center gap-[1.4rem] text-right">
         {status === 'offline' && <span className="text-[1.1rem] text-amber-300">Reconnecting…</span>}
+        <SoundBadge state={sound} />
         <div className="leading-none">
           <p className="text-[3.6rem] font-extrabold tabular-nums tracking-tight">{clock(now)}</p>
           <p className="text-[1.15rem] text-muted mt-1">{longDate(now)}</p>
         </div>
       </div>
     </header>
+  );
+}
+
+function SoundBadge({ state }: { state: 'on' | 'off' | 'blocked' | 'quiet' }) {
+  const label = { on: 'Sound on', off: 'Sound off', blocked: 'Click once to turn on sound', quiet: 'Quiet hours' }[state];
+  const tone = state === 'blocked' ? 'text-amber-300 border-amber-400/40' : 'text-muted border-line';
+  return (
+    <span className={`inline-flex items-center gap-[0.4rem] rounded-full border px-[0.7rem] py-[0.2rem] text-[0.95rem] ${tone}`}>
+      <svg viewBox="0 0 24 24" className="w-[1.1rem] h-[1.1rem]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M11 5 6 9H2v6h4l5 4V5Z" />
+        {state === 'on' ? <><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a10 10 0 0 1 0 14" /></> : <path d="m22 9-6 6m0-6 6 6" />}
+      </svg>
+      {label}
+    </span>
   );
 }
 
