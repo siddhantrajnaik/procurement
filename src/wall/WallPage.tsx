@@ -118,7 +118,7 @@ export function WallPage() {
   return (
     <div className="h-dvh p-[1.4rem] drift" style={{ transform: `translate(${drift.x}px, ${drift.y}px)` }}>
       <div className="h-full grid gap-[1.1rem] grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
-        <Header now={now} status={status} />
+        <Header now={now} status={status} board={board} />
         <Bookings board={board} now={now} />
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
@@ -130,11 +130,28 @@ export function WallPage() {
   );
 }
 
+// ---------------------------------------------------------------- shared bits
+
+const panel = 'rounded-3xl bg-card border border-line p-[1.3rem]';
+const heading = 'text-[1rem] font-bold uppercase tracking-[0.16em] text-muted';
+const nowHours = (d: Date) => { const { h, m } = istParts(d); return h + m / 60; };
+const shortDay = (iso: string) =>
+  new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${iso}T00:00:00Z`));
+const byStart = (a: Booking, b: Booking) => hours(a.start) - hours(b.start);
+const colorOf = (board: Board | null, item: string) => board?.items.find((x) => x.name === item)?.color ?? '#9CA3AF';
+
 // ---------------------------------------------------------------- header
 
-function Header({ now, status }: { now: Date; status: string }) {
+function Header({ now, status, board }: { now: Date; status: string; board: Board | null }) {
+  const nowH = nowHours(now);
+  const todays = (board?.bookings ?? []).filter((b) => b.date === board?.today).sort(byStart);
+  const live = todays.filter((b) => hours(b.start) <= nowH && nowH < hours(b.end));
+  const upcoming = todays.find((b) => hours(b.start) > nowH)
+    ?? (board?.bookings ?? []).filter((b) => b.date === board?.tomorrow).sort(byStart)[0];
+  const isTomorrow = upcoming && upcoming.date !== board?.today;
+
   return (
-    <header className="col-span-2 flex items-center justify-between">
+    <header className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[2rem]">
       <div className="flex items-center gap-[1rem]">
         <div className="w-[3.4rem] h-[3.4rem] rounded-2xl bg-accent flex items-center justify-center">
           <svg viewBox="0 0 24 24" className="w-[1.9rem] h-[1.9rem] text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -146,6 +163,39 @@ function Header({ now, status }: { now: Date; status: string }) {
           <p className="text-[1.1rem] text-muted">Structural Virology Lab · IIT Delhi</p>
         </div>
       </div>
+
+      {/* What matters right now, in one line. */}
+      <div className="justify-self-center min-w-0 max-w-full">
+        {board && (
+          <div className="flex items-center gap-[0.9rem] rounded-full bg-card border border-line pl-[0.6rem] pr-[1.4rem] py-[0.5rem] min-w-0">
+            {live.length > 0 ? (
+              <>
+                <span className="shrink-0 rounded-full bg-red-500/15 text-red-300 text-[1rem] font-bold px-[0.8rem] py-[0.15rem]">IN USE</span>
+                <span className="text-[1.25rem] truncate">
+                  {live.map((b, i) => (
+                    <span key={i}>{i > 0 && ', '}<span className="font-bold">{b.item}</span> <span className="text-muted">· {b.by} till {b.end}</span></span>
+                  ))}
+                </span>
+              </>
+            ) : upcoming ? (
+              <>
+                <span className="shrink-0 rounded-full bg-accent/15 text-accent text-[1rem] font-bold px-[0.8rem] py-[0.15rem]">NEXT UP</span>
+                <span className="w-[0.7rem] h-[0.7rem] rounded-full shrink-0" style={{ background: colorOf(board, upcoming.item) }} />
+                <span className="text-[1.25rem] truncate">
+                  <span className="font-bold">{upcoming.item}</span>{' '}
+                  <span className="text-muted">· {isTomorrow ? 'tomorrow ' : ''}{upcoming.start} · {upcoming.by}</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="shrink-0 rounded-full bg-emerald-500/15 text-emerald-300 text-[1rem] font-bold px-[0.8rem] py-[0.15rem]">ALL FREE</span>
+                <span className="text-[1.25rem] text-muted truncate">No bookings coming up</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center gap-[1.4rem] text-right">
         {status === 'offline' && <span className="text-[1.1rem] text-amber-300">Reconnecting…</span>}
         <div className="leading-none">
@@ -159,38 +209,48 @@ function Header({ now, status }: { now: Date; status: string }) {
 
 // ---------------------------------------------------------------- bookings
 
-const panel = 'rounded-3xl bg-card border border-line p-[1.3rem]';
-const heading = 'text-[1rem] font-bold uppercase tracking-[0.16em] text-muted';
-
 function Bookings({ board, now }: { board: Board | null; now: Date }) {
   const items = useMemo(
     () => [...(board?.items ?? [])].sort((a, b) => Number(b.hood) - Number(a.hood) || a.name.localeCompare(b.name)),
     [board]
   );
-  const nowH = (() => { const { h, m } = istParts(now); return h + m / 60; })();
-  const todays = (board?.bookings ?? []).filter((b) => b.date === board?.today);
-  const tomorrows = (board?.bookings ?? []).filter((b) => b.date === board?.tomorrow);
-  const inUse = items.filter((it) => todays.some((b) => b.item === it.name && hours(b.start) <= nowH && nowH < hours(b.end))).length;
+  const realH = nowHours(now);
+  // After the lab day ends the timeline turns to tomorrow, which is what people check in the evening.
+  const evening = realH >= DAY_END;
+  const day = evening ? board?.tomorrow : board?.today;
+  const nowH = evening ? -1 : realH;
+  const shown = (board?.bookings ?? []).filter((b) => b.date === day).sort(byStart);
+  const tomorrows = evening ? [] : (board?.bookings ?? []).filter((b) => b.date === board?.tomorrow).sort(byStart);
+  const inUse = items.filter((it) => shown.some((b) => b.item === it.name && hours(b.start) <= nowH && nowH < hours(b.end))).length;
+
   const span = DAY_END - DAY_START;
+  const pct = (h: number) => `${((h - DAY_START) / span) * 100}%`;
   const nowPct = ((nowH - DAY_START) / span) * 100;
   const showNow = nowPct > 0 && nowPct < 100;
-  const pct = (h: number) => `${((h - DAY_START) / span) * 100}%`;
   const hourMarks = Array.from({ length: span - 1 }, (_, i) => DAY_START + 1 + i);
 
   return (
     <section className={`${panel} flex flex-col gap-[1rem] min-h-0`}>
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className={heading}>Bookings today</h2>
+        <h2 className={heading}>
+          {evening ? 'Tomorrow' : 'Today'}
+          {day && <span className="ml-3 normal-case tracking-normal font-semibold text-ink/70">{shortDay(day)}</span>}
+        </h2>
         <p className="text-[1.15rem] text-muted">
-          {todays.length === 0 ? 'No bookings today' : `${todays.length} booking${todays.length === 1 ? '' : 's'}`}
-          {items.length > 0 && <> <span className="mx-2">·</span> <span className={inUse > 0 ? 'text-red-300 font-semibold' : 'text-emerald-400 font-semibold'}>{inUse} of {items.length} in use now</span></>}
+          {shown.length === 0 ? 'No bookings' : `${shown.length} booking${shown.length === 1 ? '' : 's'}`}
+          {!evening && items.length > 0 && (
+            <>
+              <span className="mx-2">·</span>
+              <span className={inUse > 0 ? 'text-red-300 font-semibold' : 'text-emerald-400 font-semibold'}>{inUse} of {items.length} in use now</span>
+            </>
+          )}
         </p>
       </div>
 
       {items.length === 0 && board ? (
         <p className="text-[1.3rem] text-muted">Nothing is set up for booking yet.</p>
       ) : (
-        <div className="flex flex-col gap-[0.8rem]">
+        <div className="flex-1 min-h-0 flex flex-col gap-[0.7rem]">
           <div className="grid grid-cols-[15rem_minmax(0,1fr)] gap-[0.9rem]">
             <span />
             <div className="relative h-[1.8rem] text-[0.95rem] text-muted tabular-nums">
@@ -204,76 +264,95 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
               )}
             </div>
           </div>
-          {items.map((it) => {
-            const mine = todays.filter((b) => b.item === it.name).sort((a, b) => hours(a.start) - hours(b.start));
-            const live = mine.find((b) => hours(b.start) <= nowH && nowH < hours(b.end));
-            const next = mine.find((b) => hours(b.start) > nowH);
-            return (
-              <div key={it.name} className="grid grid-cols-[15rem_minmax(0,1fr)] gap-[0.9rem] items-center">
-                <div className="min-w-0 flex flex-col gap-[0.3rem]">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-[0.8rem] h-[0.8rem] rounded-full shrink-0" style={{ background: it.color }} />
-                    <span className="text-[1.3rem] font-bold leading-tight break-words">{it.name}</span>
+
+          {/* Rows share the panel's height, so three instruments fill it instead of huddling at the top. */}
+          <div className="flex-1 min-h-0 flex flex-col gap-[0.7rem]">
+            {items.map((it) => {
+              const mine = shown.filter((b) => b.item === it.name);
+              const live = mine.find((b) => hours(b.start) <= nowH && nowH < hours(b.end));
+              const next = mine.find((b) => hours(b.start) > nowH);
+              const booked = mine.reduce((t, b) => t + Math.max(0, Math.min(DAY_END, hours(b.end)) - Math.max(DAY_START, hours(b.start))), 0);
+              return (
+                <div key={it.name} className="flex-1 min-h-[3.6rem] max-h-[7.5rem] grid grid-cols-[15rem_minmax(0,1fr)] gap-[0.9rem] items-stretch">
+                  <div className="min-w-0 flex flex-col justify-center gap-[0.35rem]">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-[0.8rem] h-[0.8rem] rounded-full shrink-0" style={{ background: it.color }} />
+                      <span className="text-[1.35rem] font-bold leading-tight break-words">{it.name}</span>
+                    </div>
+                    {live ? (
+                      <p className="text-[1rem] leading-tight">
+                        <span className="inline-block rounded-full bg-red-500/15 text-red-300 font-bold px-[0.6rem] py-[0.05rem] mr-2">In use</span>
+                        <span className="text-muted">{live.by} till {live.end}</span>
+                      </p>
+                    ) : mine.length === 0 ? (
+                      <p className="text-[1rem] leading-tight">
+                        <span className="inline-block rounded-full bg-emerald-500/15 text-emerald-300 font-bold px-[0.6rem] py-[0.05rem] mr-2">Free</span>
+                        <span className="text-muted">all day</span>
+                      </p>
+                    ) : (
+                      <p className="text-[1rem] leading-tight">
+                        <span className={`inline-block rounded-full font-bold px-[0.6rem] py-[0.05rem] mr-2 ${evening ? 'bg-white/10 text-ink' : 'bg-emerald-500/15 text-emerald-300'}`}>{evening ? 'Booked' : 'Free now'}</span>
+                        <span className="text-muted">
+                          {next ? `next ${next.start} · ${next.by}` : 'rest of the day'}
+                        </span>
+                      </p>
+                    )}
+                    {mine.length > 0 && <p className="text-[0.9rem] text-muted tabular-nums">{booked % 1 === 0 ? booked : booked.toFixed(1)} h booked</p>}
                   </div>
-                  {live ? (
-                    <p className="text-[1rem] leading-tight">
-                      <span className="inline-block rounded-full bg-red-500/15 text-red-300 font-bold px-[0.6rem] py-[0.05rem] mr-2">In use</span>
-                      <span className="text-muted">{live.by} until {live.end}</span>
-                    </p>
-                  ) : (
-                    <p className="text-[1rem] leading-tight">
-                      <span className="inline-block rounded-full bg-emerald-500/15 text-emerald-300 font-bold px-[0.6rem] py-[0.05rem] mr-2">Free now</span>
-                      <span className="text-muted">{next ? `next ${next.start} · ${next.by}` : 'rest of the day'}</span>
-                    </p>
-                  )}
+
+                  <div className="relative rounded-2xl bg-paper border border-line overflow-hidden">
+                    {showNow && <span className="absolute top-0 bottom-0 left-0 bg-black/35" style={{ width: `${nowPct}%` }} />}
+                    {hourMarks.map((h) => (
+                      <span key={h} className={`absolute top-0 bottom-0 w-px ${h % 2 === 0 ? 'bg-line' : 'bg-line/40'}`} style={{ left: pct(h) }} />
+                    ))}
+                    {mine.map((b, i) => {
+                      const start = Math.max(DAY_START, hours(b.start));
+                      const left = ((start - DAY_START) / span) * 100;
+                      const width = Math.max(4, ((Math.min(DAY_END, hours(b.end)) - start) / span) * 100);
+                      const isLive = b === live;
+                      const done = hours(b.end) <= nowH;
+                      return (
+                        <div key={i} className="absolute top-[0.4rem] bottom-[0.4rem] rounded-xl px-[0.8rem] flex flex-col justify-center gap-[0.15rem] overflow-hidden text-black"
+                          style={{ left: `${left}%`, width: `${width}%`, background: it.color, opacity: done ? 0.4 : 1, boxShadow: isLive ? '0 0 0 0.2rem #fff, 0 0 1.4rem rgba(255,255,255,0.25)' : undefined }}>
+                          <span className="text-[1.15rem] font-bold leading-tight truncate">{b.by}</span>
+                          <span className="text-[0.95rem] font-semibold leading-tight truncate opacity-75 tabular-nums">{b.start}–{b.end}</span>
+                          {b.purpose && <span className="text-[0.9rem] leading-tight truncate opacity-75">{b.purpose}</span>}
+                        </div>
+                      );
+                    })}
+                    {showNow && <span className="absolute top-0 bottom-0 w-[0.2rem] bg-accent z-10" style={{ left: `${nowPct}%` }} />}
+                  </div>
                 </div>
-                <div className="relative h-[4.2rem] rounded-2xl bg-paper border border-line overflow-hidden">
-                  {showNow && <span className="absolute top-0 bottom-0 left-0 bg-black/30" style={{ width: `${nowPct}%` }} />}
-                  {hourMarks.map((h) => (
-                    <span key={h} className={`absolute top-0 bottom-0 w-px ${h % 2 === 0 ? 'bg-line' : 'bg-line/40'}`} style={{ left: pct(h) }} />
-                  ))}
-                  {mine.length === 0 && <span className="absolute inset-0 flex items-center justify-center text-[1.05rem] text-emerald-400/70">Free all day</span>}
-                  {mine.map((b, i) => {
-                    const start = Math.max(DAY_START, hours(b.start));
-                    const left = ((start - DAY_START) / span) * 100;
-                    const width = Math.max(4, ((Math.min(DAY_END, hours(b.end)) - start) / span) * 100);
-                    const isLive = b === live;
-                    const done = hours(b.end) <= nowH;
-                    return (
-                      <div key={i} className="absolute top-[0.35rem] bottom-[0.35rem] rounded-xl px-[0.7rem] flex flex-col justify-center overflow-hidden text-black"
-                        style={{ left: `${left}%`, width: `${width}%`, background: it.color, opacity: done ? 0.45 : 1, outline: isLive ? '0.2rem solid #fff' : undefined }}>
-                        <span className="text-[1.1rem] font-bold leading-tight truncate">{b.by}</span>
-                        <span className="text-[0.9rem] leading-tight truncate opacity-80">{b.start}–{b.end}{b.purpose ? ` · ${b.purpose}` : ''}</span>
-                      </div>
-                    );
-                  })}
-                  {showNow && <span className="absolute top-0 bottom-0 w-[0.2rem] bg-accent z-10" style={{ left: `${nowPct}%` }} />}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
-      <div className="mt-auto pt-[0.9rem] border-t border-line">
-        <h3 className={`${heading} mb-[0.6rem]`}>Tomorrow{tomorrows.length > 0 && ` · ${tomorrows.length} booking${tomorrows.length === 1 ? '' : 's'}`}</h3>
-        {tomorrows.length === 0 ? (
-          <p className="text-[1.15rem] text-muted">Nothing booked yet. Everything is free.</p>
-        ) : (
-          <ul className="grid grid-cols-2 gap-x-[1.5rem] gap-y-[0.4rem]">
-            {tomorrows.slice(0, 8).map((b, i) => {
-              const color = board?.items.find((x) => x.name === b.item)?.color;
-              return (
+      {!evening && (
+        <div className="pt-[0.9rem] border-t border-line">
+          <h3 className={`${heading} mb-[0.6rem]`}>
+            Tomorrow
+            {board && <span className="ml-3 normal-case tracking-normal font-semibold text-ink/70">{shortDay(board.tomorrow)}</span>}
+            {tomorrows.length > 0 && <span className="ml-3 normal-case tracking-normal font-normal">· {tomorrows.length} booking{tomorrows.length === 1 ? '' : 's'}</span>}
+          </h3>
+          {tomorrows.length === 0 ? (
+            <p className="text-[1.15rem] text-muted">Nothing booked yet. Everything is free.</p>
+          ) : (
+            <ul className="grid grid-cols-2 gap-x-[1.5rem] gap-y-[0.4rem]">
+              {tomorrows.slice(0, 6).map((b, i) => (
                 <li key={i} className="text-[1.15rem] truncate flex items-center gap-2">
-                  <span className="w-[0.6rem] h-[0.6rem] rounded-full shrink-0" style={{ background: color }} />
-                  <span className="text-ink font-semibold">{b.item}</span> <span className="text-muted tabular-nums">{b.start}–{b.end}</span> · {b.by}
+                  <span className="w-[0.6rem] h-[0.6rem] rounded-full shrink-0" style={{ background: colorOf(board, b.item) }} />
+                  <span className="text-muted tabular-nums">{b.start}–{b.end}</span>
+                  <span className="font-semibold">{b.item}</span>
+                  <span className="text-muted">· {b.by}</span>
                 </li>
-              );
-            })}
-            {tomorrows.length > 8 && <li className="text-[1rem] text-muted">+ {tomorrows.length - 8} more</li>}
-          </ul>
-        )}
-      </div>
+              ))}
+              {tomorrows.length > 6 && <li className="text-[1rem] text-muted">+ {tomorrows.length - 6} more</li>}
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -281,6 +360,7 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
 // ---------------------------------------------------------------- orders and alerts
 
 const ROTATE_MS = 5000;
+const STATUS_LABEL: Record<string, string> = { ordered: 'Ordered', transit: 'On the way', partial: 'Part arrived' };
 
 function Orders({ board }: { board: Board | null }) {
   const o = board?.orders;
@@ -293,25 +373,34 @@ function Orders({ board }: { board: Board | null }) {
     return () => clearInterval(id);
   }, [need.length]);
   const cur = need.length ? need[i % need.length] : null;
-  const arriving = o?.incoming.length ?? 0;
-  const onTheWay = o?.incoming.filter((x) => x.status === 'transit').length ?? 0;
+  const incoming = o?.incoming ?? [];
+  const onTheWay = incoming.filter((x) => x.status === 'transit').length;
+
   return (
     <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0`}>
       <h2 className={heading}>Orders</h2>
-      <div className="grid grid-cols-2 gap-[0.8rem]">
-        <Stat n={o?.waiting} label="Waiting for quotes" />
-        <Stat n={o?.quotes} label="Comparing quotes" />
+      <div className="grid grid-cols-3 gap-[0.7rem]">
+        <Stat n={o?.waiting} label="Need quotes" />
+        <Stat n={o?.quotes} label="Comparing" />
+        <Stat n={o ? incoming.length : undefined} label={onTheWay > 0 ? `Arriving · ${onTheWay} on the way` : 'Arriving'} tone={onTheWay > 0 ? 'amber' : undefined} />
       </div>
-      <p className="text-[1.1rem] text-muted">
-        {arriving === 0 ? 'Nothing on the way.' : <><span className="text-ink font-semibold">{arriving}</span> arriving{onTheWay > 0 && <> · <span className="text-amber-300 font-semibold">{onTheWay} on the way</span></>}</>}
-      </p>
-      {cur && (
+
+      {cur ? (
         <>
-          <h3 className={`${heading} mt-1`}>We need quotes for</h3>
+          <h3 className={`${heading} mt-1 flex items-center justify-between`}>
+            <span>We need quotes for</span>
+            {need.length > 1 && <span className="normal-case tracking-normal font-semibold tabular-nums">{(i % need.length) + 1} / {need.length}</span>}
+          </h3>
           <div key={i % need.length} className="wall-fade flex items-center gap-[1rem] rounded-2xl bg-paper border border-line p-[0.8rem] min-h-0">
-            {cur.photoUrl && !broken.has(cur.photoUrl) && (
+            {cur.photoUrl && !broken.has(cur.photoUrl) ? (
               <img src={cur.photoUrl} alt="" onError={() => setBroken((s) => new Set(s).add(cur.photoUrl!))}
                 className="w-[7rem] h-[7rem] rounded-xl object-cover bg-card shrink-0" />
+            ) : (
+              <div className="w-[7rem] h-[7rem] rounded-xl bg-card border border-line shrink-0 flex items-center justify-center text-muted" aria-hidden>
+                <svg viewBox="0 0 24 24" className="w-[2.4rem] h-[2.4rem]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" /><path d="m3 8 9 5 9-5" /><path d="M12 13v8" />
+                </svg>
+              </div>
             )}
             <div className="min-w-0 flex flex-col gap-[0.3rem]">
               <p className="text-[1.5rem] font-bold leading-tight line-clamp-2">{cur.title}</p>
@@ -320,23 +409,37 @@ function Orders({ board }: { board: Board | null }) {
             </div>
           </div>
           {need.length > 1 && (
-            <div className="flex justify-center gap-[0.4rem]" aria-hidden>
-              {need.slice(0, 12).map((_, k) => (
-                <span key={k} className={`h-[0.5rem] rounded-full transition-all ${k === i % need.length ? 'w-[1.4rem] bg-accent' : 'w-[0.5rem] bg-line'}`} />
-              ))}
+            <div className="h-[0.3rem] rounded-full bg-line overflow-hidden" aria-hidden>
+              <div key={i} className="wall-progress h-full bg-accent rounded-full" style={{ animationDuration: `${ROTATE_MS}ms` }} />
             </div>
           )}
         </>
-      )}
+      ) : incoming.length > 0 ? (
+        <>
+          <h3 className={`${heading} mt-1`}>Arriving</h3>
+          <ul className="flex flex-col gap-[0.4rem] min-h-0 overflow-hidden">
+            {incoming.slice(0, 5).map((x, k) => (
+              <li key={k} className="flex items-center justify-between gap-3 text-[1.15rem]">
+                <span className="truncate font-semibold">{x.title}</span>
+                <span className={`shrink-0 text-[0.95rem] font-semibold rounded-full px-[0.7rem] py-[0.1rem] ${x.status === 'transit' ? 'bg-amber-500/15 text-amber-300' : 'bg-blue-500/15 text-blue-300'}`}>
+                  {STATUS_LABEL[x.status] ?? x.status}
+                </span>
+              </li>
+            ))}
+            {incoming.length > 5 && <li className="text-[1rem] text-muted">+ {incoming.length - 5} more</li>}
+          </ul>
+        </>
+      ) : null}
     </section>
   );
 }
 
-function Stat({ n, label }: { n: number | undefined; label: string }) {
+function Stat({ n, label, tone }: { n: number | undefined; label: string; tone?: 'amber' }) {
+  const active = (n ?? 0) > 0;
   return (
-    <div className="rounded-2xl bg-paper border border-line px-[0.9rem] py-[0.6rem]">
-      <p className="text-[2.2rem] font-extrabold leading-none tabular-nums">{n ?? '–'}</p>
-      <p className="text-[0.95rem] text-muted mt-1">{label}</p>
+    <div className="rounded-2xl bg-paper border border-line px-[0.9rem] py-[0.7rem] min-w-0">
+      <p className={`text-[2.3rem] font-extrabold leading-none tabular-nums ${!active ? 'text-muted/60' : tone === 'amber' ? 'text-amber-300' : 'text-ink'}`}>{n ?? '–'}</p>
+      <p className="text-[0.95rem] text-muted mt-[0.35rem] leading-tight">{label}</p>
     </div>
   );
 }
@@ -348,20 +451,35 @@ function Alerts({ board }: { board: Board | null }) {
   a?.service.forEach((i) => rows.push({ tone: 'amber', text: i.name, note: 'Service overdue' }));
   a?.low.forEach((i) => rows.push({ tone: 'amber', text: i.name, note: `Low: ${i.left} left` }));
   a?.expiring.forEach((i) => rows.push({ tone: i.expired ? 'red' : 'amber', text: i.name, note: i.expired ? 'Expired' : `Expires ${i.date.slice(8, 10)}/${i.date.slice(5, 7)}` }));
+  rows.sort((x, y) => Number(y.tone === 'red') - Number(x.tone === 'red'));
+
   return (
     <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0 flex-1`}>
-      <h2 className={heading}>Needs attention</h2>
-      {a && rows.length === 0 && <p className="text-[1.25rem] text-emerald-400">All clear. Nothing low, expiring or broken.</p>}
-      <ul className="flex flex-col gap-[0.4rem] min-h-0 overflow-hidden">
-        {rows.slice(0, 7).map((r, i) => (
-          <li key={i} className="flex items-center gap-3 text-[1.15rem]">
-            <span className={`w-[0.7rem] h-[0.7rem] rounded-full shrink-0 ${r.tone === 'red' ? 'bg-red-400' : 'bg-amber-400'}`} />
-            <span className="truncate font-semibold">{r.text}</span>
-            <span className="ml-auto shrink-0 text-muted text-[1rem]">{r.note}</span>
-          </li>
-        ))}
-        {rows.length > 7 && <li className="text-[1rem] text-muted">+ {rows.length - 7} more</li>}
-      </ul>
+      <h2 className={`${heading} flex items-center justify-between`}>
+        <span>Needs attention</span>
+        {rows.length > 0 && <span className="normal-case tracking-normal font-semibold">{rows.length}</span>}
+      </h2>
+      {a && rows.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-[0.6rem] text-center">
+          <span className="w-[4.2rem] h-[4.2rem] rounded-full bg-emerald-500/12 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-[2.2rem] h-[2.2rem] text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+          <p className="text-[1.5rem] font-bold text-emerald-300">All clear</p>
+          <p className="text-[1.1rem] text-muted">Nothing low, expiring or broken.</p>
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-[0.5rem] min-h-0 overflow-hidden">
+          {rows.slice(0, 7).map((r, i) => (
+            <li key={i} className={`flex items-center gap-3 text-[1.15rem] rounded-xl px-[0.8rem] py-[0.45rem] border-l-[0.25rem] ${r.tone === 'red' ? 'bg-red-500/8 border-red-400' : 'bg-amber-500/8 border-amber-400'}`}>
+              <span className="truncate font-semibold">{r.text}</span>
+              <span className={`ml-auto shrink-0 text-[1rem] ${r.tone === 'red' ? 'text-red-300' : 'text-amber-200/80'}`}>{r.note}</span>
+            </li>
+          ))}
+          {rows.length > 7 && <li className="text-[1rem] text-muted px-[0.8rem]">+ {rows.length - 7} more</li>}
+        </ul>
+      )}
     </section>
   );
 }
