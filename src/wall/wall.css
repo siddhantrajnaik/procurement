@@ -22,7 +22,7 @@
 .drift { transition: transform 60s linear; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *:not(.ticker-track), *::before, *::after { animation: none !important; transition: none !important; }
 }
 
 @keyframes wall-fade { from { opacity: 0; transform: translateY(0.4rem); } to { opacity: 1; transform: none; } }
@@ -30,3 +30,7 @@
 @media (prefers-reduced-motion: reduce) { .wall-fade { animation: none; } }
 @keyframes wall-progress { from { width: 0; } to { width: 100%; } }
 .wall-progress { animation: wall-progress linear forwards; }
+
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.ticker-track { animation: ticker linear infinite; }
+.ticker-mask { -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }

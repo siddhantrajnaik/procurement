@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { Ticker } from './Ticker';
 import { announce, canPlay, quietHour, setSoundOn, soundOn, spokenTime } from './sound';
 
 // Only the project URL is referenced here — never the client or its key.
@@ -169,13 +170,14 @@ export function WallPage() {
 
   return (
     <div className="h-dvh p-[1.4rem] drift" style={{ transform: `translate(${drift.x}px, ${drift.y}px)` }}>
-      <div className="h-full grid gap-[1.1rem] grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
+      <div className="h-full grid gap-[1.1rem] grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto]">
         <Header now={now} status={status} board={board} sound={!sound ? 'off' : !unlocked ? 'blocked' : quietHour(istParts(now).h) ? 'quiet' : 'on'} />
         <Bookings board={board} now={now} />
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
           <Alerts board={board} />
         </aside>
+        <Ticker />
         <QrStrip />
       </div>
     </div>
@@ -378,7 +380,7 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
                       const width = Math.max(4, ((Math.min(DAY_END, hours(b.end)) - start) / span) * 100);
                       const isLive = b === live;
                       const done = hours(b.end) <= nowH;
-                      const narrow = width < 13;
+                      const narrow = width < 22;
                       const labelRight = left + width < 72;
                       return (
                         <div key={i} className="contents">
