@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { Papers } from './Papers';
 import { Ticker } from './Ticker';
 import { announce, canPlay, quietHour, setSoundOn, soundOn, spokenTime } from './sound';
 
@@ -171,7 +172,7 @@ export function WallPage() {
   return (
     <div className="h-dvh p-[1.4rem] drift" style={{ transform: `translate(${drift.x}px, ${drift.y}px)` }}>
       <div className="h-full grid gap-[1.1rem] grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto]">
-        <Header now={now} status={status} board={board} sound={!sound ? 'off' : !unlocked ? 'blocked' : quietHour(istParts(now).h) ? 'quiet' : 'on'} />
+        <Header now={now} status={status} board={board} />
         <Bookings board={board} now={now} />
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
@@ -196,7 +197,7 @@ const colorOf = (board: Board | null, item: string) => board?.items.find((x) => 
 
 // ---------------------------------------------------------------- header
 
-function Header({ now, status, board, sound }: { now: Date; status: string; board: Board | null; sound: 'on' | 'off' | 'blocked' | 'quiet' }) {
+function Header({ now, status, board }: { now: Date; status: string; board: Board | null }) {
   const nowH = nowHours(now);
   const todays = (board?.bookings ?? []).filter((b) => b.date === board?.today).sort(byStart);
   const live = todays.filter((b) => hours(b.start) <= nowH && nowH < hours(b.end));
@@ -252,27 +253,12 @@ function Header({ now, status, board, sound }: { now: Date; status: string; boar
 
       <div className="flex items-center gap-[1.4rem] text-right">
         {status === 'offline' && <span className="text-[1.1rem] text-amber-300">Reconnecting…</span>}
-        <SoundBadge state={sound} />
         <div className="leading-none">
           <p className="text-[3.6rem] font-extrabold tabular-nums tracking-tight">{clock(now)}</p>
           <p className="text-[1.15rem] text-muted mt-1">{longDate(now)}</p>
         </div>
       </div>
     </header>
-  );
-}
-
-function SoundBadge({ state }: { state: 'on' | 'off' | 'blocked' | 'quiet' }) {
-  const label = { on: 'Sound on', off: 'Sound off', blocked: 'Click once to turn on sound', quiet: 'Quiet hours' }[state];
-  const tone = state === 'blocked' ? 'text-amber-300 border-amber-400/40' : 'text-muted border-line';
-  return (
-    <span className={`inline-flex items-center gap-[0.4rem] rounded-full border px-[0.7rem] py-[0.2rem] text-[0.95rem] ${tone}`}>
-      <svg viewBox="0 0 24 24" className="w-[1.1rem] h-[1.1rem]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M11 5 6 9H2v6h4l5 4V5Z" />
-        {state === 'on' ? <><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a10 10 0 0 1 0 14" /></> : <path d="m22 9-6 6m0-6 6 6" />}
-      </svg>
-      {label}
-    </span>
   );
 }
 
@@ -457,20 +443,32 @@ function Orders({ board }: { board: Board | null }) {
   }, [need.length]);
   const cur = need.length ? need[i % need.length] : null;
   const incoming = o?.incoming ?? [];
-  const onTheWay = incoming.filter((x) => x.status === 'transit').length;
 
   return (
     <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0`}>
-      <h2 className={heading}>Orders</h2>
-      <div className="grid grid-cols-3 gap-[0.7rem]">
-        <Stat n={o?.waiting} label="Need quotes" />
-        <Stat n={o?.quotes} label="Comparing" />
-        <Stat n={o ? incoming.length : undefined} label="Arriving" tone={onTheWay > 0 ? 'amber' : undefined} />
-      </div>
+      <h2 className={`${heading} flex items-center justify-between`}>
+        <span>Active orders</span>
+        {incoming.length > 0 && <span className="normal-case tracking-normal font-semibold">{incoming.length}</span>}
+      </h2>
+      {o && incoming.length === 0 ? (
+        <p className="text-[1.4rem] text-muted">None</p>
+      ) : (
+        <ul className="flex flex-col gap-[0.5rem] min-h-0 overflow-hidden">
+          {incoming.slice(0, 6).map((x, k) => (
+            <li key={k} className="flex items-center justify-between gap-3 text-[1.3rem]">
+              <span className="truncate font-semibold">{x.title}</span>
+              <span className={`shrink-0 text-[0.95rem] font-semibold rounded-full px-[0.7rem] py-[0.1rem] ${x.status === 'transit' ? 'bg-amber-500/15 text-amber-300' : 'bg-blue-500/15 text-blue-300'}`}>
+                {STATUS_LABEL[x.status] ?? x.status}
+              </span>
+            </li>
+          ))}
+          {incoming.length > 6 && <li className="text-[1rem] text-muted">+ {incoming.length - 6} more</li>}
+        </ul>
+      )}
 
-      {cur ? (
+      {cur && (
         <>
-          <h3 className={`${heading} mt-1 flex items-center justify-between`}>
+          <h3 className={`${heading} mt-2 flex items-center justify-between`}>
             <span>We need quotes for</span>
             {need.length > 1 && <span className="normal-case tracking-normal font-semibold tabular-nums">{(i % need.length) + 1} / {need.length}</span>}
           </h3>
@@ -497,33 +495,8 @@ function Orders({ board }: { board: Board | null }) {
             </div>
           )}
         </>
-      ) : incoming.length > 0 ? (
-        <>
-          <h3 className={`${heading} mt-1`}>Arriving</h3>
-          <ul className="flex flex-col gap-[0.4rem] min-h-0 overflow-hidden">
-            {incoming.slice(0, 5).map((x, k) => (
-              <li key={k} className="flex items-center justify-between gap-3 text-[1.3rem]">
-                <span className="truncate font-semibold">{x.title}</span>
-                <span className={`shrink-0 text-[0.95rem] font-semibold rounded-full px-[0.7rem] py-[0.1rem] ${x.status === 'transit' ? 'bg-amber-500/15 text-amber-300' : 'bg-blue-500/15 text-blue-300'}`}>
-                  {STATUS_LABEL[x.status] ?? x.status}
-                </span>
-              </li>
-            ))}
-            {incoming.length > 5 && <li className="text-[1rem] text-muted">+ {incoming.length - 5} more</li>}
-          </ul>
-        </>
-      ) : null}
+      )}
     </section>
-  );
-}
-
-function Stat({ n, label, tone }: { n: number | undefined; label: string; tone?: 'amber' }) {
-  const active = (n ?? 0) > 0;
-  return (
-    <div className="rounded-2xl bg-paper border border-line px-[0.9rem] py-[0.7rem] min-w-0">
-      <p className={`text-[2.3rem] font-extrabold leading-none tabular-nums ${!active ? 'text-muted/60' : tone === 'amber' ? 'text-amber-300' : 'text-ink'}`}>{n ?? '–'}</p>
-      <p className="text-[1.05rem] text-muted mt-[0.35rem] leading-tight">{label}</p>
-    </div>
   );
 }
 
@@ -574,7 +547,7 @@ function QrStrip() {
   return (
     <div className="col-span-2 grid grid-cols-2 gap-[1.1rem]">
       <QrCard title="Vendors" line="Scan to see what we need to buy and send your rate." url={`${base}vendor.html`} />
-      <QrCard title="Visitors" line="Scan to log an instrument you used or something you borrowed." url={`${base}#/visit`} />
+      <Papers />
     </div>
   );
 }
