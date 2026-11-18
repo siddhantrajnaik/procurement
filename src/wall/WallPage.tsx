@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { Papers } from './Papers';
+import { Picture } from './Picture';
 import { Ticker } from './Ticker';
 import { announce, canPlay, quietHour, setSoundOn, soundOn, spokenTime } from './sound';
 
@@ -192,6 +193,7 @@ export function WallPage() {
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
           <Alerts board={board} />
+          <Picture />
         </aside>
         <Ticker />
         <QrStrip />
@@ -504,20 +506,22 @@ function Alerts({ board }: { board: Board | null }) {
   rows.sort((x, y) => Number(y.tone === 'red') - Number(x.tone === 'red'));
 
   return (
-    <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0 flex-1`}>
+    <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0 shrink-0`}>
       <h2 className={`${heading} flex items-center justify-between`}>
         <span>Needs attention</span>
         {rows.length > 0 && <span className="normal-case tracking-normal font-semibold">{rows.length}</span>}
       </h2>
       {a && rows.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-[0.6rem] text-center">
-          <span className="w-[4.2rem] h-[4.2rem] rounded-full bg-emerald-500/12 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="w-[2.2rem] h-[2.2rem] text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <div className="flex items-center gap-[1rem]">
+          <span className="w-[3.2rem] h-[3.2rem] shrink-0 rounded-full bg-emerald-500/12 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-[1.7rem] h-[1.7rem] text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </span>
-          <p className="text-[1.5rem] font-bold text-emerald-300">All clear</p>
-          <p className="text-[1.1rem] text-muted">Nothing low, expiring or broken.</p>
+          <div>
+            <p className="text-[1.4rem] font-bold text-emerald-300 leading-tight">All clear</p>
+            <p className="text-[1.05rem] text-muted leading-tight">Nothing low, expiring or broken.</p>
+          </div>
         </div>
       ) : (
         <ul className="flex flex-col gap-[0.5rem] min-h-0 overflow-hidden">
@@ -539,8 +543,8 @@ function Alerts({ board }: { board: Board | null }) {
 function QrStrip() {
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`;
   return (
-    <div className="col-span-2 grid grid-cols-2 gap-[1.1rem]">
-      <QrCard title="Vendors" line="Scan to see what we need to buy and send your rate." url={`${base}vendor.html`} />
+    <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] gap-[1.1rem]">
+      <QrCard title="Vendors" line="Scan to see what we need and send your rate." url={`${base}vendor.html`} />
       <Papers />
     </div>
   );
@@ -555,11 +559,11 @@ function QrCard({ title, line, url }: { title: string; line: string; url: string
     return () => { live = false; };
   }, [url]);
   return (
-    <section className={`${panel} flex items-center gap-[1.3rem] !p-[1rem]`}>
-      <div className="w-[9.5rem] h-[9.5rem] shrink-0 rounded-2xl bg-white p-[0.4rem] [&>svg]:w-full [&>svg]:h-full" role="img" aria-label={`QR code for ${title}`} dangerouslySetInnerHTML={{ __html: svg }} />
-      <div className="min-w-0">
-        <p className="text-[2rem] font-extrabold leading-tight">{title}</p>
-        <p className="text-[1.2rem] text-muted mt-1 leading-snug">{line}</p>
+    <section className={`${panel} flex items-center gap-[1rem] !p-[0.8rem]`}>
+      <div className="w-[7.2rem] h-[7.2rem] shrink-0 rounded-xl bg-white p-[0.3rem] [&>svg]:w-full [&>svg]:h-full" role="img" aria-label={`QR code for ${title}`} dangerouslySetInnerHTML={{ __html: svg }} />
+      <div className="min-w-0 max-w-[13rem] pr-[0.4rem]">
+        <p className="text-[1.5rem] font-extrabold leading-tight">{title}</p>
+        <p className="text-[1.05rem] text-muted mt-1 leading-snug">{line}</p>
       </div>
     </section>
   );
