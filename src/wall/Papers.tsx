@@ -8,7 +8,7 @@ const REFRESH_MS = 3 * 60 * 60_000;
 const ROTATE_MS = 10_000;
 const RETRY_MS = 5 * 60_000;
 const KEEP = 15;
-const VIRUS = '(TITLE:"virus" OR TITLE:"viral" OR TITLE:"capsid" OR TITLE:"spike") AND (TITLE:"structure" OR TITLE:"structural")';
+const VIRUS = '(TITLE:"virus" OR TITLE:"viral" OR TITLE:"capsid" OR TITLE:"spike protein") AND (TITLE:"structure" OR TITLE:"structural")';
 
 interface Paper { id: string; title: string; authors: string; journal: string; date: string; preprint: boolean }
 
@@ -87,7 +87,7 @@ export function Papers() {
           <p className="text-[1.1rem] text-muted truncate">{p.authors}</p>
           <p className="text-[1.1rem] text-muted truncate">
             {p.preprint && <span className="mr-2 rounded-full bg-accent/15 text-accent font-bold text-[0.9rem] px-[0.6rem] py-[0.05rem]">PREPRINT</span>}
-            <span className="text-ink/80 font-semibold">{p.journal}</span>{p.date && <> · {niceDate(p.date)}</>}
+            {!(p.preprint && p.journal === 'Preprint') && <span className="text-ink/80 font-semibold">{p.journal} · </span>}{p.date && niceDate(p.date)}
           </p>
         </div>
       ) : (
