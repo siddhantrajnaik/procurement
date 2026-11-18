@@ -444,7 +444,6 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
 // ---------------------------------------------------------------- orders and alerts
 
 const ROTATE_MS = 5000;
-const STATUS_LABEL: Record<string, string> = { ordered: 'Ordered', transit: 'On the way', partial: 'Part arrived' };
 
 function Orders({ board }: { board: Board | null }) {
   const o = board?.orders;
@@ -457,42 +456,16 @@ function Orders({ board }: { board: Board | null }) {
     return () => clearInterval(id);
   }, [need.length]);
   const cur = need.length ? need[i % need.length] : null;
-  const incoming = o?.incoming ?? [];
 
   return (
     <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0`}>
       <h2 className={`${heading} flex items-center justify-between`}>
-        <span>Active orders</span>
-        {incoming.length > 0 && <span className="normal-case tracking-normal font-semibold">{incoming.length}</span>}
+        <span>We need quotes for</span>
+        {need.length > 1 && <span className="normal-case tracking-normal font-semibold tabular-nums">{(i % need.length) + 1} / {need.length}</span>}
       </h2>
-      {o && incoming.length === 0 ? (
-        <p className="text-[1.4rem] text-muted">None</p>
-      ) : (
-        <ul className="flex flex-col gap-[0.5rem] min-h-0 overflow-hidden">
-          {incoming.slice(0, 6).map((x, k) => (
-            <li key={k} className="flex items-center justify-between gap-3 text-[1.3rem]">
-              <span className="truncate font-semibold">{x.title}</span>
-              <span className={`shrink-0 text-[0.95rem] font-semibold rounded-full px-[0.7rem] py-[0.1rem] ${x.status === 'transit' ? 'bg-amber-500/15 text-amber-300' : 'bg-blue-500/15 text-blue-300'}`}>
-                {STATUS_LABEL[x.status] ?? x.status}
-              </span>
-            </li>
-          ))}
-          {incoming.length > 6 && <li className="text-[1rem] text-muted">+ {incoming.length - 6} more</li>}
-        </ul>
-      )}
-
-      {o && !cur && (
-        <>
-          <h3 className={`${heading} mt-2`}>We need quotes for</h3>
-          <p className="text-[1.4rem] text-muted">None</p>
-        </>
-      )}
+      {o && !cur && <p className="text-[1.4rem] text-muted">None</p>}
       {cur && (
         <>
-          <h3 className={`${heading} mt-2 flex items-center justify-between`}>
-            <span>We need quotes for</span>
-            {need.length > 1 && <span className="normal-case tracking-normal font-semibold tabular-nums">{(i % need.length) + 1} / {need.length}</span>}
-          </h3>
           <div key={i % need.length} className="wall-fade flex items-center gap-[1rem] rounded-2xl bg-paper border border-line p-[0.8rem] min-h-0">
             {cur.photoUrl && !broken.has(cur.photoUrl) ? (
               <img src={cur.photoUrl} alt="" onError={() => setBroken((s) => new Set(s).add(cur.photoUrl!))}
