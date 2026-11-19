@@ -10,6 +10,9 @@ const RETRY_MS = 5 * 60_000;
 const KEEP = 15;
 const VIRUS = '(TITLE:"virus" OR TITLE:"viral" OR TITLE:"capsid" OR TITLE:"spike protein") AND (TITLE:"structure" OR TITLE:"structural")';
 
+// Bird and poultry papers are not wanted on the lab wall.
+const OFF_TOPIC = /(avian|birds?|chickens?|poultry|ducks?|broilers?|geese|goose|veterinary|vet microbiol)/i;
+
 interface Paper { id: string; title: string; authors: string; journal: string; date: string; preprint: boolean }
 
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
@@ -41,6 +44,7 @@ async function fetchPapers(): Promise<Paper[]> {
     .filter((r) => (seen.has(`${r.source}:${r.id}`) ? false : (seen.add(`${r.source}:${r.id}`), true)));
   return all
     .filter((r) => r.title && !/^(correction|erratum|retraction|publisher correction)\b/i.test(r.title))
+    .filter((r) => !OFF_TOPIC.test(`${r.title} ${r.journalTitle ?? ''}`))
     .map((r) => ({
       id: `${r.source}:${r.id}`,
       title: clean(r.title),
