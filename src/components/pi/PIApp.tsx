@@ -362,28 +362,16 @@ export const PIApp: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-2">
-              {instruments.map(({ eq, sessions, last, lastBy }) => (
+              {instruments.map(({ eq }) => (
                 <div key={eq.id} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{eq.name}</p>
-                      <p className="text-[11px] text-gray-500 truncate">
-                        {last && lastBy
-                          ? `Last used ${timeAgo(last)} by ${lastBy.visitorName}`
-                          : 'No use logged yet'}
-                      </p>
-                    </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-white truncate min-w-0">{eq.name}</p>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${STATUS_TONE[eq.status]}`}
                     >
                       {STATUS_LABEL[eq.status]}
                     </span>
                   </div>
-                  {sessions > 0 && (
-                    <p className="text-[11px] text-gray-400 mt-1.5">
-                      {sessions} session{sessions === 1 ? '' : 's'} in this period
-                    </p>
-                  )}
                 </div>
               ))}
             </div>
