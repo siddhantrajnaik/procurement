@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { istDayNumber } from './Thought';
+import { SONG_BANK } from './songBank';
 
 // One song a day to match the weather, English on one day and Hindi the next. The cover, album and year come from
 // Apple's free iTunes Search (no key); the picks themselves are the lists below.
@@ -163,6 +164,16 @@ const MOODS: Record<string, Mood> = {
   },
 };
 
+// The first lists above are the core; songBank.ts adds many more for every mood (no repeats of a title within a mood).
+for (const [mood, extra] of Object.entries(SONG_BANK)) {
+  const m = MOODS[mood];
+  if (!m) continue;
+  for (const lang of ['en', 'hi'] as const) {
+    const have = new Set(m[lang].map((x) => x.t.toLowerCase()));
+    for (const song of extra[lang]) if (!have.has(song.t.toLowerCase())) { m[lang].push(song); have.add(song.t.toLowerCase()); }
+  }
+}
+
 const istHour = (d: Date) =>
   Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hourCycle: 'h23' }).format(d));
 
@@ -190,24 +201,28 @@ async function lookup(song: Song): Promise<Found | null> {
   const res = await fetch(url);
   if (!res.ok) return null;
   const j = (await res.json()) as { results?: { trackName: string; collectionName?: string; releaseDate?: string; primaryGenreName?: string; artworkUrl100?: string }[] };
-  const want = song.t.toLowerCase();
+  // Apple spells Hindi titles its own way (Nahi, Samnewali...), so compare the first two words loosely.
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+  const want = norm(song.t).split(' ').slice(0, 2).join(' ');
+  const starts = (r: { trackName: string }) => norm(r.trackName).startsWith(want);
   const rows = (j.results ?? []).filter((r) => r.artworkUrl100);
   const alb = (song.alb ?? '').toLowerCase();
   // Not the right record: remixes, lo-fi and tribute versions, and compilation albums.
   const NOT_ORIGINAL = /remix|live|karaoke|cover|remaster|lofi|lo-fi|unplugged|acoustic|reprise|tribute|version|recreat|mashup|slowed|reverb/i;
   const COMPILATION = /best of|hits|greatest|collection|ultimate|essential|classics|evergreen|romantic|celebrating|retro|golden|jukebox|top \d|playlist|super/i;
   const plain = (r: { trackName: string; collectionName?: string }) =>
-    r.trackName.toLowerCase().startsWith(want) && !NOT_ORIGINAL.test(`${r.trackName} ${r.collectionName ?? ''}`);
+    starts(r) && !NOT_ORIGINAL.test(`${r.trackName} ${r.collectionName ?? ''}`);
   // Naming the right album is a strong hint, so a remastered copy of it is fine.
   const loose = (r: { trackName: string; collectionName?: string }) =>
-    r.trackName.toLowerCase().startsWith(want) && !/remix|live|karaoke|cover|lofi|lo-fi|tribute|mashup|slowed|reverb/i.test(`${r.trackName} ${r.collectionName ?? ''}`);
+    starts(r) && !/remix|live|karaoke|cover|lofi|lo-fi|tribute|mashup|slowed|reverb/i.test(`${r.trackName} ${r.collectionName ?? ''}`);
   const oldestFirst = (x: { releaseDate?: string }, y: { releaseDate?: string }) => (x.releaseDate ?? '9').localeCompare(y.releaseDate ?? '9');
   const original = rows.filter((r) => plain(r) && !COMPILATION.test(r.collectionName ?? '')).sort(oldestFirst);
   const best =
     (alb ? rows.filter(loose).find((r) => (r.collectionName ?? '').toLowerCase().includes(alb)) : undefined) ??
     original[0] ??
     rows.filter(plain).sort(oldestFirst)[0] ??
-    rows.find((r) => r.trackName.toLowerCase().startsWith(want)) ??
+    rows.find((r) => starts(r)) ??
+    (alb ? rows.find((r) => (r.collectionName ?? '').toLowerCase().includes(alb)) : undefined) ??
     rows[0];
   if (!best) return null;
   const found: Found = {
