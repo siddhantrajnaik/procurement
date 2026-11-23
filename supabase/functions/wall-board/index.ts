@@ -56,6 +56,25 @@ async function getMotm(): Promise<Motm | null> {
   return value;
 }
 
+// Quote of the day from ZenQuotes (free, asks only for a credit). Their site does not allow browser requests from
+// our page, so the function fetches it, keeps it for 6 hours, and passes on just the text and the author.
+interface Quote { text: string; author: string }
+let quoteCache: { at: number; day: string; value: Quote | null } | null = null;
+async function getQuote(day: string): Promise<Quote | null> {
+  if (quoteCache && quoteCache.day === day && Date.now() - quoteCache.at < 6 * 3_600_000) return quoteCache.value;
+  let value: Quote | null = quoteCache?.value ?? null; // on failure keep the last good one
+  try {
+    const res = await fetch('https://zenquotes.io/api/today');
+    if (res.ok) {
+      const j = (await res.json()) as { q?: string; a?: string }[];
+      const q = j?.[0];
+      if (q?.q && q?.a && q.q.length <= 220 && !/too many requests/i.test(q.q)) value = { text: q.q.trim(), author: q.a.trim() };
+    }
+  } catch { /* keep the last good one */ }
+  quoteCache = { at: Date.now(), day, value };
+  return value;
+}
+
 const istDate = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d); // YYYY-MM-DD
 const first = (n: string | null | undefined) => (n ?? '').trim().split(/\s+/)[0] || 'Someone';
 
@@ -71,7 +90,7 @@ Deno.serve(async (req) => {
   const tomorrow = istDate(new Date(now.getTime() + 86_400_000));
   const soon = istDate(new Date(now.getTime() + 30 * 86_400_000));
 
-  const [items, bookings, orders, stock, equipment, maint, people, need, motm] = await Promise.all([
+  const [items, bookings, orders, stock, equipment, maint, people, need, motm, quote] = await Promise.all([
     db.from('bookable_items').select('id, name, color').order('name'),
     db.from('bookings').select('item_id, date, start_time, end_time, purpose, booked_by').eq('status', 'confirmed').in('date', [today, tomorrow]).order('start_time'),
     db.from('purchases').select('title, status, requested_by, created_at').in('status', ['waiting', 'quotes', 'ordered', 'transit', 'partial']).order('created_at', { ascending: false }).limit(60),
@@ -81,6 +100,7 @@ Deno.serve(async (req) => {
     db.from('profiles').select('id, name').limit(100),
     db.from('purchases').select('title, catalog_number, quantity, preferred_company, vendor_photo_path').eq('vendor_visible', true).in('status', ['waiting', 'quotes']).order('created_at', { ascending: false }).limit(20),
     getMotm(),
+    getQuote(today),
   ]);
   if (items.error || bookings.error || orders.error) return json({ error: 'Could not load.' }, 500, h);
 
@@ -113,6 +133,7 @@ Deno.serve(async (req) => {
       today,
       tomorrow,
       motm,
+      quote,
       items: (items.data ?? []).map((i) => ({ name: i.name, color: i.color, hood: /hood/i.test(i.name) })),
       bookings: (bookings.data ?? []).map((b) => ({
         item: itemName.get(b.item_id as string) ?? '',

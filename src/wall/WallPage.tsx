@@ -21,6 +21,7 @@ interface Board {
   tomorrow: string;
   items: { name: string; color: string; hood: boolean }[];
   motm?: { title: string; blurb: string; image: string } | null;
+  quote?: { text: string; author: string } | null;
   bookings: Booking[];
   orders: {
     waiting: number;
@@ -203,7 +204,7 @@ export function WallPage() {
           <Picture motm={board?.motm ?? null} />
         </aside>
         <Ticker />
-        <QrStrip now={now} />
+        <QrStrip now={now} quote={board?.quote ?? null} />
       </div>
     </div>
   );
@@ -557,12 +558,12 @@ function Alerts({ board }: { board: Board | null }) {
 
 // ---------------------------------------------------------------- QR codes
 
-function QrStrip({ now }: { now: Date }) {
+function QrStrip({ now, quote }: { now: Date; quote: { text: string; author: string } | null }) {
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`;
   return (
     <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1.15fr)] gap-[1.1rem]">
       <QrCard title="Vendors" line="Scan to see what we need and send your quotes." url={`${base}vendor.html`} />
-      <Thought now={now} />
+      <Thought now={now} quote={quote} />
       <Songs now={now} />
     </div>
   );

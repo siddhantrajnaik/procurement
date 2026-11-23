@@ -51,12 +51,17 @@ export function istDayNumber(d = new Date()): number {
   return Math.floor(Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day)) / 86_400_000);
 }
 
-export function Thought({ now }: { now: Date }) {
-  const text = THOUGHTS[istDayNumber(now) % THOUGHTS.length];
+/** A famous quote of the day from the feed; if it is not available, one of the lab's own lines above. */
+export function Thought({ now, quote }: { now: Date; quote: { text: string; author: string } | null }) {
+  const own = THOUGHTS[istDayNumber(now) % THOUGHTS.length];
   return (
     <section className="rounded-3xl bg-card border border-line !p-[1.2rem] flex flex-col gap-[0.6rem] min-w-0 min-h-0" aria-label="Thought of the day">
       <h2 className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted">Thought of the day</h2>
-      <p className="flex-1 flex items-center text-[1.55rem] font-bold leading-snug text-ink">{text}</p>
+      <div className="flex-1 min-h-0 flex flex-col justify-center gap-[0.4rem]">
+        <p className="text-[1.5rem] font-bold leading-snug text-ink line-clamp-4">{quote ? `“${quote.text}”` : own}</p>
+        {quote && <p className="text-[1.15rem] text-muted truncate">{'—'} {quote.author}</p>}
+      </div>
+      {quote && <p className="text-[0.8rem] text-muted/60">Quotes by ZenQuotes.io</p>}
     </section>
   );
 }
