@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-// The card takes turns showing three things: a quote, a Hindi couplet with its meaning, and a word of the day.
+// The card takes turns showing three things: a quote and a word of the day.
 // Each changes at midnight India time. The art behind it has a quotation mark at the top left and a short line at
 // the bottom left; the words go between.
 
@@ -45,22 +45,6 @@ const THOUGHTS = [
   'A well-kept notebook is a gift to your future self.',
   'Science moves at the speed of careful people.',
   'Respect the freezer inventory, and it will respect you back.',
-];
-
-// Couplets from Kabir, Rahim, Iqbal and Ghalib (all long in the public domain), with a plain English meaning.
-interface Shayari { hi: string; en: string; by: string }
-const SHAYARI: Shayari[] = [
-  { hi: 'धीरे-धीरे रे मना, धीरे सब कुछ होय।\nमाली सींचे सौ घड़ा, ऋतु आए फल होय॥', en: 'Slowly, slowly, O mind, everything comes in time. The gardener may water a hundred pots, but fruit arrives only in its season.', by: 'Kabir' },
-  { hi: 'पोथी पढ़ि पढ़ि जग मुआ, पंडित भया न कोय।\nढाई आखर प्रेम का, पढ़े सो पंडित होय॥', en: 'Reading books, the world wore itself out without turning wise. Whoever learns two and a half letters of love is truly learned.', by: 'Kabir' },
-  { hi: 'काल करै सो आज कर, आज करै सो अब।\nपल में परलै होएगी, बहुरि करेगा कब॥', en: "Do tomorrow's work today and today's work now. A moment can change everything. When will you do it again?", by: 'Kabir' },
-  { hi: 'निंदक नियरे राखिए, आँगन कुटी छवाय।\nबिन पानी, साबुन बिना, निर्मल करे सुभाय॥', en: 'Keep your critic close, give him a hut in your courtyard. Without water or soap he cleans your character.', by: 'Kabir' },
-  { hi: 'जिन खोजा तिन पाइयाँ, गहरे पानी पैठ।\nमैं बपुरा बूडन डरा, रहा किनारे बैठ॥', en: 'Those who searched found, by diving into deep water. I was afraid of drowning and stayed on the shore.', by: 'Kabir' },
-  { hi: 'ऐसी बानी बोलिए, मन का आपा खोय।\nऔरन को सीतल करै, आपहुँ सीतल होय॥', en: 'Speak in a way that drops your ego, so that you comfort others and yourself.', by: 'Kabir' },
-  { hi: 'रहिमन देखि बड़ेन को, लघु न दीजिए डारि।\nजहाँ काम आवै सुई, कहा करै तरवारि॥', en: 'Seeing the big, do not discard the small. Where a needle is needed, what can a sword do?', by: 'Rahim' },
-  { hi: 'रहिमन धागा प्रेम का, मत तोरो चटकाय।\nटूटे पे फिर ना जुरै, जुरै गाँठ परि जाय॥', en: 'Do not snap the thread of trust. Once broken it will not join again, or it joins with a knot.', by: 'Rahim' },
-  { hi: 'सितारों से आगे जहाँ और भी हैं,\nअभी इश्क़ के इम्तिहाँ और भी हैं।', en: 'There are worlds beyond the stars, and more tests of passion still to come.', by: 'Iqbal' },
-  { hi: 'ख़ुदी को कर बुलंद इतना कि हर तक़दीर से पहले,\nख़ुदा बंदे से ख़ुद पूछे, बता तेरी रज़ा क्या है।', en: 'Raise yourself so high that before every decree, God himself asks you: what is your wish?', by: 'Iqbal' },
-  { hi: 'बाज़ीचा-ए-अतफ़ाल है दुनिया मिरे आगे,\nहोता है शब-ओ-रोज़ तमाशा मिरे आगे।', en: "The world is a children's playground before me; day and night a spectacle unfolds.", by: 'Ghalib' },
 ];
 
 interface Word { w: string; en: string; hi: string }
@@ -147,8 +131,8 @@ async function fetchWord(now: Date): Promise<Word | null> {
 }
 
 const SLIDE_MS = 20_000;
-type Mode = 'quote' | 'shayari' | 'word';
-const LABEL: Record<Mode, string> = { quote: 'Quote', shayari: 'Shayari', word: 'Word of the day' };
+type Mode = 'quote' | 'word';
+const LABEL: Record<Mode, string> = { quote: 'Quote', word: 'Word of the day' };
 
 /** A famous quote from the feed (or one of the lab's own lines), then a couplet, then a word. */
 export function Thought({ now, quote }: { now: Date; quote: { text: string; author: string } | null }) {
@@ -158,9 +142,8 @@ export function Thought({ now, quote }: { now: Date; quote: { text: string; auth
     const id = setInterval(() => setN((x) => x + 1), SLIDE_MS);
     return () => clearInterval(id);
   }, []);
-  const mode: Mode = (['quote', 'shayari', 'word'] as const)[n % 3];
+  const mode: Mode = (['quote', 'word'] as const)[n % 2];
   const own = THOUGHTS[day % THOUGHTS.length];
-  const sh = SHAYARI[day % SHAYARI.length];
   // Today's word from the web; my own list is the fallback.
   const [online, setOnline] = useState<Word | null>(() => {
     try {
@@ -206,16 +189,6 @@ export function Thought({ now, quote }: { now: Date; quote: { text: string; auth
               <span className="line-clamp-4">{quote ? quote.text : own}</span>
             </p>
             {quote && <p className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-muted truncate">{'—'} {quote.author}</p>}
-          </>
-        )}
-
-        {mode === 'shayari' && (
-          <>
-            <div className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex flex-col justify-center gap-[0.35rem]">
-              <p lang="hi" className="whitespace-pre-line text-[1.3rem] font-bold leading-snug text-ink">{sh.hi}</p>
-              <p className="text-[0.95rem] leading-snug text-muted line-clamp-2">{sh.en}</p>
-            </div>
-            <p className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-muted truncate">{'—'} {sh.by}</p>
           </>
         )}
 
