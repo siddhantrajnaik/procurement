@@ -112,6 +112,40 @@ export function istDayNumber(d = new Date()): number {
   return Math.floor(Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day)) / 86_400_000);
 }
 
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** Today's word from Wiktionary's own "word of the day" page (free), with a Hindi gloss from MyMemory (free). */
+async function fetchWord(now: Date): Promise<Word | null> {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' })
+      .formatToParts(now).map((x) => [x.type, x.value])
+  );
+  const page = `Wiktionary:Word_of_the_day/${p.year}/${MONTHS[Number(p.month) - 1]}_${Number(p.day)}`;
+  const res = await fetch(`https://en.wiktionary.org/w/api.php?action=parse&page=${encodeURIComponent(page)}&prop=text&format=json&origin=*`);
+  if (!res.ok) return null;
+  const html = ((await res.json()) as { parse?: { text?: { '*': string } } }).parse?.text?.['*'];
+  if (!html) return null;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const w = doc.querySelector('.mf-wotd a[title]')?.getAttribute('title')?.trim();
+  const li = doc.querySelector('ol li');
+  if (!w || !li) return null;
+  const c = li.cloneNode(true) as HTMLElement;
+  c.querySelectorAll('ul, ol, dl, .h-usage-example').forEach((e) => e.remove());
+  let en = (c.textContent ?? '').replace(/\s+/g, ' ').trim().replace(/^\([^)]*\)\s*/, '').split(';')[0].trim();
+  if (en.length > 110) en = `${en.slice(0, 107).trimEnd()}…`;
+  if (!en) return null;
+  let hi = '';
+  try {
+    const t = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en%7Chi`);
+    if (t.ok) {
+      const tj = (await t.json()) as { responseData?: { translatedText?: string }; quotaFinished?: boolean };
+      const text = tj.responseData?.translatedText?.trim() ?? '';
+      if (text && !tj.quotaFinished && text.toLowerCase() !== w.toLowerCase() && /[\u0900-\u097F]/.test(text)) hi = text;
+    }
+  } catch { /* English only */ }
+  return { w, en: en.charAt(0).toLowerCase() + en.slice(1), hi };
+}
+
 const SLIDE_MS = 20_000;
 type Mode = 'quote' | 'shayari' | 'word';
 const LABEL: Record<Mode, string> = { quote: 'Quote', shayari: 'Shayari', word: 'Word of the day' };
@@ -127,7 +161,31 @@ export function Thought({ now, quote }: { now: Date; quote: { text: string; auth
   const mode: Mode = (['quote', 'shayari', 'word'] as const)[n % 3];
   const own = THOUGHTS[day % THOUGHTS.length];
   const sh = SHAYARI[day % SHAYARI.length];
-  const wd = WORDS[day % WORDS.length];
+  // Today's word from the web; my own list is the fallback.
+  const [online, setOnline] = useState<Word | null>(() => {
+    try {
+      const hit = JSON.parse(localStorage.getItem('mb.wall.wotd') ?? 'null') as { day: number; word: Word } | null;
+      return hit && hit.day === day ? hit.word : null;
+    } catch { return null; }
+  });
+  useEffect(() => {
+    let live = true;
+    try {
+      const hit = JSON.parse(localStorage.getItem('mb.wall.wotd') ?? 'null') as { day: number; word: Word } | null;
+      if (hit && hit.day === day) { setOnline(hit.word); return; }
+    } catch { /* fetch it */ }
+    setOnline(null);
+    fetchWord(now)
+      .then((w) => {
+        if (!live || !w) return;
+        setOnline(w);
+        try { localStorage.setItem('mb.wall.wotd', JSON.stringify({ day, word: w })); } catch { /* private mode */ }
+      })
+      .catch(() => { /* keep my own list */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day]);
+  const wd = online ?? WORDS[day % WORDS.length];
 
   return (
     <section
@@ -167,7 +225,7 @@ export function Thought({ now, quote }: { now: Date; quote: { text: string; auth
               <p className="text-[2rem] font-extrabold leading-none tracking-tight text-ink">{wd.w}</p>
               <p className="text-[1.2rem] leading-snug text-muted line-clamp-2">{wd.en}</p>
             </div>
-            <p lang="hi" className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-accent truncate">{wd.hi}</p>
+            {wd.hi && <p lang="hi" className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-accent truncate">{wd.hi}</p>}
           </>
         )}
       </div>

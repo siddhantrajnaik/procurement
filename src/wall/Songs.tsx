@@ -196,10 +196,50 @@ function dominantColour(url: string): Promise<RGB | null> {
   });
 }
 
+interface ChartEntry {
+  'im:name': { label: string };
+  'im:artist': { label: string };
+  'im:image': { label: string }[];
+  'im:collection'?: { 'im:name': { label: string } };
+  'im:releaseDate'?: { label: string };
+  category?: { attributes?: { label?: string } };
+}
+interface Trend { song: Song; found: Found; country: 'in' | 'us' }
+const NOT_A_SONG = /ringtone|remix|theme|score|karaoke|instrumental|soundtrack|lofi|slowed|sped|\[(tamil|telugu|malayalam|kannada|bengali|marathi|gujarati)\]/i;
+
+/** One song from Apple's top-songs chart (India or the US, taking turns), kept for the day on the device. */
+async function fetchTrend(day: number): Promise<Trend | null> {
+  const key = `mb.wall.trend.${day}`;
+  try {
+    const hit = localStorage.getItem(key);
+    if (hit) return JSON.parse(hit) as Trend;
+  } catch { /* fetch it */ }
+  const country: 'in' | 'us' = day % 2 === 0 ? 'us' : 'in';
+  const res = await fetch(`https://itunes.apple.com/${country}/rss/topsongs/limit=40/json`);
+  if (!res.ok) return null;
+  const j = (await res.json()) as { feed?: { entry?: ChartEntry[] } };
+  const list = (j.feed?.entry ?? []).filter((e) => !NOT_A_SONG.test(e['im:name'].label));
+  if (!list.length) return null;
+  const e = list[Math.floor(day / 3) % list.length];
+  const trend: Trend = {
+    country,
+    song: { t: e['im:name'].label.replace(/\s*[([].*$/, '').trim(), a: e['im:artist'].label },
+    found: {
+      cover: (e['im:image'].at(-1)?.label ?? '').replace(/\d+x\d+bb/, '600x600bb'),
+      album: (e['im:collection']?.['im:name'].label ?? '').replace(/\s+-\s+(Single|EP)$/i, ''),
+      year: e['im:releaseDate']?.label.slice(0, 4) ?? '',
+      genre: e.category?.attributes?.label ?? '',
+    },
+  };
+  try { localStorage.setItem(key, JSON.stringify(trend)); } catch { /* private mode */ }
+  return trend;
+}
+
 export function Songs({ now }: { now: Date }) {
   const [wx, setWx] = useState<{ code: number; temp: number } | null>(null);
   const [found, setFound] = useState<Found | null>(null);
   const [tint, setTint] = useState<RGB | null>(null);
+  const [trend, setTrend] = useState<Trend | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -227,18 +267,31 @@ export function Songs({ now }: { now: Date }) {
   useEffect(() => {
     let live = true;
     setFound(null);
-    setTint(null);
     lookup(song)
-      .then(async (f) => {
-        if (!live) return;
-        setFound(f);
-        const c = f?.cover ? await dominantColour(f.cover) : null;
-        if (live) setTint(c);
-      })
+      .then((f) => { if (live) setFound(f); })
       .catch(() => { /* text only */ });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songKey]);
+
+  // Every third day the song comes from the charts instead of the weather list.
+  const trendDay = day % 3 === 2;
+  useEffect(() => {
+    if (!trendDay) { setTrend(null); return; }
+    let live = true;
+    fetchTrend(day).then((t) => { if (live) setTrend(t); }).catch(() => { /* keep the weather pick */ });
+    return () => { live = false; };
+  }, [day, trendDay]);
+  const trending = trendDay ? trend : null;
+  const shownSong = trending ? trending.song : song;
+  const shownFound = trending ? trending.found : found;
+
+  useEffect(() => {
+    let live = true;
+    setTint(null);
+    if (shownFound?.cover) void dominantColour(shownFound.cover).then((c) => { if (live) setTint(c); });
+    return () => { live = false; };
+  }, [shownFound?.cover]);
 
   // A glassy wash of the cover's colour over the dark card: stronger in one corner, fading to the card's own dark.
   const glass: React.CSSProperties | undefined = tint
@@ -262,22 +315,24 @@ export function Songs({ now }: { now: Date }) {
       style={glass}
       aria-label="Song for today"
     >
-      {found?.cover ? (
-        <img src={found.cover} alt="" className="h-full max-h-[9.5rem] aspect-square rounded-xl object-cover bg-paper shrink-0" />
+      {shownFound?.cover ? (
+        <img src={shownFound.cover} alt="" className="h-full max-h-[9.5rem] aspect-square rounded-xl object-cover bg-paper shrink-0" />
       ) : (
         <div className="h-full max-h-[9.5rem] aspect-square rounded-xl bg-paper border border-line shrink-0" aria-hidden />
       )}
       <div className="min-w-0 flex flex-col gap-[0.3rem]">
         <p className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted truncate">Today's song</p>
-        <p className="text-[1.6rem] font-extrabold leading-tight line-clamp-2">{song.t}</p>
+        <p className="text-[1.6rem] font-extrabold leading-tight line-clamp-2">{shownSong.t}</p>
         <p className="text-[1.15rem] text-ink/80 truncate">
-          <span className={`mr-2 rounded-full text-[0.8rem] font-bold px-[0.5rem] py-[0.05rem] ${lang === 'hi' ? 'bg-accent/15 text-accent' : 'bg-white/10 text-ink'}`}>{lang === 'hi' ? 'HI' : 'EN'}</span>
-          {song.a}
+          <span className={`mr-2 rounded-full text-[0.8rem] font-bold px-[0.5rem] py-[0.05rem] ${trending || lang === 'hi' ? 'bg-accent/15 text-accent' : 'bg-white/10 text-ink'}`}>{trending ? 'TRENDING' : lang === 'hi' ? 'HI' : 'EN'}</span>
+          {shownSong.a}
         </p>
-        {found && (found.album || found.year) && (
-          <p className="text-[1rem] text-muted truncate">{[found.album, found.year, found.genre].filter(Boolean).join(' · ')}</p>
+        {shownFound && (shownFound.album || shownFound.year) && (
+          <p className="text-[1rem] text-muted truncate">{[shownFound.album, shownFound.year, shownFound.genre].filter(Boolean).join(' · ')}</p>
         )}
-        <p className="text-[1rem] text-muted/80 truncate">For a {mood.label.toLowerCase()}{wx ? ` · ${Math.round(wx.temp)}°C` : ''}</p>
+        <p className="text-[1rem] text-muted/80 truncate">
+          {trending ? `Trending in ${trending.country === 'in' ? 'India' : 'the US'} today` : `For a ${mood.label.toLowerCase()}${wx ? ` · ${Math.round(wx.temp)}°C` : ''}`}
+        </p>
       </div>
     </section>
   );
