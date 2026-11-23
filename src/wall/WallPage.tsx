@@ -75,7 +75,11 @@ export function WallPage() {
   const [board, setBoard] = useState<Board | null>(null);
   const [status, setStatus] = useState<'loading' | 'ok' | 'offline' | 'badkey'>('loading');
   const [updated, setUpdated] = useState<Date | null>(null); // when the screen last got fresh data
-  const [loadedAt] = useState(() => new Date()); // when this page was opened: 03:00 shows the nightly reload worked
+  // The device's own clock can be wrong (an old iMac's clock drifts), so the feed's server time sets the record
+  // straight: skew is how far the device is off, and every clock on the screen adds it.
+  const skew = useRef(0);
+  const trueNow = () => new Date(Date.now() + skew.current);
+  const [loadedRaw] = useState(() => Date.now()); // when this page was opened: 03:00 shows the nightly reload worked
   const [now, setNow] = useState(() => new Date());
   const [drift, setDrift] = useState({ x: 0, y: 0 });
 
@@ -85,9 +89,13 @@ export function WallPage() {
       const res = await fetch(FEED_URL, { headers: { 'x-wall-key': key } });
       if (res.status === 401 || res.status === 503) { setStatus('badkey'); return; }
       if (!res.ok) throw new Error();
-      setBoard(await res.json());
+      const data = (await res.json()) as Board & { now?: string };
+      const server = data.now ? Date.parse(data.now) : NaN;
+      if (Number.isFinite(server)) skew.current = server - Date.now();
+      setBoard(data);
+      setNow(trueNow());
       setStatus('ok');
-      setUpdated(new Date());
+      setUpdated(trueNow());
     } catch {
       setStatus((s) => (s === 'ok' ? 'offline' : s === 'loading' ? 'offline' : s)); // keep showing the last good data
     }
@@ -99,7 +107,7 @@ export function WallPage() {
     return () => clearInterval(id);
   }, [load]);
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 15_000);
+    const id = setInterval(() => setNow(trueNow()), 15_000);
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
@@ -138,9 +146,9 @@ export function WallPage() {
   // Every night at 3 AM India time: reload, which fetches a fresh paper list and any new version of this page.
   useEffect(() => {
     const id = setInterval(() => {
-      const { h, m } = istParts(new Date());
+      const { h, m } = istParts(trueNow());
       if (h !== 3 || m > 5) return;
-      const stamp = new Date().toISOString().slice(0, 10);
+      const stamp = trueNow().toISOString().slice(0, 10);
       try {
         if (sessionStorage.getItem('mb.wall.reloaded') === stamp) return;
         sessionStorage.setItem('mb.wall.reloaded', stamp);
@@ -205,7 +213,7 @@ export function WallPage() {
   return (
     <div className="h-dvh p-[1.4rem] drift" style={{ transform: `translate(${drift.x}px, ${drift.y}px)` }}>
       <div className="h-full grid gap-[1.1rem] grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto]">
-        <Header now={now} status={status} board={board} updated={updated} loadedAt={loadedAt} />
+        <Header now={now} status={status} board={board} updated={updated} loadedAt={new Date(loadedRaw + skew.current)} />
         <Bookings board={board} now={now} />
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
