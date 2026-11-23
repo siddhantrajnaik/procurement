@@ -6,113 +6,159 @@ import { istDayNumber } from './Thought';
 const WEATHER = 'https://api.open-meteo.com/v1/forecast?latitude=28.545&longitude=77.192&current=temperature_2m,weather_code&timezone=Asia%2FKolkata';
 const REFRESH_MS = 30 * 60_000;
 
-type Song = { t: string; a: string };
+type Song = { t: string; a: string; alb?: string };
 interface Mood { label: string; en: Song[]; hi: Song[] }
 
+// The lab's taste, not the charts: classic and 90s American rock for the English songs, and old Hindi (Kishore Kumar,
+// the 70s and the 90s) for the Hindi ones. English most days, Hindi one day in three. `alb` is the album or film,
+// used only to find the right cover.
 const MOODS: Record<string, Mood> = {
   rain: {
     label: 'Rainy day',
     en: [
-      { t: 'Riders on the Storm', a: 'The Doors' },
-      { t: 'Here Comes the Rain Again', a: 'Eurythmics' },
-      { t: 'Set Fire to the Rain', a: 'Adele' },
-      { t: "Raindrops Keep Fallin' on My Head", a: 'B.J. Thomas' },
+      { t: 'Riders on the Storm', a: 'The Doors', alb: 'L.A. Woman' },
+      { t: 'Have You Ever Seen the Rain?', a: 'Creedence Clearwater Revival', alb: 'Pendulum' },
+      { t: "Who'll Stop the Rain", a: 'Creedence Clearwater Revival', alb: "Cosmo's Factory" },
+      { t: 'November Rain', a: "Guns N' Roses", alb: 'Use Your Illusion I' },
+      { t: 'Purple Rain', a: 'Prince', alb: 'Purple Rain' },
+      { t: 'Fire and Rain', a: 'James Taylor', alb: 'Sweet Baby James' },
+      { t: 'Rain King', a: 'Counting Crows', alb: 'August and Everything After' },
     ],
     hi: [
-      { t: 'Rimjhim Gire Sawan', a: 'Kishore Kumar' },
-      { t: 'Barso Re', a: 'Shreya Ghoshal' },
-      { t: 'Tip Tip Barsa Paani', a: 'Udit Narayan, Alka Yagnik' },
-      { t: 'Bheegi Bheegi Raaton Mein', a: 'Adnan Sami' },
+      { t: 'Rimjhim Gire Sawan', a: 'Kishore Kumar', alb: 'Manzil' },
+      { t: 'Ek Ladki Bheegi Bhaagi Si', a: 'Kishore Kumar', alb: 'Chalti Ka Naam Gaadi' },
+      { t: 'Aaj Rapat Jaayen To', a: 'Kishore Kumar', alb: 'Namak Halaal' },
+      { t: 'Pyar Hua Ikrar Hua', a: 'Manna Dey, Lata Mangeshkar', alb: 'Shree 420' },
+      { t: 'Tip Tip Barsa Paani', a: 'Udit Narayan, Alka Yagnik', alb: 'Mohra' },
     ],
   },
   hot: {
     label: 'Hot day',
     en: [
-      { t: 'Summer Breeze', a: 'Seals & Crofts' },
-      { t: 'Walking on Sunshine', a: 'Katrina and the Waves' },
-      { t: 'Hot Fun in the Summertime', a: 'Sly & the Family Stone' },
-      { t: "I'm Yours", a: 'Jason Mraz' },
+      { t: 'Summer in the City', a: "The Lovin' Spoonful", alb: "Hums of the Lovin' Spoonful" },
+      { t: 'Hot Fun in the Summertime', a: 'Sly & The Family Stone', alb: 'Greatest Hits' },
+      { t: 'Hotel California', a: 'Eagles', alb: 'Hotel California' },
+      { t: "Surfin' U.S.A.", a: 'The Beach Boys', alb: "Surfin' U.S.A." },
+      { t: 'Smooth', a: 'Santana, Rob Thomas', alb: 'Supernatural' },
+      { t: 'Californication', a: 'Red Hot Chili Peppers', alb: 'Californication' },
+      { t: 'Santeria', a: 'Sublime', alb: 'Sublime' },
     ],
     hi: [
-      { t: 'Senorita', a: 'Zindagi Na Milegi Dobara' },
-      { t: 'Gallan Goodiyaan', a: 'Dil Dhadakne Do' },
-      { t: 'Ilahi', a: 'Arijit Singh' },
-      { t: 'Dil Chahta Hai', a: 'Shankar Mahadevan' },
+      { t: 'Mere Sapno Ki Rani', a: 'Kishore Kumar', alb: 'Aradhana' },
+      { t: 'Roop Tera Mastana', a: 'Kishore Kumar', alb: 'Aradhana' },
+      { t: 'Pal Pal Dil Ke Paas', a: 'Kishore Kumar', alb: 'Blackmail' },
+      { t: 'Zindagi Ek Safar Hai Suhana', a: 'Kishore Kumar', alb: 'Andaz' },
+      { t: 'Chhookar Mere Man Ko', a: 'Kishore Kumar', alb: 'Yaarana' },
     ],
   },
   cool: {
     label: 'Cool day',
     en: [
-      { t: "California Dreamin'", a: 'The Mamas & the Papas' },
-      { t: 'Fix You', a: 'Coldplay' },
-      { t: 'Dreams', a: 'Fleetwood Mac' },
-      { t: 'Better Together', a: 'Jack Johnson' },
+      { t: "California Dreamin'", a: 'The Mamas & The Papas', alb: 'If You Can Believe Your Eyes and Ears' },
+      { t: 'Landslide', a: 'Fleetwood Mac', alb: 'Fleetwood Mac' },
+      { t: 'Simple Man', a: 'Lynyrd Skynyrd', alb: 'Pronounced' },
+      { t: 'Peaceful Easy Feeling', a: 'Eagles', alb: 'Eagles' },
+      { t: "Free Fallin'", a: 'Tom Petty', alb: 'Full Moon Fever' },
+      { t: 'Time in a Bottle', a: 'Jim Croce', alb: "You Don't Mess Around with Jim" },
+      { t: 'Fast Car', a: 'Tracy Chapman', alb: 'Tracy Chapman' },
     ],
     hi: [
-      { t: 'Tum Se Hi', a: 'Mohit Chauhan' },
-      { t: 'Kun Faya Kun', a: 'A. R. Rahman' },
-      { t: 'Agar Tum Saath Ho', a: 'Arijit Singh, Alka Yagnik' },
-      { t: 'Tum Ho', a: 'Mohit Chauhan' },
+      { t: 'Chingari Koi Bhadke', a: 'Kishore Kumar', alb: 'Amar Prem' },
+      { t: 'Tere Bina Zindagi Se Koi', a: 'Kishore Kumar, Lata Mangeshkar', alb: 'Aandhi' },
+      { t: 'Mere Naina Sawan Bhadon', a: 'Kishore Kumar', alb: 'Mehbooba' },
+      { t: 'Tujhe Dekha To Yeh Jaana Sanam', a: 'Kumar Sanu, Lata Mangeshkar', alb: 'Dilwale Dulhania Le Jayenge' },
+      { t: 'Kabhi Kabhi Mere Dil Mein', a: 'Mukesh', alb: 'Kabhi Kabhie' },
     ],
   },
   fog: {
     label: 'Foggy day',
     en: [
-      { t: 'Fade Into You', a: 'Mazzy Star' },
-      { t: 'Mad World', a: 'Gary Jules' },
-      { t: 'Put Your Records On', a: 'Corinne Bailey Rae' },
-      { t: 'Sweet Disposition', a: 'The Temper Trap' },
+      { t: 'Fade Into You', a: 'Mazzy Star', alb: 'So Tonight That I Might See' },
+      { t: 'Losing My Religion', a: 'R.E.M.', alb: 'Out of Time' },
+      { t: 'Black', a: 'Pearl Jam', alb: 'Ten' },
+      { t: 'The Sound of Silence', a: 'Simon & Garfunkel', alb: 'Sounds of Silence' },
+      { t: 'Wicked Game', a: 'Chris Isaak', alb: 'Heart Shaped World' },
+      { t: 'Nothing Else Matters', a: 'Metallica', alb: 'Metallica' },
     ],
     hi: [
-      { t: 'Phir Le Aaya Dil', a: 'Arijit Singh' },
-      { t: 'Tere Bina', a: 'A. R. Rahman' },
-      { t: 'Raabta', a: 'Arijit Singh' },
-      { t: 'Kabira', a: 'Tochi Raina, Rekha Bhardwaj' },
+      { t: 'Kuch To Log Kahenge', a: 'Kishore Kumar', alb: 'Amar Prem' },
+      { t: 'Musafir Hoon Yaaron', a: 'Kishore Kumar', alb: 'Parichay' },
+      { t: 'Chalte Chalte Mere Yeh Geet Yaad Rakhna', a: 'Kishore Kumar', alb: 'Chalte Chalte' },
+      { t: 'Dil Dhoondta Hai', a: 'Bhupinder Singh, Lata Mangeshkar', alb: 'Mausam' },
     ],
   },
   morning: {
     label: 'Bright morning',
     en: [
-      { t: 'Here Comes the Sun', a: 'The Beatles' },
-      { t: 'Good Day Sunshine', a: 'The Beatles' },
-      { t: 'Three Little Birds', a: 'Bob Marley' },
-      { t: 'Banana Pancakes', a: 'Jack Johnson' },
+      { t: "Don't Stop Believin'", a: 'Journey', alb: 'Escape' },
+      { t: 'Learn to Fly', a: 'Foo Fighters', alb: 'There Is Nothing Left to Lose' },
+      { t: 'Jump', a: 'Van Halen', alb: '1984' },
+      { t: 'Africa', a: 'Toto', alb: 'Toto IV' },
+      { t: 'Born to Run', a: 'Bruce Springsteen', alb: 'Born to Run' },
+      { t: 'Good Riddance (Time of Your Life)', a: 'Green Day', alb: 'Nimrod' },
+      { t: 'Walk Like an Egyptian', a: 'The Bangles', alb: 'Different Light' },
     ],
     hi: [
-      { t: 'Pehla Nasha', a: 'Udit Narayan, Sadhana Sargam' },
-      { t: 'Zindagi Ek Safar Hai Suhana', a: 'Kishore Kumar' },
-      { t: 'Kar Har Maidan Fateh', a: 'Sukhwinder Singh, Shreya Ghoshal' },
-      { t: 'Kho Gaye Hum Kahan', a: 'Jasleen Royal, Prateek Kuhad' },
+      { t: 'Zindagi Ek Safar Hai Suhana', a: 'Kishore Kumar', alb: 'Andaz' },
+      { t: 'Pehla Nasha', a: 'Udit Narayan, Sadhana Sargam', alb: 'Jo Jeeta Wohi Sikandar' },
+      { t: 'Yeh Jo Mohabbat Hai', a: 'Kishore Kumar', alb: 'Kati Patang' },
+      { t: 'O Saathi Re', a: 'Kishore Kumar', alb: 'Muqaddar Ka Sikandar' },
+      { t: 'Chhookar Mere Man Ko', a: 'Kishore Kumar', alb: 'Yaarana' },
     ],
   },
   evening: {
     label: 'Golden evening',
     en: [
-      { t: 'Golden Hour', a: 'JVKE' },
-      { t: 'Sunset Lover', a: 'Petit Biscuit' },
-      { t: 'Waiting on the World to Change', a: 'John Mayer' },
-      { t: 'Better Together', a: 'Jack Johnson' },
+      { t: 'Take It Easy', a: 'Eagles', alb: 'Eagles' },
+      { t: "Sweet Child o' Mine", a: "Guns N' Roses", alb: 'Appetite for Destruction' },
+      { t: 'Dust in the Wind', a: 'Kansas', alb: 'Point of Know Return' },
+      { t: 'More Than a Feeling', a: 'Boston', alb: 'Boston' },
+      { t: 'Faithfully', a: 'Journey', alb: 'Frontiers' },
+      { t: 'Wanted Dead or Alive', a: 'Bon Jovi', alb: 'Slippery When Wet' },
+      { t: 'Carry On Wayward Son', a: 'Kansas', alb: 'Leftoverture' },
     ],
     hi: [
-      { t: 'Tum Hi Ho', a: 'Arijit Singh' },
-      { t: 'Channa Mereya', a: 'Arijit Singh' },
-      { t: 'Raataan Lambiyan', a: 'Jubin Nautiyal' },
-      { t: 'Kabira', a: 'Tochi Raina, Rekha Bhardwaj' },
+      { t: 'Yeh Shaam Mastani', a: 'Kishore Kumar', alb: 'Kati Patang' },
+      { t: 'Pyar Deewana Hota Hai', a: 'Kishore Kumar', alb: 'Kati Patang' },
+      { t: 'Aanewala Pal Janewala Hai', a: 'Kishore Kumar', alb: 'Golmaal' },
+      { t: 'Kuch Kuch Hota Hai', a: 'Udit Narayan, Alka Yagnik', alb: 'Kuch Kuch Hota Hai' },
+      { t: 'Jaadu Teri Nazar', a: 'Udit Narayan', alb: 'Darr' },
+    ],
+  },
+  night: {
+    label: 'Quiet night',
+    en: [
+      { t: 'Nightswimming', a: 'R.E.M.', alb: 'Automatic for the People' },
+      { t: 'Night Moves', a: 'Bob Seger', alb: 'Night Moves' },
+      { t: 'Landslide', a: 'Fleetwood Mac', alb: 'Fleetwood Mac' },
+      { t: 'The Sound of Silence', a: 'Simon & Garfunkel', alb: 'Sounds of Silence' },
+      { t: 'Wicked Game', a: 'Chris Isaak', alb: 'Heart Shaped World' },
+      { t: 'Fast Car', a: 'Tracy Chapman', alb: 'Tracy Chapman' },
+    ],
+    hi: [
+      { t: 'Raat Kali Ek Khwab Mein Aayi', a: 'Kishore Kumar', alb: 'Buddha Mil Gaya' },
+      { t: 'Phir Wahi Raat Hai', a: 'Kishore Kumar', alb: 'Ghar' },
+      { t: 'Yeh Raaten Yeh Mausam', a: 'Kishore Kumar, Asha Bhosle', alb: 'Dilli Ka Thug' },
+      { t: 'Tere Bina Zindagi Se Koi', a: 'Kishore Kumar, Lata Mangeshkar', alb: 'Aandhi' },
     ],
   },
   easy: {
     label: 'Easy day',
     en: [
-      { t: 'Put Your Records On', a: 'Corinne Bailey Rae' },
-      { t: 'Banana Pancakes', a: 'Jack Johnson' },
-      { t: "I'm Yours", a: 'Jason Mraz' },
-      { t: 'Sweet Disposition', a: 'The Temper Trap' },
+      { t: 'Take It Easy', a: 'Eagles', alb: 'Eagles' },
+      { t: 'Peaceful Easy Feeling', a: 'Eagles', alb: 'Eagles' },
+      { t: 'Simple Man', a: 'Lynyrd Skynyrd', alb: 'Pronounced' },
+      { t: "Free Fallin'", a: 'Tom Petty', alb: 'Full Moon Fever' },
+      { t: 'Under the Bridge', a: 'Red Hot Chili Peppers', alb: 'Blood Sugar Sex Magik' },
+      { t: 'More Than a Feeling', a: 'Boston', alb: 'Boston' },
+      { t: 'Time in a Bottle', a: 'Jim Croce', alb: "You Don't Mess Around with Jim" },
     ],
     hi: [
-      { t: 'Kho Gaye Hum Kahan', a: 'Jasleen Royal, Prateek Kuhad' },
-      { t: 'Ilahi', a: 'Arijit Singh' },
-      { t: 'Raataan Lambiyan', a: 'Jubin Nautiyal' },
-      { t: 'Tera Ban Jaunga', a: 'Akhil Sachdeva' },
+      { t: 'Pal Pal Dil Ke Paas', a: 'Kishore Kumar', alb: 'Blackmail' },
+      { t: 'Mere Sapno Ki Rani', a: 'Kishore Kumar', alb: 'Aradhana' },
+      { t: 'Jaadu Teri Nazar', a: 'Udit Narayan', alb: 'Darr' },
+      { t: 'Kuch Kuch Hota Hai', a: 'Udit Narayan, Alka Yagnik', alb: 'Kuch Kuch Hota Hai' },
+      { t: 'Tujhe Dekha To Yeh Jaana Sanam', a: 'Kumar Sanu, Lata Mangeshkar', alb: 'Dilwale Dulhania Le Jayenge' },
     ],
   },
 };
@@ -125,6 +171,7 @@ function pickMood(code: number, temp: number, hour: number): string {
   if (code === 45 || code === 48) return 'fog';
   if (temp >= 34) return 'hot';
   if (temp <= 15) return 'cool';
+  if (hour >= 21 || hour < 5) return 'night';
   if (code <= 2) return hour < 12 ? 'morning' : hour >= 16 ? 'evening' : 'easy';
   return 'easy';
 }
@@ -134,19 +181,32 @@ const ITUNES = 'https://itunes.apple.com/search';
 
 /** Cover art, album and year for a song, remembered on the device so it is only looked up once. */
 async function lookup(song: Song): Promise<Found | null> {
-  const key = `mb.wall.song.${song.t}|${song.a}`;
+  const key = `mb.wall.song2.${song.t}|${song.a}`;
   try {
     const hit = localStorage.getItem(key);
     if (hit) return JSON.parse(hit) as Found;
   } catch { /* look it up */ }
-  const url = `${ITUNES}?term=${encodeURIComponent(`${song.t} ${song.a}`)}&entity=song&limit=8&country=IN`;
+  const url = `${ITUNES}?term=${encodeURIComponent(`${song.t} ${song.a.split(',')[0]} ${song.alb ?? ''}`.trim())}&entity=song&limit=25&country=IN`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const j = (await res.json()) as { results?: { trackName: string; collectionName?: string; releaseDate?: string; primaryGenreName?: string; artworkUrl100?: string }[] };
   const want = song.t.toLowerCase();
   const rows = (j.results ?? []).filter((r) => r.artworkUrl100);
+  const alb = (song.alb ?? '').toLowerCase();
+  // Not the right record: remixes, lo-fi and tribute versions, and compilation albums.
+  const NOT_ORIGINAL = /remix|live|karaoke|cover|remaster|lofi|lo-fi|unplugged|acoustic|reprise|tribute|version|recreat|mashup|slowed|reverb/i;
+  const COMPILATION = /best of|hits|greatest|collection|ultimate|essential|classics|evergreen|romantic|celebrating|retro|golden|jukebox|top \d|playlist|super/i;
+  const plain = (r: { trackName: string; collectionName?: string }) =>
+    r.trackName.toLowerCase().startsWith(want) && !NOT_ORIGINAL.test(`${r.trackName} ${r.collectionName ?? ''}`);
+  // Naming the right album is a strong hint, so a remastered copy of it is fine.
+  const loose = (r: { trackName: string; collectionName?: string }) =>
+    r.trackName.toLowerCase().startsWith(want) && !/remix|live|karaoke|cover|lofi|lo-fi|tribute|mashup|slowed|reverb/i.test(`${r.trackName} ${r.collectionName ?? ''}`);
+  const oldestFirst = (x: { releaseDate?: string }, y: { releaseDate?: string }) => (x.releaseDate ?? '9').localeCompare(y.releaseDate ?? '9');
+  const original = rows.filter((r) => plain(r) && !COMPILATION.test(r.collectionName ?? '')).sort(oldestFirst);
   const best =
-    rows.find((r) => r.trackName.toLowerCase().startsWith(want) && !/remix|live|karaoke|cover/i.test(r.trackName)) ??
+    (alb ? rows.filter(loose).find((r) => (r.collectionName ?? '').toLowerCase().includes(alb)) : undefined) ??
+    original[0] ??
+    rows.filter(plain).sort(oldestFirst)[0] ??
     rows.find((r) => r.trackName.toLowerCase().startsWith(want)) ??
     rows[0];
   if (!best) return null;
@@ -196,50 +256,10 @@ function dominantColour(url: string): Promise<RGB | null> {
   });
 }
 
-interface ChartEntry {
-  'im:name': { label: string };
-  'im:artist': { label: string };
-  'im:image': { label: string }[];
-  'im:collection'?: { 'im:name': { label: string } };
-  'im:releaseDate'?: { label: string };
-  category?: { attributes?: { label?: string } };
-}
-interface Trend { song: Song; found: Found; country: 'in' | 'us' }
-const NOT_A_SONG = /ringtone|remix|theme|score|karaoke|instrumental|soundtrack|lofi|slowed|sped|\[(tamil|telugu|malayalam|kannada|bengali|marathi|gujarati)\]/i;
-
-/** One song from Apple's top-songs chart (India or the US, taking turns), kept for the day on the device. */
-async function fetchTrend(day: number): Promise<Trend | null> {
-  const key = `mb.wall.trend.${day}`;
-  try {
-    const hit = localStorage.getItem(key);
-    if (hit) return JSON.parse(hit) as Trend;
-  } catch { /* fetch it */ }
-  const country: 'in' | 'us' = day % 2 === 0 ? 'us' : 'in';
-  const res = await fetch(`https://itunes.apple.com/${country}/rss/topsongs/limit=40/json`);
-  if (!res.ok) return null;
-  const j = (await res.json()) as { feed?: { entry?: ChartEntry[] } };
-  const list = (j.feed?.entry ?? []).filter((e) => !NOT_A_SONG.test(e['im:name'].label));
-  if (!list.length) return null;
-  const e = list[Math.floor(day / 3) % list.length];
-  const trend: Trend = {
-    country,
-    song: { t: e['im:name'].label.replace(/\s*[([].*$/, '').trim(), a: e['im:artist'].label },
-    found: {
-      cover: (e['im:image'].at(-1)?.label ?? '').replace(/\d+x\d+bb/, '600x600bb'),
-      album: (e['im:collection']?.['im:name'].label ?? '').replace(/\s+-\s+(Single|EP)$/i, ''),
-      year: e['im:releaseDate']?.label.slice(0, 4) ?? '',
-      genre: e.category?.attributes?.label ?? '',
-    },
-  };
-  try { localStorage.setItem(key, JSON.stringify(trend)); } catch { /* private mode */ }
-  return trend;
-}
-
 export function Songs({ now }: { now: Date }) {
   const [wx, setWx] = useState<{ code: number; temp: number } | null>(null);
   const [found, setFound] = useState<Found | null>(null);
   const [tint, setTint] = useState<RGB | null>(null);
-  const [trend, setTrend] = useState<Trend | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -259,9 +279,9 @@ export function Songs({ now }: { now: Date }) {
 
   const mood = MOODS[wx ? pickMood(wx.code, wx.temp, istHour(now)) : 'easy'];
   const day = istDayNumber(now);
-  const lang = day % 2 === 0 ? 'en' : 'hi';
+  const lang = day % 3 === 2 ? 'hi' : 'en';
   const list = mood[lang];
-  const song = list[Math.floor(day / 2) % list.length];
+  const song = list[day % list.length];
   const songKey = `${song.t}|${song.a}`;
 
   useEffect(() => {
@@ -274,24 +294,12 @@ export function Songs({ now }: { now: Date }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songKey]);
 
-  // Every third day the song comes from the charts instead of the weather list.
-  const trendDay = day % 3 === 2;
-  useEffect(() => {
-    if (!trendDay) { setTrend(null); return; }
-    let live = true;
-    fetchTrend(day).then((t) => { if (live) setTrend(t); }).catch(() => { /* keep the weather pick */ });
-    return () => { live = false; };
-  }, [day, trendDay]);
-  const trending = trendDay ? trend : null;
-  const shownSong = trending ? trending.song : song;
-  const shownFound = trending ? trending.found : found;
-
   useEffect(() => {
     let live = true;
     setTint(null);
-    if (shownFound?.cover) void dominantColour(shownFound.cover).then((c) => { if (live) setTint(c); });
+    if (found?.cover) void dominantColour(found.cover).then((c) => { if (live) setTint(c); });
     return () => { live = false; };
-  }, [shownFound?.cover]);
+  }, [found?.cover]);
 
   // A glassy wash of the cover's colour over the dark card: stronger in one corner, fading to the card's own dark.
   const glass: React.CSSProperties | undefined = tint
@@ -315,24 +323,22 @@ export function Songs({ now }: { now: Date }) {
       style={glass}
       aria-label="Song for today"
     >
-      {shownFound?.cover ? (
-        <img src={shownFound.cover} alt="" className="h-full max-h-[9.5rem] aspect-square rounded-xl object-cover bg-paper shrink-0" />
+      {found?.cover ? (
+        <img src={found.cover} alt="" className="h-full max-h-[9.5rem] aspect-square rounded-xl object-cover bg-paper shrink-0" />
       ) : (
         <div className="h-full max-h-[9.5rem] aspect-square rounded-xl bg-paper border border-line shrink-0" aria-hidden />
       )}
       <div className="min-w-0 flex flex-col gap-[0.3rem]">
         <p className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted truncate">Today's song</p>
-        <p className="text-[1.6rem] font-extrabold leading-tight line-clamp-2">{shownSong.t}</p>
+        <p className="text-[1.6rem] font-extrabold leading-tight line-clamp-2">{song.t}</p>
         <p className="text-[1.15rem] text-ink/80 truncate">
-          <span className={`mr-2 rounded-full text-[0.8rem] font-bold px-[0.5rem] py-[0.05rem] ${trending || lang === 'hi' ? 'bg-accent/15 text-accent' : 'bg-white/10 text-ink'}`}>{trending ? 'TRENDING' : lang === 'hi' ? 'HI' : 'EN'}</span>
-          {shownSong.a}
+          <span className={`mr-2 rounded-full text-[0.8rem] font-bold px-[0.5rem] py-[0.05rem] ${lang === 'hi' ? 'bg-accent/15 text-accent' : 'bg-white/10 text-ink'}`}>{lang === 'hi' ? 'HI' : 'EN'}</span>
+          {song.a}
         </p>
-        {shownFound && (shownFound.album || shownFound.year) && (
-          <p className="text-[1rem] text-muted truncate">{[shownFound.album, shownFound.year, shownFound.genre].filter(Boolean).join(' · ')}</p>
+        {found && (found.album || found.year) && (
+          <p className="text-[1rem] text-muted truncate">{[found.album, found.year, found.genre].filter(Boolean).join(' · ')}</p>
         )}
-        <p className="text-[1rem] text-muted/80 truncate">
-          {trending ? `Trending in ${trending.country === 'in' ? 'India' : 'the US'} today` : `For a ${mood.label.toLowerCase()}${wx ? ` · ${Math.round(wx.temp)}°C` : ''}`}
-        </p>
+        <p className="text-[1rem] text-muted/80 truncate">For a {mood.label.toLowerCase()}{wx ? ` · ${Math.round(wx.temp)}°C` : ''}</p>
       </div>
     </section>
   );
