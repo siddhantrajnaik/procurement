@@ -160,9 +160,46 @@ async function lookup(song: Song): Promise<Found | null> {
   return found;
 }
 
+type RGB = [number, number, number];
+
+/** The cover's main colour: the most vivid, mid-bright pixels, averaged. Null if the image cannot be read. */
+function dominantColour(url: string): Promise<RGB | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = c.height = 32;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0, 32, 32);
+        const px = ctx.getImageData(0, 0, 32, 32).data;
+        let r = 0, g = 0, b = 0, wsum = 0, ar = 0, ag = 0, ab = 0;
+        for (let i = 0; i < px.length; i += 4) {
+          const R = px[i], G = px[i + 1], B = px[i + 2];
+          ar += R; ag += G; ab += B;
+          const max = Math.max(R, G, B), min = Math.min(R, G, B);
+          const v = max / 255, sat = max === 0 ? 0 : (max - min) / max;
+          if (v < 0.18) continue;
+          const w = sat * sat * (0.4 + v);
+          r += R * w; g += G * w; b += B * w; wsum += w;
+        }
+        const n = px.length / 4;
+        resolve(wsum > 1 ? [r / wsum, g / wsum, b / wsum] : [ar / n, ag / n, ab / n]);
+      } catch {
+        resolve(null); // the picture would not let us read it: keep the plain card
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
 export function Songs({ now }: { now: Date }) {
   const [wx, setWx] = useState<{ code: number; temp: number } | null>(null);
   const [found, setFound] = useState<Found | null>(null);
+  const [tint, setTint] = useState<RGB | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -190,13 +227,41 @@ export function Songs({ now }: { now: Date }) {
   useEffect(() => {
     let live = true;
     setFound(null);
-    lookup(song).then((f) => { if (live) setFound(f); }).catch(() => { /* text only */ });
+    setTint(null);
+    lookup(song)
+      .then(async (f) => {
+        if (!live) return;
+        setFound(f);
+        const c = f?.cover ? await dominantColour(f.cover) : null;
+        if (live) setTint(c);
+      })
+      .catch(() => { /* text only */ });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songKey]);
 
+  // A glassy wash of the cover's colour over the dark card: stronger in one corner, fading to the card's own dark.
+  const glass: React.CSSProperties | undefined = tint
+    ? (() => {
+        const top = Math.max(...tint);
+        const k = top > 190 ? 190 / top : 1; // keep it from going pastel so white text stays readable
+        const mean = (tint[0] + tint[1] + tint[2]) / 3;
+        // push the colour a little further from grey so a washed-out cover still gives a visible tint
+        const [r, g, b] = tint.map((v) => Math.max(0, Math.min(255, Math.round((mean + (v - mean) * 1.5) * k))));
+        return {
+          background: `linear-gradient(135deg, rgba(${r},${g},${b},0.55) 0%, rgba(${r},${g},${b},0.22) 55%, rgba(30,30,30,0.92) 100%), #1E1E1E`,
+          borderColor: `rgba(${r},${g},${b},0.35)`,
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.10), 0 0 2rem rgba(${r},${g},${b},0.10)`,
+        };
+      })()
+    : undefined;
+
   return (
-    <section className="rounded-3xl bg-card border border-line !p-[1rem] flex items-center gap-[1.1rem] min-w-0 min-h-0" aria-label="Song for today">
+    <section
+      className="rounded-3xl bg-card border border-line !p-[1rem] flex items-center gap-[1.1rem] min-w-0 min-h-0 transition-[background,border-color,box-shadow] duration-1000"
+      style={glass}
+      aria-label="Song for today"
+    >
       {found?.cover ? (
         <img src={found.cover} alt="" className="h-full max-h-[9.5rem] aspect-square rounded-xl object-cover bg-paper shrink-0" />
       ) : (
