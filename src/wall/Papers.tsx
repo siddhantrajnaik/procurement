@@ -11,7 +11,7 @@ const KEEP = 15;
 const VIRUS = '(TITLE:"virus" OR TITLE:"viral" OR TITLE:"capsid" OR TITLE:"spike protein") AND (TITLE:"structure" OR TITLE:"structural")';
 
 // Bird and poultry papers are not wanted on the lab wall.
-const OFF_TOPIC = /(avian|birds?|chickens?|poultry|ducks?|broilers?|geese|goose|veterinary|vet microbiol)/i;
+const OFF_TOPIC = /\b(avian|birds?|chickens?|poultry|ducks?|broilers?|geese|goose|veterinary|vet microbiol)\b/i;
 
 interface Paper { id: string; title: string; authors: string; journal: string; date: string; preprint: boolean }
 
@@ -31,20 +31,25 @@ async function search(terms: string): Promise<Record<string, string>[]> {
   const to = isoDay(new Date());
   const q = `(${terms}) AND (FIRST_PDATE:[${from} TO ${to}])`;
   const url = `${BASE}?query=${encodeURIComponent(q)}&resultType=lite&sort=${encodeURIComponent('P_PDATE_D desc')}&pageSize=30&format=json`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('papers');
-  const data = (await res.json()) as { resultList?: { result?: Record<string, string>[] } };
-  return data.resultList?.result ?? [];
+  const ctl = new AbortController();
+  const timeout = setTimeout(() => ctl.abort(), 120_000);
+  try {
+    const res = await fetch(url, { signal: ctl.signal });
+    if (!res.ok) throw new Error('papers');
+    const data = (await res.json()) as { resultList?: { result?: Record<string, string>[] } };
+    return data.resultList?.result ?? [];
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-/** Cryo-EM / structural biology and virus-structure papers, merged. Either search may fail without losing the other. */
-async function fetchPapers(): Promise<Paper[]> {
-  const parts = await Promise.allSettled([search(TERMS), search(VIRUS)]);
-  if (parts.every((p) => p.status === 'rejected')) throw new Error('papers');
+type Row = Record<string, string>;
+
+/** Merges any number of result lists into the newest papers, without repeats, corrections or off-topic ones. */
+function toPapers(lists: Row[][]): Paper[] {
   const seen = new Set<string>();
-  const all = parts.flatMap((p) => (p.status === 'fulfilled' ? p.value : []))
-    .filter((r) => (seen.has(`${r.source}:${r.id}`) ? false : (seen.add(`${r.source}:${r.id}`), true)));
-  return all
+  return lists.flat()
+    .filter((r) => (seen.has(`${r.source}:${r.id}`) ? false : (seen.add(`${r.source}:${r.id}`), true)))
     .filter((r) => r.title && !/^(correction|erratum|retraction|publisher correction)\b/i.test(r.title))
     .filter((r) => !OFF_TOPIC.test(`${r.title} ${r.journalTitle ?? ''}`))
     .map((r) => ({
@@ -70,15 +75,26 @@ export function Papers({ embedded = false }: { embedded?: boolean }) {
     let live = true;
     let timer: ReturnType<typeof setTimeout>;
     const load = () => {
-      fetchPapers()
-        .then((p) => {
-          if (live && p.length) {
-            setPapers(p);
-            try { localStorage.setItem('mb.wall.papers', JSON.stringify(p)); } catch { /* private mode */ }
-          }
-          timer = setTimeout(load, REFRESH_MS);
-        })
-        .catch(() => { timer = setTimeout(load, RETRY_MS); }); // service down: keep the last list, try again soon
+      const lists: Row[][] = [[], []];
+      let finished = 0;
+      let worked = 0;
+      const publish = () => {
+        const p = toPapers(lists);
+        if (!live || !p.length) return;
+        setPapers(p);
+        try { localStorage.setItem('mb.wall.papers', JSON.stringify(p)); } catch { /* private mode */ }
+      };
+      // The two searches run side by side. Each result is shown the moment it arrives: one slow search no longer
+      // holds the other back.
+      [search(TERMS), search(VIRUS)].forEach((request, k) => {
+        request
+          .then((rows) => { lists[k] = rows; worked++; publish(); })
+          .catch(() => { /* this search failed: the other one still counts */ })
+          .finally(() => {
+            if (++finished < 2 || !live) return;
+            timer = setTimeout(load, worked ? REFRESH_MS : RETRY_MS); // none worked: keep the last list, try again soon
+          });
+      });
     };
     load();
     return () => { live = false; clearTimeout(timer); };
