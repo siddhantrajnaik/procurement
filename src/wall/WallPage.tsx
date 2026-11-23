@@ -69,6 +69,7 @@ export function WallPage() {
   });
   const [board, setBoard] = useState<Board | null>(null);
   const [status, setStatus] = useState<'loading' | 'ok' | 'offline' | 'badkey'>('loading');
+  const [updated, setUpdated] = useState<Date | null>(null); // when the screen last got fresh data
   const [now, setNow] = useState(() => new Date());
   const [drift, setDrift] = useState({ x: 0, y: 0 });
 
@@ -80,6 +81,7 @@ export function WallPage() {
       if (!res.ok) throw new Error();
       setBoard(await res.json());
       setStatus('ok');
+      setUpdated(new Date());
     } catch {
       setStatus((s) => (s === 'ok' ? 'offline' : s === 'loading' ? 'offline' : s)); // keep showing the last good data
     }
@@ -197,7 +199,7 @@ export function WallPage() {
   return (
     <div className="h-dvh p-[1.4rem] drift" style={{ transform: `translate(${drift.x}px, ${drift.y}px)` }}>
       <div className="h-full grid gap-[1.1rem] grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto]">
-        <Header now={now} status={status} board={board} />
+        <Header now={now} status={status} board={board} updated={updated} />
         <Bookings board={board} now={now} />
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
@@ -223,7 +225,9 @@ const colorOf = (board: Board | null, item: string) => board?.items.find((x) => 
 
 // ---------------------------------------------------------------- header
 
-function Header({ now, status, board }: { now: Date; status: string; board: Board | null }) {
+function Header({ now, status, board, updated }: { now: Date; status: string; board: Board | null; updated: Date | null }) {
+  // A small note under the date: when the data last refreshed, amber once it is over 10 minutes old.
+  const stale = updated !== null && now.getTime() - updated.getTime() > 10 * 60_000;
   return (
     <header className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[2rem]">
       <div className="flex items-center gap-[1rem]">
@@ -255,6 +259,11 @@ function Header({ now, status, board }: { now: Date; status: string; board: Boar
         <div className="leading-none">
           <p className="text-[3.6rem] font-extrabold tabular-nums tracking-tight">{clock(now)}</p>
           <p className="text-[1.15rem] text-muted mt-1">{longDate(now)}</p>
+          {updated && (
+            <p className={`text-[0.95rem] mt-[0.3rem] tabular-nums ${stale ? 'text-amber-300 font-semibold' : 'text-muted/60'}`}>
+              {stale ? 'Not updating · last ' : 'Updated '}{clock(updated)}
+            </p>
+          )}
         </div>
       </div>
     </header>
