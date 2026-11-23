@@ -8,6 +8,8 @@ import { User } from '../types';
 import { UserCheck, Store, Search, List, Sparkles, Wrench, CalendarClock, Cake, NotebookPen, Bell, BellOff, Volume2, VolumeX, UserRound, Speech, MicOff } from 'lucide-react';
 import * as api from '../lib/api';
 import { VendorsView } from './VendorsView';
+import { WallNoticePanel } from './WallNoticePanel';
+import { useReadOnly } from '../lib/useReadOnly';
 import { LostFoundView } from './LostFoundView';
 import { ListsView } from './ListsView';
 import { MuhuratView } from './MuhuratView';
@@ -42,6 +44,7 @@ type SubView = keyof typeof SUB_VIEWS;
 export const ProfileView: React.FC = () => {
   const { purchases, inventoryItems, vendors, lostFoundItems, labLists, equipment, bookableItems, bookings } = useApp();
   const { currentUser, allUsers, login, verifyAdminPin, patchUser } = useAuth();
+  const readOnly = useReadOnly();
   const { showToast, pendingProfileView, setPendingProfileView } = useUI();
   const [pendingAdmin, setPendingAdmin] = useState<User | null>(null);
   const [pin, setPin] = useState('');
@@ -270,6 +273,8 @@ export const ProfileView: React.FC = () => {
         )}
       </div>
 
+      {/* A line for the lab's wall screen */}
+      <WallNoticePanel readOnly={readOnly} />
 
       {/* Upcoming Birthdays */}
       {upcomingBirthdays.length > 0 && (
