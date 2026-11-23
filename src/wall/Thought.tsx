@@ -54,14 +54,20 @@ export function istDayNumber(d = new Date()): number {
 /** A famous quote of the day from the feed; if it is not available, one of the lab's own lines above. */
 export function Thought({ now, quote }: { now: Date; quote: { text: string; author: string } | null }) {
   const own = THOUGHTS[istDayNumber(now) % THOUGHTS.length];
+  // The card art has a coral quotation mark at the top left and a short line at the bottom left; the words go between.
   return (
-    <section className="rounded-3xl bg-card border border-line !p-[1.2rem] flex flex-col gap-[0.6rem] min-w-0 min-h-0" aria-label="Thought of the day">
-      <h2 className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted">Thought of the day</h2>
-      <div className="flex-1 min-h-0 flex flex-col justify-center gap-[0.4rem]">
-        <p className="text-[1.5rem] font-bold leading-snug text-ink line-clamp-4">{quote ? `“${quote.text}”` : own}</p>
-        {quote && <p className="text-[1.15rem] text-muted truncate">{'—'} {quote.author}</p>}
-      </div>
-      {quote && <p className="text-[0.8rem] text-muted/60">Quotes by ZenQuotes.io</p>}
+    <section
+      className="relative rounded-3xl border border-line overflow-hidden bg-card bg-cover bg-center min-w-0 min-h-0"
+      style={{ backgroundImage: `url(${import.meta.env.BASE_URL}wall-quote-bg.webp)` }}
+      aria-label="Thought of the day"
+    >
+      <p className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex items-center text-[1.5rem] font-bold leading-snug text-ink">
+        <span className="line-clamp-4">{quote ? quote.text : own}</span>
+      </p>
+      {quote && (
+        <p className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-muted truncate">{'—'} {quote.author}</p>
+      )}
+      {quote && <p className="absolute right-[3%] top-[5%] text-[0.75rem] text-muted/50">ZenQuotes.io</p>}
     </section>
   );
 }
