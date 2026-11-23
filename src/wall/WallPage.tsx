@@ -224,7 +224,6 @@ const colorOf = (board: Board | null, item: string) => board?.items.find((x) => 
 // ---------------------------------------------------------------- header
 
 function Header({ now, status, board }: { now: Date; status: string; board: Board | null }) {
-  const sanDiego = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit', hour12: true }).format(now);
   return (
     <header className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[2rem]">
       <div className="flex items-center gap-[1rem]">
@@ -256,7 +255,6 @@ function Header({ now, status, board }: { now: Date; status: string; board: Boar
         <div className="leading-none">
           <p className="text-[3.6rem] font-extrabold tabular-nums tracking-tight">{clock(now)}</p>
           <p className="text-[1.15rem] text-muted mt-1">{longDate(now)}</p>
-          <p className="text-[0.95rem] text-muted/70 mt-[0.35rem]">San Diego · {sanDiego}</p>
         </div>
       </div>
     </header>
