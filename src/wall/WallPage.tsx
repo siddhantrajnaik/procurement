@@ -48,6 +48,11 @@ const istParts = (d: Date) => {
   return { h: Number(p.hour), m: Number(p.minute) };
 };
 const clock = (d: Date) => { const { h, m } = istParts(d); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; };
+/** "22 Nov " when the page was opened on an earlier day, otherwise nothing. */
+const loadedDay = (loaded: Date, now: Date) => {
+  const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
+  return day(loaded) === day(now) ? '' : `${new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' }).format(loaded)} `;
+};
 const longDate = (d: Date) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' }).format(d);
 const hours = (t: string) => Number(t.slice(0, 2)) + Number(t.slice(3, 5)) / 60;
 
@@ -70,6 +75,7 @@ export function WallPage() {
   const [board, setBoard] = useState<Board | null>(null);
   const [status, setStatus] = useState<'loading' | 'ok' | 'offline' | 'badkey'>('loading');
   const [updated, setUpdated] = useState<Date | null>(null); // when the screen last got fresh data
+  const [loadedAt] = useState(() => new Date()); // when this page was opened: 03:00 shows the nightly reload worked
   const [now, setNow] = useState(() => new Date());
   const [drift, setDrift] = useState({ x: 0, y: 0 });
 
@@ -199,7 +205,7 @@ export function WallPage() {
   return (
     <div className="h-dvh p-[1.4rem] drift" style={{ transform: `translate(${drift.x}px, ${drift.y}px)` }}>
       <div className="h-full grid gap-[1.1rem] grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto]">
-        <Header now={now} status={status} board={board} updated={updated} />
+        <Header now={now} status={status} board={board} updated={updated} loadedAt={loadedAt} />
         <Bookings board={board} now={now} />
         <aside className="flex flex-col gap-[1.1rem] min-h-0">
           <Orders board={board} />
@@ -225,7 +231,7 @@ const colorOf = (board: Board | null, item: string) => board?.items.find((x) => 
 
 // ---------------------------------------------------------------- header
 
-function Header({ now, status, board, updated }: { now: Date; status: string; board: Board | null; updated: Date | null }) {
+function Header({ now, status, board, updated, loadedAt }: { now: Date; status: string; board: Board | null; updated: Date | null; loadedAt: Date }) {
   // A small note under the date: when the data last refreshed, amber once it is over 10 minutes old.
   const stale = updated !== null && now.getTime() - updated.getTime() > 10 * 60_000;
   return (
@@ -262,6 +268,7 @@ function Header({ now, status, board, updated }: { now: Date; status: string; bo
           {updated && (
             <p className={`text-[0.95rem] mt-[0.3rem] tabular-nums ${stale ? 'text-amber-300 font-semibold' : 'text-muted/60'}`}>
               {stale ? 'Not updating · last ' : 'Updated '}{clock(updated)}
+              <span className="text-muted/40"> · loaded {loadedDay(loadedAt, now)}{clock(loadedAt)}</span>
             </p>
           )}
         </div>
