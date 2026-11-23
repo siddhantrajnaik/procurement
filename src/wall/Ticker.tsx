@@ -50,8 +50,6 @@ function build(w: Weather | null, a: Air | null): Item[] {
     const c = w.current;
     items.push({ key: 'now', label: 'IIT Delhi now', value: `${Math.round(c.temperature_2m)}°C · ${SKY(c.weather_code)}` });
     items.push({ key: 'feels', label: 'Feels like', value: `${Math.round(c.apparent_temperature)}°C` });
-    items.push({ key: 'hum', label: 'Humidity', value: `${Math.round(c.relative_humidity_2m)}%` });
-    items.push({ key: 'wind', label: 'Wind', value: `${Math.round(c.wind_speed_10m)} km/h` });
 
     // Rain: the next 12 hours from the reading time.
     const start = w.hourly.time.findIndex((t) => t >= c.time.slice(0, 13) + ':00');

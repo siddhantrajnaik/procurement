@@ -95,7 +95,7 @@ export function Papers({ embedded = false }: { embedded?: boolean }) {
       ? 'flex-1 min-h-0 flex flex-col gap-[0.6rem] min-w-0 pt-[0.9rem] border-t border-line'
       : 'rounded-3xl bg-card border border-line !p-[1.2rem] flex flex-col gap-[0.6rem] min-w-0 min-h-0'}>
       <h2 className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted flex items-center justify-between">
-        <span>New in structural biology &amp; cryo-EM</span>
+        <span>Latest papers · structural biology &amp; cryo-EM</span>
         {papers.length > 1 && <span className="normal-case tracking-normal font-semibold tabular-nums">{(i % papers.length) + 1} / {papers.length}</span>}
       </h2>
       {p ? (

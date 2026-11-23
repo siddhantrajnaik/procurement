@@ -5,6 +5,7 @@ import { useReadOnly } from '../lib/useReadOnly';
 import { Vendor, VendorType } from '../types';
 import { AddVendorModal } from './AddVendorModal';
 import { VendorPagePanel } from './VendorPagePanel';
+import { WallNoticePanel } from './WallNoticePanel';
 import { ConfirmModal } from './ConfirmModal';
 import { timeAgo } from '../lib/format';
 
@@ -76,6 +77,7 @@ export const VendorsView: React.FC<Props> = ({ onBack }) => {
       </div>
 
       <VendorPagePanel readOnly={readOnly} />
+      <WallNoticePanel readOnly={readOnly} />
 
       <div className="relative">
         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">

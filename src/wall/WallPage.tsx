@@ -22,6 +22,7 @@ interface Board {
   items: { name: string; color: string; hood: boolean }[];
   motm?: { title: string; blurb: string; image: string } | null;
   quote?: { text: string; author: string } | null;
+  notice?: string | null;
   bookings: Booking[];
   orders: {
     waiting: number;
@@ -223,13 +224,7 @@ const colorOf = (board: Board | null, item: string) => board?.items.find((x) => 
 // ---------------------------------------------------------------- header
 
 function Header({ now, status, board }: { now: Date; status: string; board: Board | null }) {
-  const nowH = nowHours(now);
-  const todays = (board?.bookings ?? []).filter((b) => b.date === board?.today).sort(byStart);
-  const live = todays.filter((b) => hours(b.start) <= nowH && nowH < hours(b.end));
-  const upcoming = todays.find((b) => hours(b.start) > nowH)
-    ?? (board?.bookings ?? []).filter((b) => b.date === board?.tomorrow).sort(byStart)[0];
-  const isTomorrow = upcoming && upcoming.date !== board?.today;
-
+  const sanDiego = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit', hour12: true }).format(now);
   return (
     <header className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[2rem]">
       <div className="flex items-center gap-[1rem]">
@@ -244,34 +239,14 @@ function Header({ now, status, board }: { now: Date; status: string; board: Boar
         </div>
       </div>
 
-      {/* What matters right now, in one line. */}
+      {/* A notice from the lab, when there is one. */}
       <div className="justify-self-center min-w-0 max-w-full">
-        {board && (
-          <div className="flex items-center gap-[0.9rem] rounded-full bg-card border border-line pl-[0.6rem] pr-[1.4rem] py-[0.5rem] min-w-0">
-            {live.length > 0 ? (
-              <>
-                <span className="shrink-0 rounded-full bg-red-500/15 text-red-300 text-[1rem] font-bold px-[0.8rem] py-[0.15rem]">IN USE</span>
-                <span className="text-[1.45rem] truncate">
-                  {live.map((b, i) => (
-                    <span key={i}>{i > 0 && ', '}<span className="font-bold">{b.item}</span> <span className="text-muted">· {b.by} till {b.end}</span></span>
-                  ))}
-                </span>
-              </>
-            ) : upcoming ? (
-              <>
-                <span className="shrink-0 rounded-full bg-accent/15 text-accent text-[1rem] font-bold px-[0.8rem] py-[0.15rem]">NEXT UP</span>
-                <span className="w-[0.7rem] h-[0.7rem] rounded-full shrink-0" style={{ background: colorOf(board, upcoming.item) }} />
-                <span className="text-[1.45rem] truncate">
-                  <span className="font-bold">{upcoming.item}</span>{' '}
-                  <span className="text-muted">· {isTomorrow ? 'tomorrow ' : ''}{upcoming.start} · {upcoming.by}</span>
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="shrink-0 rounded-full bg-emerald-500/15 text-emerald-300 text-[1rem] font-bold px-[0.8rem] py-[0.15rem]">ALL FREE</span>
-                <span className="text-[1.25rem] text-muted truncate">No bookings coming up</span>
-              </>
-            )}
+        {board?.notice && (
+          <div className="flex items-center gap-[0.9rem] rounded-full bg-accent/10 border border-accent/30 pl-[0.8rem] pr-[1.6rem] py-[0.55rem] min-w-0">
+            <svg viewBox="0 0 24 24" className="w-[1.6rem] h-[1.6rem] shrink-0 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="m3 11 18-5v12L3 14v-3Z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+            </svg>
+            <span className="text-[1.5rem] font-bold truncate">{board.notice}</span>
           </div>
         )}
       </div>
@@ -281,6 +256,7 @@ function Header({ now, status, board }: { now: Date; status: string; board: Boar
         <div className="leading-none">
           <p className="text-[3.6rem] font-extrabold tabular-nums tracking-tight">{clock(now)}</p>
           <p className="text-[1.15rem] text-muted mt-1">{longDate(now)}</p>
+          <p className="text-[0.95rem] text-muted/70 mt-[0.35rem]">San Diego · {sanDiego}</p>
         </div>
       </div>
     </header>
@@ -305,7 +281,6 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
     return [...rows, ...others];
   }, [board, shown]);
   const tomorrows = evening ? [] : (board?.bookings ?? []).filter((b) => b.date === board?.tomorrow).sort(byStart);
-  const inUse = items.filter((it) => shown.some((b) => b.item === it.name && hours(b.start) <= nowH && nowH < hours(b.end))).length;
 
   const span = DAY_END - DAY_START;
   const pct = (h: number) => `${((h - DAY_START) / span) * 100}%`;
@@ -321,13 +296,7 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
           {day && <span className="ml-3 normal-case tracking-normal font-semibold text-ink/70">{shortDay(day)}</span>}
         </h2>
         <p className="text-[1.15rem] text-muted">
-          {shown.length === 0 ? 'No bookings' : `${shown.length} booking${shown.length === 1 ? '' : 's'}`}
-          {!evening && items.length > 0 && (
-            <>
-              <span className="mx-2">·</span>
-              <span className={inUse > 0 ? 'text-red-300 font-semibold' : 'text-emerald-400 font-semibold'}>{inUse} of {items.length} in use now</span>
-            </>
-          )}
+          {shown.length === 0 ? (evening ? 'Open for booking' : 'Open for booking today') : `${shown.length} booking${shown.length === 1 ? '' : 's'}`}
         </p>
       </div>
 
@@ -355,7 +324,6 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
               const mine = shown.filter((b) => b.item === it.name);
               const live = mine.find((b) => hours(b.start) <= nowH && nowH < hours(b.end));
               const next = mine.find((b) => hours(b.start) > nowH);
-              const booked = mine.reduce((t, b) => t + Math.max(0, Math.min(DAY_END, hours(b.end)) - Math.max(DAY_START, hours(b.start))), 0);
               return (
                 <div key={it.name} className="h-[6.5rem] shrink-0 grid grid-cols-[17rem_minmax(0,1fr)] gap-[0.9rem] items-stretch">
                   <div className="min-w-0 flex flex-col justify-center gap-[0.35rem]">
@@ -370,18 +338,17 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
                       </p>
                     ) : mine.length === 0 ? (
                       <p className="text-[1.15rem] leading-tight">
-                        <span className="inline-block rounded-full bg-emerald-500/15 text-emerald-300 font-bold px-[0.6rem] py-[0.05rem] mr-2">Free</span>
+                        <span className="inline-block rounded-full bg-emerald-500/15 text-emerald-300 font-bold px-[0.6rem] py-[0.05rem] mr-2">Available</span>
                         <span className="text-muted">all day</span>
                       </p>
                     ) : (
                       <p className="text-[1.15rem] leading-tight">
-                        <span className={`inline-block rounded-full font-bold px-[0.6rem] py-[0.05rem] mr-2 ${evening ? 'bg-white/10 text-ink' : 'bg-emerald-500/15 text-emerald-300'}`}>{evening ? 'Booked' : 'Free now'}</span>
+                        <span className={`inline-block rounded-full font-bold px-[0.6rem] py-[0.05rem] mr-2 ${evening ? 'bg-white/10 text-ink' : 'bg-emerald-500/15 text-emerald-300'}`}>{evening ? 'Booked' : 'Available'}</span>
                         <span className="text-muted">
                           {next ? `next ${next.start} · ${next.by}` : 'rest of the day'}
                         </span>
                       </p>
                     )}
-                    {mine.length > 0 && <p className="text-[1rem] text-muted tabular-nums">{booked % 1 === 0 ? booked : booked.toFixed(1)} h booked</p>}
                   </div>
 
                   <div className="relative rounded-2xl bg-white/[0.035] overflow-hidden">
@@ -439,7 +406,7 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
             {tomorrows.length > 0 && <span className="ml-3 normal-case tracking-normal font-normal">· {tomorrows.length} booking{tomorrows.length === 1 ? '' : 's'}</span>}
           </h3>
           {tomorrows.length === 0 ? (
-            <p className="text-[1.15rem] text-muted">Nothing booked yet. Everything is free.</p>
+            <p className="text-[1.15rem] text-muted">Hood available.</p>
           ) : (
             <ul className="grid grid-cols-2 gap-x-[1.5rem] gap-y-[0.4rem]">
               {tomorrows.slice(0, 6).map((b, i) => (
@@ -478,7 +445,7 @@ function Orders({ board }: { board: Board | null }) {
   return (
     <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0 ${o && !cur ? '!py-[0.9rem]' : ''}`}>
       <h2 className={`${heading} flex items-center justify-between`}>
-        <span>We need quotes for{o && !cur && <span className="ml-4 normal-case tracking-normal font-semibold text-[1.3rem] text-muted">None</span>}</span>
+        <span>Waiting for quotes{o && !cur && <span className="ml-4 normal-case tracking-normal font-semibold text-[1.3rem] text-muted">None right now</span>}</span>
         {need.length > 1 && <span className="normal-case tracking-normal font-semibold tabular-nums">{(i % need.length) + 1} / {need.length}</span>}
       </h2>
       {cur && (
@@ -526,21 +493,14 @@ function Alerts({ board }: { board: Board | null }) {
   return (
     <section className={`${panel} flex flex-col gap-[0.8rem] min-h-0 shrink-0`}>
       <h2 className={`${heading} flex items-center justify-between`}>
-        <span>Needs attention</span>
+        <span>Lab status</span>
         {rows.length > 0 && <span className="normal-case tracking-normal font-semibold">{rows.length}</span>}
       </h2>
       {a && rows.length === 0 ? (
-        <div className="flex items-center gap-[1rem]">
-          <span className="w-[3.2rem] h-[3.2rem] shrink-0 rounded-full bg-emerald-500/12 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="w-[1.7rem] h-[1.7rem] text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </span>
-          <div>
-            <p className="text-[1.4rem] font-bold text-emerald-300 leading-tight">All clear</p>
-            <p className="text-[1.05rem] text-muted leading-tight">Nothing low, expiring or broken.</p>
-          </div>
-        </div>
+        <span className="self-start inline-flex items-center gap-[0.6rem] rounded-full bg-emerald-500/15 text-emerald-300 text-[1.3rem] font-bold px-[1rem] py-[0.3rem]">
+          <svg viewBox="0 0 24 24" className="w-[1.3rem] h-[1.3rem]" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6 9 17l-5-5" /></svg>
+          All good
+        </span>
       ) : (
         <ul className="flex flex-col gap-[0.5rem] min-h-0 overflow-hidden">
           {rows.slice(0, 7).map((r, i) => (
@@ -562,7 +522,7 @@ function QrStrip({ now, quote }: { now: Date; quote: { text: string; author: str
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`;
   return (
     <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1.15fr)] gap-[1.1rem]">
-      <QrCard title="Vendors" line="Scan to see what we need and send your quotes." url={`${base}vendor.html`} />
+      <QrCard title="Vendors" line="Scan to see what we need and send us a quote." url={`${base}vendor.html`} />
       <Thought now={now} quote={quote} />
       <Songs now={now} />
     </div>

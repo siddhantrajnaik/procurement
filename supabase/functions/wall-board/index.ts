@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
   const tomorrow = istDate(new Date(now.getTime() + 86_400_000));
   const soon = istDate(new Date(now.getTime() + 30 * 86_400_000));
 
-  const [items, bookings, orders, stock, equipment, maint, people, need, motm, quote] = await Promise.all([
+  const [items, bookings, orders, stock, equipment, maint, people, need, motm, quote, settings] = await Promise.all([
     db.from('bookable_items').select('id, name, color').order('name'),
     db.from('bookings').select('item_id, date, start_time, end_time, purpose, booked_by').eq('status', 'confirmed').in('date', [today, tomorrow]).order('start_time'),
     db.from('purchases').select('title, status, requested_by, created_at').in('status', ['waiting', 'quotes', 'ordered', 'transit', 'partial']).order('created_at', { ascending: false }).limit(60),
@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
     db.from('purchases').select('title, catalog_number, quantity, preferred_company, vendor_photo_path').eq('vendor_visible', true).in('status', ['waiting', 'quotes']).order('created_at', { ascending: false }).limit(20),
     getMotm(),
     getQuote(today),
+    db.from('vendor_page_settings').select('wall_notice, wall_notice_until').eq('id', 1).maybeSingle(),
   ]);
   if (items.error || bookings.error || orders.error) return json({ error: 'Could not load.' }, 500, h);
 
@@ -121,6 +122,10 @@ Deno.serve(async (req) => {
     for (const s of signed ?? []) if (s.path && s.signedUrl) urls.set(s.path, s.signedUrl);
   }
 
+  const noticeRow = settings.error ? null : (settings.data as { wall_notice?: string | null; wall_notice_until?: string | null } | null);
+  const notice =
+    noticeRow?.wall_notice && (!noticeRow.wall_notice_until || noticeRow.wall_notice_until >= today) ? noticeRow.wall_notice.trim() : null;
+
   const lastDue = new Map<string, string>();
   for (const m of maint.data ?? []) {
     const cur = lastDue.get(m.equipment_id as string);
@@ -134,6 +139,7 @@ Deno.serve(async (req) => {
       tomorrow,
       motm,
       quote,
+      notice,
       items: (items.data ?? []).map((i) => ({ name: i.name, color: i.color, hood: /hood/i.test(i.name) })),
       bookings: (bookings.data ?? []).map((b) => ({
         item: itemName.get(b.item_id as string) ?? '',

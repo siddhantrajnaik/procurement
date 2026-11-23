@@ -2364,6 +2364,25 @@ export async function fetchVendorPageSettings(): Promise<VendorPageSettings> {
   return { quoteEmail: row?.quote_email ?? null, whatsappNumber: row?.whatsapp_number ?? null };
 }
 
+/** The one-line notice shown on the lab's wall screen (migration 0036). */
+export async function fetchWallNotice(): Promise<{ text: string | null; until: string | null }> {
+  const row = unwrap(
+    await supabase.from('vendor_page_settings').select('wall_notice, wall_notice_until').eq('id', 1).maybeSingle()
+  ) as { wall_notice: string | null; wall_notice_until: string | null } | null;
+  return { text: row?.wall_notice ?? null, until: row?.wall_notice_until ?? null };
+}
+
+export async function setWallNotice(text: string | null, until: string | null): Promise<void> {
+  const rows = unwrap(
+    await supabase
+      .from('vendor_page_settings')
+      .update({ wall_notice: text, wall_notice_until: until, updated_at: new Date().toISOString() })
+      .eq('id', 1)
+      .select('id')
+  );
+  if (!rows?.length) throw new Error('Settings are missing. Run migrations 0033 and 0036.');
+}
+
 export async function setVendorPageSettings(settings: VendorPageSettings): Promise<void> {
   const rows = unwrap(
     await supabase

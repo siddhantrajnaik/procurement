@@ -81,7 +81,7 @@ export function Picture({ motm }: { motm: Motm | null }) {
             <img src={pic.src} alt={pic.caption} onError={() => setPicBroken(true)} className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-x-0 bottom-0 pt-[3rem] px-[1.2rem] pb-[1rem] bg-gradient-to-t from-black/85 via-black/55 to-transparent">
               <p className="text-[0.95rem] font-bold uppercase tracking-[0.16em] text-white/70">Picture of the day</p>
-              {pic.caption && <p className="text-[1.2rem] font-semibold leading-snug text-white line-clamp-2 mt-[0.2rem]">{pic.caption}</p>}
+              {pic.caption && <p className="text-[1.2rem] font-semibold leading-snug text-white line-clamp-1 mt-[0.2rem]">{pic.caption}</p>}
               {pic.credit && <p className="text-[0.9rem] text-white/60 mt-[0.2rem] truncate">{pic.credit}</p>}
             </div>
           </>

@@ -203,7 +203,7 @@ export function Songs({ now }: { now: Date }) {
         <div className="h-full max-h-[9.5rem] aspect-square rounded-xl bg-paper border border-line shrink-0" aria-hidden />
       )}
       <div className="min-w-0 flex flex-col gap-[0.3rem]">
-        <p className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted truncate">Listen today</p>
+        <p className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted truncate">Today's song</p>
         <p className="text-[1.6rem] font-extrabold leading-tight line-clamp-2">{song.t}</p>
         <p className="text-[1.15rem] text-ink/80 truncate">
           <span className={`mr-2 rounded-full text-[0.8rem] font-bold px-[0.5rem] py-[0.05rem] ${lang === 'hi' ? 'bg-accent/15 text-accent' : 'bg-white/10 text-ink'}`}>{lang === 'hi' ? 'HI' : 'EN'}</span>
@@ -212,7 +212,7 @@ export function Songs({ now }: { now: Date }) {
         {found && (found.album || found.year) && (
           <p className="text-[1rem] text-muted truncate">{[found.album, found.year, found.genre].filter(Boolean).join(' · ')}</p>
         )}
-        <p className="text-[1rem] text-muted/80 truncate">Picked for a {mood.label.toLowerCase()}{wx ? `, ${Math.round(wx.temp)}°C` : ''}.</p>
+        <p className="text-[1rem] text-muted/80 truncate">For a {mood.label.toLowerCase()}{wx ? ` · ${Math.round(wx.temp)}°C` : ''}</p>
       </div>
     </section>
   );
