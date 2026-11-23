@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { MonthStrip } from './MonthCalendar';
 import { Papers } from './Papers';
+import { Songs } from './Songs';
+import { Thought } from './Thought';
 import { Picture } from './Picture';
 import { Ticker } from './Ticker';
 import { announce, canPlay, quietHour, setSoundOn, soundOn, spokenTime } from './sound';
@@ -50,6 +52,9 @@ const hours = (t: string) => Number(t.slice(0, 2)) + Number(t.slice(3, 5)) / 60;
 const INSTRUMENT_LABEL: Record<string, string> = { needs_attention: 'Needs attention', down: 'Down', under_service: 'Under service' };
 
 // ---------------------------------------------------------------- page
+
+// A link ending in &s=0 opens the screen silent (for viewing on a phone or laptop); it does not change the saved setting.
+const SILENT_LINK = new URLSearchParams(window.location.hash.slice(1)).get('s') === '0';
 
 export function WallPage() {
   const [key] = useState(() => {
@@ -107,7 +112,7 @@ export function WallPage() {
   }, []);
 
   // ---- sound: a chime and a spoken line before and at the start of each booking, and when an instrument goes down
-  const [sound, setSound] = useState(soundOn);
+  const [sound, setSound] = useState(() => soundOn() && !SILENT_LINK);
   const [unlocked, setUnlocked] = useState(canPlay);
   useEffect(() => {
     const unlock = () => setUnlocked(true);
@@ -198,7 +203,7 @@ export function WallPage() {
           <Picture motm={board?.motm ?? null} />
         </aside>
         <Ticker />
-        <QrStrip />
+        <QrStrip now={now} />
       </div>
     </div>
   );
@@ -284,16 +289,20 @@ function Header({ now, status, board }: { now: Date; status: string; board: Boar
 // ---------------------------------------------------------------- bookings
 
 function Bookings({ board, now }: { board: Board | null; now: Date }) {
-  const items = useMemo(
-    () => [...(board?.items ?? [])].sort((a, b) => Number(b.hood) - Number(a.hood) || a.name.localeCompare(b.name)),
-    [board]
-  );
   const realH = nowHours(now);
   // After the lab day ends the timeline turns to tomorrow, which is what people check in the evening.
   const evening = realH >= DAY_END;
   const day = evening ? board?.tomorrow : board?.today;
   const nowH = evening ? -1 : realH;
   const shown = (board?.bookings ?? []).filter((b) => b.date === day).sort(byStart);
+  // The cell culture hood is always shown. Any other instrument appears only on a day someone has booked it.
+  const items = useMemo(() => {
+    if (!board) return [];
+    const hood = board.items.filter((i) => i.hood);
+    const rows = hood.length ? hood : [{ name: 'Cell Culture Hood', color: '#f59e0b', hood: true }];
+    const others = board.items.filter((i) => !i.hood && shown.some((b) => b.item === i.name));
+    return [...rows, ...others];
+  }, [board, shown]);
   const tomorrows = evening ? [] : (board?.bookings ?? []).filter((b) => b.date === board?.tomorrow).sort(byStart);
   const inUse = items.filter((it) => shown.some((b) => b.item === it.name && hours(b.start) <= nowH && nowH < hours(b.end))).length;
 
@@ -324,7 +333,7 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
       {items.length === 0 && board ? (
         <p className="text-[1.3rem] text-muted">Nothing is set up for booking yet.</p>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col gap-[0.7rem]">
+        <div className="shrink-0 flex flex-col gap-[0.7rem]">
           <div className="grid grid-cols-[17rem_minmax(0,1fr)] gap-[0.9rem]">
             <span />
             <div className="relative h-[1.8rem] text-[0.95rem] text-muted tabular-nums">
@@ -347,7 +356,7 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
               const next = mine.find((b) => hours(b.start) > nowH);
               const booked = mine.reduce((t, b) => t + Math.max(0, Math.min(DAY_END, hours(b.end)) - Math.max(DAY_START, hours(b.start))), 0);
               return (
-                <div key={it.name} className="flex-1 min-h-[3.6rem] max-h-[7.5rem] grid grid-cols-[17rem_minmax(0,1fr)] gap-[0.9rem] items-stretch">
+                <div key={it.name} className="h-[6.5rem] shrink-0 grid grid-cols-[17rem_minmax(0,1fr)] gap-[0.9rem] items-stretch">
                   <div className="min-w-0 flex flex-col justify-center gap-[0.35rem]">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-[0.95rem] h-[0.95rem] rounded-full shrink-0" style={{ background: it.color }} />
@@ -416,6 +425,8 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
           </div>
         </div>
       )}
+
+      <Papers embedded />
 
       <MonthStrip now={now} />
 
@@ -546,12 +557,13 @@ function Alerts({ board }: { board: Board | null }) {
 
 // ---------------------------------------------------------------- QR codes
 
-function QrStrip() {
+function QrStrip({ now }: { now: Date }) {
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`;
   return (
-    <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] gap-[1.1rem]">
+    <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1.15fr)] gap-[1.1rem]">
       <QrCard title="Vendors" line="Scan to see what we need and send your quotes." url={`${base}vendor.html`} />
-      <Papers />
+      <Thought now={now} />
+      <Songs now={now} />
     </div>
   );
 }

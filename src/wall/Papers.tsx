@@ -18,7 +18,9 @@ interface Paper { id: string; title: string; authors: string; journal: string; d
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 const niceDate = (iso: string) =>
   new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${iso}T00:00:00Z`));
-const clean = (t: string) => t.replace(/<[^>]+>/g, '').replace(/\.$/, '').trim();
+// Titles arrive HTML-encoded (for example &lt;i&gt;S. aureus&lt;/i&gt;): decode, drop the tags, decode what is left.
+const decode = (s: string) => new DOMParser().parseFromString(s, 'text/html').body.textContent ?? '';
+const clean = (t: string) => decode(decode(t).replace(/<[^>]+>/g, '')).replace(/\.$/, '').replace(/\s+/g, ' ').trim();
 const firstAuthors = (s: string) => {
   const list = s.replace(/\.$/, '').split(', ').filter(Boolean);
   return list.length > 3 ? `${list.slice(0, 3).join(', ')} et al.` : list.join(', ');
@@ -57,7 +59,7 @@ async function fetchPapers(): Promise<Paper[]> {
     .slice(0, KEEP);
 }
 
-export function Papers() {
+export function Papers({ embedded = false }: { embedded?: boolean }) {
   // Europe PMC can take 15 seconds or more to answer, so the last list is kept on the device and shown straight away.
   const [papers, setPapers] = useState<Paper[]>(() => {
     try { return JSON.parse(localStorage.getItem('mb.wall.papers') ?? '[]') as Paper[]; } catch { return []; }
@@ -89,15 +91,17 @@ export function Papers() {
 
   const p = papers.length ? papers[i % papers.length] : null;
   return (
-    <section className="rounded-3xl bg-card border border-line !p-[1.2rem] flex flex-col gap-[0.6rem] min-w-0 min-h-0">
+    <section className={embedded
+      ? 'flex-1 min-h-0 flex flex-col gap-[0.6rem] min-w-0 pt-[0.9rem] border-t border-line'
+      : 'rounded-3xl bg-card border border-line !p-[1.2rem] flex flex-col gap-[0.6rem] min-w-0 min-h-0'}>
       <h2 className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted flex items-center justify-between">
         <span>New in structural biology &amp; cryo-EM</span>
         {papers.length > 1 && <span className="normal-case tracking-normal font-semibold tabular-nums">{(i % papers.length) + 1} / {papers.length}</span>}
       </h2>
       {p ? (
         <div key={p.id} className="wall-fade flex-1 min-h-0 flex flex-col justify-center gap-[0.4rem]">
-          <p className="text-[1.55rem] font-bold leading-snug line-clamp-3">{p.title}</p>
-          <p className="text-[1.1rem] text-muted truncate">{p.authors}</p>
+          <p className={`${embedded ? 'text-[2rem]' : 'text-[1.55rem]'} font-bold leading-snug line-clamp-3`}>{p.title}</p>
+          <p className={`${embedded ? 'text-[1.25rem]' : 'text-[1.1rem]'} text-muted truncate`}>{p.authors}</p>
           <p className="text-[1.1rem] text-muted truncate">
             {p.preprint && <span className="mr-2 rounded-full bg-accent/15 text-accent font-bold text-[0.9rem] px-[0.6rem] py-[0.05rem]">PREPRINT</span>}
             {!(p.preprint && p.journal === 'Preprint') && <span className="text-ink/80 font-semibold">{p.journal} · </span>}{p.date && niceDate(p.date)}
