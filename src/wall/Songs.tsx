@@ -235,10 +235,10 @@ async function lookup(song: Song): Promise<Found | null> {
   return found;
 }
 
-type RGB = [number, number, number];
+export type RGB = [number, number, number];
 
 /** The cover's main colour: the most vivid, mid-bright pixels, averaged. Null if the image cannot be read. */
-function dominantColour(url: string): Promise<RGB | null> {
+export function dominantColour(url: string): Promise<RGB | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';

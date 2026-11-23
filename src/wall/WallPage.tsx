@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { MonthStrip } from './MonthCalendar';
 import { Papers } from './Papers';
-import { Songs } from './Songs';
+import { Science } from './Science';
 import { Thought } from './Thought';
 import { Picture } from './Picture';
 import { Ticker } from './Ticker';
@@ -528,7 +528,7 @@ function QrStrip({ now, quote }: { now: Date; quote: { text: string; author: str
     <div className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1.15fr)] gap-[1.1rem]">
       <QrCard title="Vendors" line="Scan to see what we need and send us a quote." url={`${base}vendor.html`} />
       <Thought now={now} quote={quote} />
-      <Songs now={now} />
+      <Science now={now} />
     </div>
   );
 }

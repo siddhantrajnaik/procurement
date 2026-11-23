@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@babylonjs/core": "^9.37.2",
     "@supabase/supabase-js": "^2.58.0",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^0.546.0",
