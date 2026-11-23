@@ -392,34 +392,31 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
         </div>
       )}
 
+      {!evening && (
+        <div className="shrink-0 flex items-center gap-x-[1rem] gap-y-[0.3rem] flex-wrap -mt-[0.2rem]">
+          <span className={`${heading} shrink-0`}>
+            Tomorrow
+            {board && <span className="ml-3 normal-case tracking-normal font-semibold text-ink/70">{shortDay(board.tomorrow)}</span>}
+          </span>
+          {tomorrows.length === 0 ? (
+            <span className="rounded-full bg-emerald-500/15 text-emerald-300 text-[1.05rem] font-bold px-[0.7rem] py-[0.05rem]">Hood available</span>
+          ) : (
+            tomorrows.slice(0, 4).map((b, i) => (
+              <span key={i} className="inline-flex items-center gap-[0.5rem] rounded-full bg-paper border border-line px-[0.8rem] py-[0.15rem] text-[1.1rem] min-w-0">
+                <span className="w-[0.6rem] h-[0.6rem] rounded-full shrink-0" style={{ background: colorOf(board, b.item) }} />
+                <span className="text-muted tabular-nums">{b.start}–{b.end}</span>
+                <span className="font-semibold truncate">{b.by}</span>
+              </span>
+            ))
+          )}
+          {tomorrows.length > 4 && <span className="text-[1rem] text-muted">+ {tomorrows.length - 4} more</span>}
+        </div>
+      )}
+
       <Papers embedded />
 
       <MonthStrip now={now} />
 
-      {!evening && (
-        <div className="pt-[0.9rem] border-t border-line">
-          <h3 className={`${heading} mb-[0.6rem]`}>
-            Tomorrow
-            {board && <span className="ml-3 normal-case tracking-normal font-semibold text-ink/70">{shortDay(board.tomorrow)}</span>}
-            {tomorrows.length > 0 && <span className="ml-3 normal-case tracking-normal font-normal">· {tomorrows.length} booking{tomorrows.length === 1 ? '' : 's'}</span>}
-          </h3>
-          {tomorrows.length === 0 ? (
-            <p className="text-[1.15rem] text-muted">Hood available.</p>
-          ) : (
-            <ul className="grid grid-cols-2 gap-x-[1.5rem] gap-y-[0.4rem]">
-              {tomorrows.slice(0, 6).map((b, i) => (
-                <li key={i} className="text-[1.15rem] truncate flex items-center gap-2">
-                  <span className="w-[0.6rem] h-[0.6rem] rounded-full shrink-0" style={{ background: colorOf(board, b.item) }} />
-                  <span className="text-muted tabular-nums">{b.start}–{b.end}</span>
-                  <span className="font-semibold">{b.item}</span>
-                  <span className="text-muted">· {b.by}</span>
-                </li>
-              ))}
-              {tomorrows.length > 6 && <li className="text-[1rem] text-muted">+ {tomorrows.length - 6} more</li>}
-            </ul>
-          )}
-        </div>
-      )}
     </section>
   );
 }
