@@ -34,3 +34,9 @@
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .ticker-track { animation: ticker linear infinite; }
 .ticker-mask { -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+
+/* The thought card: each slide turns in like a flipped card, with a slow glow drifting behind the words. */
+@keyframes thought-flip { from { opacity: 0; transform: rotateX(-65deg) translateY(1.2rem); transform-origin: 50% 100%; } to { opacity: 1; transform: none; transform-origin: 50% 100%; } }
+.thought-flip { animation: thought-flip 0.9s cubic-bezier(0.2, 0.7, 0.2, 1); backface-visibility: hidden; }
+@keyframes thought-drift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-8%, 6%) scale(1.12); } }
+.thought-glow { background: radial-gradient(closest-side, rgba(255, 107, 74, 0.16), transparent 70%); animation: thought-drift 14s ease-in-out infinite; }

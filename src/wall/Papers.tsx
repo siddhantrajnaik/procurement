@@ -62,7 +62,7 @@ async function fetchPapers(): Promise<Paper[]> {
 export function Papers({ embedded = false }: { embedded?: boolean }) {
   // Europe PMC can take 15 seconds or more to answer, so the last list is kept on the device and shown straight away.
   const [papers, setPapers] = useState<Paper[]>(() => {
-    try { return JSON.parse(localStorage.getItem('mb.wall.papers') ?? '[]') as Paper[]; } catch { return []; }
+    try { return (JSON.parse(localStorage.getItem('mb.wall.papers') ?? '[]') as Paper[]).filter((x) => !OFF_TOPIC.test(`${x.title} ${x.journal}`)); } catch { return []; }
   });
   const [i, setI] = useState(0);
 

@@ -1,4 +1,9 @@
-// One short thought a day, the same for everyone, changing at midnight India time.
+import { useEffect, useState } from 'react';
+
+// The card takes turns showing three things: a quote, a Hindi couplet with its meaning, and a word of the day.
+// Each changes at midnight India time. The art behind it has a quotation mark at the top left and a short line at
+// the bottom left; the words go between.
+
 const THOUGHTS = [
   'A negative result is still a result. Write it down.',
   'Label the tube now. Future you will not remember.',
@@ -42,7 +47,63 @@ const THOUGHTS = [
   'Respect the freezer inventory, and it will respect you back.',
 ];
 
-/** Whole days since 1970 in India time, so the pick changes at midnight there. */
+// Couplets from Kabir, Rahim, Iqbal and Ghalib (all long in the public domain), with a plain English meaning.
+interface Shayari { hi: string; en: string; by: string }
+const SHAYARI: Shayari[] = [
+  { hi: 'धीरे-धीरे रे मना, धीरे सब कुछ होय।\nमाली सींचे सौ घड़ा, ऋतु आए फल होय॥', en: 'Slowly, slowly, O mind, everything comes in time. The gardener may water a hundred pots, but fruit arrives only in its season.', by: 'Kabir' },
+  { hi: 'पोथी पढ़ि पढ़ि जग मुआ, पंडित भया न कोय।\nढाई आखर प्रेम का, पढ़े सो पंडित होय॥', en: 'Reading books, the world wore itself out without turning wise. Whoever learns two and a half letters of love is truly learned.', by: 'Kabir' },
+  { hi: 'काल करै सो आज कर, आज करै सो अब।\nपल में परलै होएगी, बहुरि करेगा कब॥', en: "Do tomorrow's work today and today's work now. A moment can change everything. When will you do it again?", by: 'Kabir' },
+  { hi: 'निंदक नियरे राखिए, आँगन कुटी छवाय।\nबिन पानी, साबुन बिना, निर्मल करे सुभाय॥', en: 'Keep your critic close, give him a hut in your courtyard. Without water or soap he cleans your character.', by: 'Kabir' },
+  { hi: 'जिन खोजा तिन पाइयाँ, गहरे पानी पैठ।\nमैं बपुरा बूडन डरा, रहा किनारे बैठ॥', en: 'Those who searched found, by diving into deep water. I was afraid of drowning and stayed on the shore.', by: 'Kabir' },
+  { hi: 'ऐसी बानी बोलिए, मन का आपा खोय।\nऔरन को सीतल करै, आपहुँ सीतल होय॥', en: 'Speak in a way that drops your ego, so that you comfort others and yourself.', by: 'Kabir' },
+  { hi: 'रहिमन देखि बड़ेन को, लघु न दीजिए डारि।\nजहाँ काम आवै सुई, कहा करै तरवारि॥', en: 'Seeing the big, do not discard the small. Where a needle is needed, what can a sword do?', by: 'Rahim' },
+  { hi: 'रहिमन धागा प्रेम का, मत तोरो चटकाय।\nटूटे पे फिर ना जुरै, जुरै गाँठ परि जाय॥', en: 'Do not snap the thread of trust. Once broken it will not join again, or it joins with a knot.', by: 'Rahim' },
+  { hi: 'सितारों से आगे जहाँ और भी हैं,\nअभी इश्क़ के इम्तिहाँ और भी हैं।', en: 'There are worlds beyond the stars, and more tests of passion still to come.', by: 'Iqbal' },
+  { hi: 'ख़ुदी को कर बुलंद इतना कि हर तक़दीर से पहले,\nख़ुदा बंदे से ख़ुद पूछे, बता तेरी रज़ा क्या है।', en: 'Raise yourself so high that before every decree, God himself asks you: what is your wish?', by: 'Iqbal' },
+  { hi: 'बाज़ीचा-ए-अतफ़ाल है दुनिया मिरे आगे,\nहोता है शब-ओ-रोज़ तमाशा मिरे आगे।', en: "The world is a children's playground before me; day and night a spectacle unfolds.", by: 'Ghalib' },
+];
+
+interface Word { w: string; en: string; hi: string }
+const WORDS: Word[] = [
+  { w: 'serendipity', en: 'finding something good without looking for it', hi: 'सुखद संयोग' },
+  { w: 'ephemeral', en: 'lasting for a very short time', hi: 'क्षणभंगुर' },
+  { w: 'ubiquitous', en: 'found everywhere at once', hi: 'सर्वव्यापी' },
+  { w: 'meticulous', en: 'showing great care about every detail', hi: 'बारीकी से सावधान' },
+  { w: 'perseverance', en: 'steady effort despite difficulty', hi: 'लगन' },
+  { w: 'lucid', en: 'clear and easy to understand', hi: 'स्पष्ट' },
+  { w: 'tenacious', en: 'holding firmly on and not giving up', hi: 'दृढ़' },
+  { w: 'rigorous', en: 'careful, exact and thorough', hi: 'सटीक और कड़ा' },
+  { w: 'diligent', en: 'working hard and carefully', hi: 'परिश्रमी' },
+  { w: 'resilient', en: 'able to recover quickly from trouble', hi: 'लचीला' },
+  { w: 'eloquent', en: 'speaking or writing clearly and persuasively', hi: 'वाक्पटु' },
+  { w: 'pragmatic', en: 'sensible and focused on what works', hi: 'व्यावहारिक' },
+  { w: 'ineffable', en: 'too great to be put into words', hi: 'अवर्णनीय' },
+  { w: 'empirical', en: 'based on experiment and observation', hi: 'प्रयोग-आधारित' },
+  { w: 'nuance', en: 'a subtle difference in meaning or detail', hi: 'सूक्ष्म भेद' },
+  { w: 'catalyst', en: 'something that speeds up a change', hi: 'उत्प्रेरक' },
+  { w: 'paradigm', en: 'a model or pattern of how things are understood', hi: 'प्रतिमान' },
+  { w: 'equanimity', en: 'calmness of mind under stress', hi: 'समभाव' },
+  { w: 'fortitude', en: 'courage in pain or adversity', hi: 'धैर्य' },
+  { w: 'ebullient', en: 'cheerful and full of energy', hi: 'उत्साह से भरा' },
+  { w: 'luminous', en: 'giving off light, bright', hi: 'दीप्तिमान' },
+  { w: 'pensive', en: 'deep in thought', hi: 'चिंतनशील' },
+  { w: 'halcyon', en: 'calm, happy and peaceful', hi: 'सुखद और शांत' },
+  { w: 'quintessential', en: 'the perfect example of something', hi: 'सर्वोत्कृष्ट उदाहरण' },
+  { w: 'ameliorate', en: 'to make something better', hi: 'सुधारना' },
+  { w: 'assiduous', en: 'working with constant, careful attention', hi: 'लगनशील' },
+  { w: 'candid', en: 'honest and straightforward', hi: 'स्पष्टवादी' },
+  { w: 'gregarious', en: 'fond of company, sociable', hi: 'मिलनसार' },
+  { w: 'laconic', en: 'using very few words', hi: 'कम शब्दों वाला' },
+  { w: 'mellifluous', en: 'sweet and smooth to hear', hi: 'मधुर' },
+  { w: 'sagacious', en: 'wise and good at judging', hi: 'बुद्धिमान' },
+  { w: 'cogent', en: 'clear, logical and convincing', hi: 'ठोस और प्रभावी' },
+  { w: 'conundrum', en: 'a confusing puzzle or problem', hi: 'पहेली' },
+  { w: 'acumen', en: 'a sharp ability to judge and decide', hi: 'सूझ-बूझ' },
+  { w: 'zeal', en: 'great energy for a cause or goal', hi: 'उत्साह' },
+  { w: 'humility', en: 'a modest view of your own importance', hi: 'विनम्रता' },
+];
+
+/** Whole days since 1970 in India time, so the picks change at midnight there. */
 export function istDayNumber(d = new Date()): number {
   const p = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -51,23 +112,67 @@ export function istDayNumber(d = new Date()): number {
   return Math.floor(Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day)) / 86_400_000);
 }
 
-/** A famous quote of the day from the feed; if it is not available, one of the lab's own lines above. */
+const SLIDE_MS = 20_000;
+type Mode = 'quote' | 'shayari' | 'word';
+const LABEL: Record<Mode, string> = { quote: 'Quote', shayari: 'Shayari', word: 'Word of the day' };
+
+/** A famous quote from the feed (or one of the lab's own lines), then a couplet, then a word. */
 export function Thought({ now, quote }: { now: Date; quote: { text: string; author: string } | null }) {
-  const own = THOUGHTS[istDayNumber(now) % THOUGHTS.length];
-  // The card art has a coral quotation mark at the top left and a short line at the bottom left; the words go between.
+  const day = istDayNumber(now);
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setN((x) => x + 1), SLIDE_MS);
+    return () => clearInterval(id);
+  }, []);
+  const mode: Mode = (['quote', 'shayari', 'word'] as const)[n % 3];
+  const own = THOUGHTS[day % THOUGHTS.length];
+  const sh = SHAYARI[day % SHAYARI.length];
+  const wd = WORDS[day % WORDS.length];
+
   return (
     <section
       className="relative rounded-3xl border border-line overflow-hidden bg-card bg-cover bg-center min-w-0 min-h-0"
-      style={{ backgroundImage: `url(${import.meta.env.BASE_URL}wall-quote-bg.webp)` }}
+      style={{ backgroundImage: `url(${import.meta.env.BASE_URL}wall-quote-bg.webp)`, perspective: '1100px' }}
       aria-label="Thought of the day"
     >
-      <p className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex items-center text-[1.5rem] font-bold leading-snug text-ink">
-        <span className="line-clamp-4">{quote ? quote.text : own}</span>
-      </p>
-      {quote && (
-        <p className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-muted truncate">{'—'} {quote.author}</p>
-      )}
-      {quote && <p className="absolute right-[3%] top-[5%] text-[0.75rem] text-muted/50">ZenQuotes.io</p>}
+      {/* a slow drifting glow behind the words, for a little depth */}
+      <span className="thought-glow pointer-events-none absolute -right-[10%] -top-[40%] w-[60%] h-[140%] rounded-full" aria-hidden />
+
+      {/* each slide turns in on its own, like a card being flipped up */}
+      <div key={mode} className="thought-flip absolute inset-0">
+        <p className="absolute right-[3%] top-[5%] text-[0.8rem] font-bold uppercase tracking-[0.14em] text-muted/60">{LABEL[mode]}</p>
+
+        {mode === 'quote' && (
+          <>
+            <p className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex items-center text-[1.5rem] font-bold leading-snug text-ink">
+              <span className="line-clamp-4">{quote ? quote.text : own}</span>
+            </p>
+            {quote && <p className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-muted truncate">{'—'} {quote.author}</p>}
+          </>
+        )}
+
+        {mode === 'shayari' && (
+          <>
+            <div className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex flex-col justify-center gap-[0.35rem]">
+              <p lang="hi" className="whitespace-pre-line text-[1.3rem] font-bold leading-snug text-ink">{sh.hi}</p>
+              <p className="text-[0.95rem] leading-snug text-muted line-clamp-2">{sh.en}</p>
+            </div>
+            <p className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-muted truncate">{'—'} {sh.by}</p>
+          </>
+        )}
+
+        {mode === 'word' && (
+          <>
+            <div className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex flex-col justify-center gap-[0.3rem]">
+              <p className="text-[2rem] font-extrabold leading-none tracking-tight text-ink">{wd.w}</p>
+              <p className="text-[1.2rem] leading-snug text-muted line-clamp-2">{wd.en}</p>
+            </div>
+            <p lang="hi" className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-accent truncate">{wd.hi}</p>
+          </>
+        )}
+      </div>
+
+      {mode === 'quote' && quote && <p className="absolute right-[3%] bottom-[5%] text-[0.75rem] text-muted/50">ZenQuotes.io</p>}
     </section>
   );
 }
