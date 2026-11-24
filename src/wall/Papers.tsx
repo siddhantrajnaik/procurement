@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FitText } from './FitText';
 
 // Newest structural-biology and cryo-EM papers from Europe PMC (free, no key). It lists journal articles and
 // preprints together, so bioRxiv cryo-EM work shows up as soon as it is posted.
@@ -116,7 +117,9 @@ export function Papers({ embedded = false }: { embedded?: boolean }) {
       </h2>
       {p ? (
         <div key={p.id} className="wall-fade flex-1 min-h-0 flex flex-col justify-center gap-[0.4rem]">
-          <p className={`${embedded ? 'text-[2rem]' : 'text-[1.55rem]'} font-bold leading-snug line-clamp-3`}>{p.title}</p>
+          <div className="flex-1 min-h-0 flex items-center">
+            <FitText max={embedded ? 2 : 1.55} min={1.05} className="w-full font-bold leading-snug">{p.title}</FitText>
+          </div>
           <p className={`${embedded ? 'text-[1.25rem]' : 'text-[1.1rem]'} text-muted truncate`}>{p.authors}</p>
           <p className="text-[1.1rem] text-muted truncate">
             {p.preprint && <span className="mr-2 rounded-full bg-accent/15 text-accent font-bold text-[0.9rem] px-[0.6rem] py-[0.05rem]">PREPRINT</span>}

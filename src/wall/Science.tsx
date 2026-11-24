@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FitText } from './FitText';
 import { dominantColour } from './Songs';
 import type { RGB } from './Songs';
 import { FAMOUS } from './proteins';
@@ -174,7 +175,9 @@ export function Science({ now }: { now: Date }) {
       </div>
       <div key={kind} className="wall-fade min-w-0 flex flex-col gap-[0.3rem]">
         <p className="text-[1.05rem] font-bold uppercase tracking-[0.16em] text-muted truncate">{label}</p>
-        <p className="text-[1.45rem] font-extrabold leading-tight line-clamp-2">{kind === 'pod' ? famous.name : info.title}</p>
+        <div className="h-[3.7rem] flex items-center">
+          <FitText max={1.45} min={0.95} className="w-full font-extrabold leading-tight">{kind === 'pod' ? famous.name : info.title}</FitText>
+        </div>
         <p className="text-[1.05rem] text-ink/80 truncate">{meta}</p>
         <p className="text-[1rem] text-muted leading-snug line-clamp-2">
           {kind === 'pod' ? famous.fact : `Released ${niceDate(info.released)} in the Protein Data Bank`}

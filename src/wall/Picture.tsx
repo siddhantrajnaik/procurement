@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FitText } from './FitText';
 
 // A new picture every day: Wikimedia Commons "Picture of the Day" (free, no key, credit shown as the licence asks).
 const FEED = 'https://api.wikimedia.org/feed/v1/wikipedia/en/featured';
@@ -81,7 +82,11 @@ export function Picture({ motm }: { motm: Motm | null }) {
             <img src={pic.src} alt={pic.caption} onError={() => setPicBroken(true)} className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-x-0 bottom-0 pt-[3rem] px-[1.2rem] pb-[1rem] bg-gradient-to-t from-black/85 via-black/55 to-transparent">
               <p className="text-[0.95rem] font-bold uppercase tracking-[0.16em] text-white/70">Picture of the day</p>
-              {pic.caption && <p className="text-[1.2rem] font-semibold leading-snug text-white line-clamp-1 mt-[0.2rem]">{pic.caption}</p>}
+              {pic.caption && (
+                <div className="h-[1.9rem] mt-[0.2rem] text-white">
+                  <FitText oneLine max={1.2} min={0.8} className="font-semibold leading-snug">{pic.caption}</FitText>
+                </div>
+              )}
               {pic.credit && <p className="text-[0.9rem] text-white/60 mt-[0.2rem] truncate">{pic.credit}</p>}
             </div>
           </>
@@ -92,8 +97,14 @@ export function Picture({ motm }: { motm: Motm | null }) {
             <img src={motm.image} alt={motm.title} onError={() => setMotmBroken(true)} className="absolute inset-x-0 top-0 h-[calc(100%-5.6rem)] w-full object-contain p-[0.6rem]" />
             <div className="absolute inset-x-0 bottom-0 px-[1.2rem] py-[0.8rem] bg-[#161616] border-t border-line">
               <p className="text-[0.95rem] font-bold uppercase tracking-[0.16em] text-accent">Molecule of the month</p>
-              <p className="text-[1.35rem] font-bold leading-tight text-ink truncate mt-[0.1rem]">{motm.title}</p>
-              {motm.blurb && <p className="text-[1.05rem] text-muted leading-snug truncate">{motm.blurb}</p>}
+              <div className="h-[2rem] mt-[0.1rem] text-ink">
+                <FitText oneLine max={1.35} min={0.85} className="font-bold leading-tight">{motm.title}</FitText>
+              </div>
+              {motm.blurb && (
+                <div className="h-[1.6rem] text-muted">
+                  <FitText oneLine max={1.05} min={0.8} className="leading-snug">{motm.blurb}</FitText>
+                </div>
+              )}
               <p className="sr-only">RCSB PDB-101</p>
             </div>
           </>

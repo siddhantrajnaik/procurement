@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FitText } from './FitText';
 
 // The card takes turns showing three things: a quote and a word of the day.
 // Each changes at midnight India time. The art behind it has a quotation mark at the top left and a short line at
@@ -185,20 +186,30 @@ export function Thought({ now, quote }: { now: Date; quote: { text: string; auth
 
         {mode === 'quote' && (
           <>
-            <p className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex items-center text-[1.5rem] font-bold leading-snug text-ink">
-              <span className="line-clamp-4">{quote ? quote.text : own}</span>
-            </p>
-            {quote && <p className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-muted truncate">{'—'} {quote.author}</p>}
+            <div className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex items-center">
+              <FitText max={1.6} min={0.9} className="w-full font-bold leading-snug text-ink">{quote ? quote.text : own}</FitText>
+            </div>
+            {quote && (
+              <div className="absolute left-[16%] right-[4%] bottom-[7%] h-[2rem] text-muted">
+                <FitText oneLine max={1.15} min={0.8}>{'—'} {quote.author}</FitText>
+              </div>
+            )}
           </>
         )}
 
         {mode === 'word' && (
           <>
-            <div className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex flex-col justify-center gap-[0.3rem]">
+            <div className="absolute left-[16%] right-[4%] top-[12%] bottom-[24%] flex flex-col gap-[0.3rem]">
               <p className="text-[2rem] font-extrabold leading-none tracking-tight text-ink">{wd.w}</p>
-              <p className="text-[1.2rem] leading-snug text-muted line-clamp-2">{wd.en}</p>
+              <div className="flex-1 min-h-0">
+                <FitText max={1.2} min={0.85} className="leading-snug text-muted">{wd.en}</FitText>
+              </div>
             </div>
-            {wd.hi && <p lang="hi" className="absolute left-[16%] right-[4%] bottom-[7%] text-[1.15rem] text-accent truncate">{wd.hi}</p>}
+            {wd.hi && (
+              <div lang="hi" className="absolute left-[16%] right-[4%] bottom-[7%] h-[2rem] text-accent">
+                <FitText oneLine max={1.15} min={0.8}>{wd.hi}</FitText>
+              </div>
+            )}
           </>
         )}
       </div>
