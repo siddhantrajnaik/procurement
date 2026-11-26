@@ -300,9 +300,11 @@ function Bookings({ board, now }: { board: Board | null; now: Date }) {
   // The cell culture hood is always shown. Any other instrument appears only on a day someone has booked it.
   const items = useMemo(() => {
     if (!board) return [];
-    const hood = board.items.filter((i) => i.hood);
+    // Only the cell culture hood is pinned; the bacterial hood and everything else count as "others".
+    const pinned = (name: string) => /cell\s*culture/i.test(name);
+    const hood = board.items.filter((i) => pinned(i.name));
     const rows = hood.length ? hood : [{ name: 'Cell Culture Hood', color: '#f59e0b', hood: true }];
-    const others = board.items.filter((i) => !i.hood && shown.some((b) => b.item === i.name));
+    const others = board.items.filter((i) => !pinned(i.name) && shown.some((b) => b.item === i.name));
     return [...rows, ...others];
   }, [board, shown]);
   const tomorrows = evening ? [] : (board?.bookings ?? []).filter((b) => b.date === board?.tomorrow).sort(byStart);
